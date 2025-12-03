@@ -235,3 +235,29 @@ func escapeMarkdown(text string) string {
 
 	return result
 }
+
+// escapeMDX escapes characters for MDX content (compatible with MarkdownGenerator)
+// This is a compatibility function that provides basic HTML escaping for MDX
+func escapeMDX(text string) string {
+	if text == "" {
+		return ""
+	}
+
+	result := text
+
+	// HTML entities (must be escaped for valid HTML/JSX)
+	result = strings.ReplaceAll(result, "&", "&amp;")
+	result = strings.ReplaceAll(result, "<", "&lt;")
+	result = strings.ReplaceAll(result, ">", "&gt;")
+	result = strings.ReplaceAll(result, "\"", "&quot;")
+	result = strings.ReplaceAll(result, "'", "&#39;")
+
+	// JSX-specific characters that could break JSX parsing
+	result = strings.ReplaceAll(result, "{", "\\{")
+	result = strings.ReplaceAll(result, "}", "\\}")
+
+	// Tab normalization
+	result = strings.ReplaceAll(result, "\t", "\\t")
+
+	return result
+}

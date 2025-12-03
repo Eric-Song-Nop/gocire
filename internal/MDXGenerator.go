@@ -55,8 +55,10 @@ func (m *MDXGenerator) outputGapText(start, end scip.Position, sb *strings.Build
 	gapRange := scip.Range{Start: start, End: end}
 	content := getSourceFromSpan(m.sourceLines, gapRange)
 
-	// Escape the content for JSX
-	sb.WriteString(escapeMDX(content))
+	// Use unified template literal format, avoid nesting
+	sb.WriteString("<span className=\"cire_text\">{`")
+	sb.WriteString(escapeMDXForTemplateLiteral(content))
+	sb.WriteString("`}</span>")
 }
 
 func (m *MDXGenerator) outputRemainingText(startPos scip.Position, sb *strings.Builder) {
@@ -77,66 +79,100 @@ func (m *MDXGenerator) outputRemainingText(startPos scip.Position, sb *strings.B
 
 	endRange := scip.Range{Start: startPos, End: fileEndPos}
 	content := getSourceFromSpan(m.sourceLines, endRange)
-	sb.WriteString(escapeMDX(content))
+
+	// Use unified template literal format
+	sb.WriteString("<span className=\"cire_text\">{`")
+	sb.WriteString(escapeMDXForTemplateLiteral(content))
+	sb.WriteString("`}</span>")
 }
 
 func (m *MDXGenerator) outputTokenJSX(token TokenInfo, sb *strings.Builder) {
 	content := getSourceFromSpan(m.sourceLines, token.Span)
-	escapedContent := escapeMDX(content)
+	escapedContent := escapeMDXForTemplateLiteral(content) // Use template literal escaping
 
 	var cssClass string
 	if token.HighlightClass != "" {
 		cssClass = token.HighlightClass
 	}
 
+	// Build template literal content
+	templateContent := "{`" + escapedContent + "`}"
+
 	switch {
 	case token.IsDefinition:
 		fmt.Fprintf(sb, `<span id="%s" className="%s">%s</span>`,
-			escapeMDX(token.Symbol), cssClass, escapedContent)
+			escapeMDXAttribute(token.Symbol), cssClass, templateContent)
 	case token.IsReference:
 		fmt.Fprintf(sb, `<a href="#%s" className="%s">%s</a>`,
-			escapeMDX(token.Symbol), cssClass, escapedContent)
+			escapeMDXAttribute(token.Symbol), cssClass, templateContent)
 	case cssClass != "":
 		fmt.Fprintf(sb, `<span className="%s">%s</span>`,
-			cssClass, escapedContent)
+			cssClass, templateContent)
 	default:
-		sb.WriteString(escapedContent)
+		sb.WriteString("<span className=\"cire_text\">")
+		sb.WriteString(templateContent)
+		sb.WriteString("</span>")
 	}
 
 	// TODO: don't show inlay hints for now
 	if len(token.InlayText) > 0 && false {
 		sb.WriteString(" ")
 		for _, hint := range token.InlayText {
-			sb.WriteString(escapeMDX(hint))
+			sb.WriteString(escapeMDXForTemplateLiteral(hint))
 		}
 	}
 }
 
-// escapeMDX escapes characters for MDX JSX content
-// This handles HTML entities, JSX-specific characters, and Markdown conflicts
-func escapeMDX(text string) string {
+// escapeMDXForTemplateLiteral escapes characters for MDX template literal content
+// This handles HTML entities and template literal-specific characters
+func escapeMDXForTemplateLiteral(text string) string {
 	if text == "" {
 		return ""
 	}
 
 	result := text
 
-	// HTML entities (must be escaped for valid HTML/JSX) - do this first
+	// HTML entity escaping (required)
 	result = strings.ReplaceAll(result, "&", "&amp;")
 	result = strings.ReplaceAll(result, "<", "&lt;")
 	result = strings.ReplaceAll(result, ">", "&gt;")
-	result = strings.ReplaceAll(result, "\"", "&quot;")
-	result = strings.ReplaceAll(result, "'", "\\'")
 
-	// JSX-specific characters that could break JSX parsing
+	// Template literal specific escaping
+	result = strings.ReplaceAll(result, "\\", "\\\\") // Escape backslashes
+	result = strings.ReplaceAll(result, "`", "\\`")   // Escape backticks
+	result = strings.ReplaceAll(result, "${", "\\${") // Prevent variable interpolation
+
+	// Tab normalization (convert to escape sequence)
+	result = strings.ReplaceAll(result, "\t", "\\t")
+
+	// Other characters that need explicit handling in template literals
+	result = strings.ReplaceAll(result, "\r", "\\r") // Carriage return
+
+	return result
+}
+
+// escapeMDXAttribute escapes characters for MDX JSX attribute values
+// This handles HTML entities and JSX-specific characters for attributes
+func escapeMDXAttribute(text string) string {
+	if text == "" {
+		return ""
+	}
+
+	result := text
+
+	// Complete HTML entity escaping
+	result = strings.ReplaceAll(result, "&", "&amp;")
+	result = strings.ReplaceAll(result, "<", "&lt;")
+	result = strings.ReplaceAll(result, ">", "&gt;")
+	// result = strings.ReplaceAll(result, "\"", "&quot;")
+	result = strings.ReplaceAll(result, "'", "&#39;")
+
+	// Tab normalization
+	result = strings.ReplaceAll(result, "\t", "\\t")
+
+	// JSX special character escaping for attributes
 	result = strings.ReplaceAll(result, "{", "\\{")
 	result = strings.ReplaceAll(result, "}", "\\}")
-
-	// Markdown conflicts that could interfere with MDX parsing
-	result = strings.ReplaceAll(result, "*", "\\*") // Prevent italic/bold parsing
-	result = strings.ReplaceAll(result, "#", "\\#") // Prevent heading parsing
-	result = strings.ReplaceAll(result, "`", "\\`") // Prevent inline code parsing
-	result = strings.ReplaceAll(result, "|", "\\|") // Prevent table parsing
 
 	return result
 }

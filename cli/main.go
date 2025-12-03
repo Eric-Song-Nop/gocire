@@ -112,4 +112,9 @@ func main() {
 	}
 
 	fmt.Printf("%s generated at: %s\n", strings.Title(*format), finalOutPath)
+	println(`
+		hahah
+hahah
+		hhhhh
+`)
 }
