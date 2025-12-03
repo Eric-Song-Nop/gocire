@@ -3,8 +3,22 @@ module github.com/Eric-Song-Nop/gocire
 go 1.25.4
 
 require (
+	github.com/UserNobody14/tree-sitter-dart v0.0.0-20251004150700-d4d8f3e337d8
 	github.com/cockroachdb/errors v1.11.1
 	github.com/sourcegraph/scip v0.6.1
+	github.com/tree-sitter/go-tree-sitter v0.25.0
+	github.com/tree-sitter/tree-sitter-c v0.24.1
+	github.com/tree-sitter/tree-sitter-c-sharp v0.23.1
+	github.com/tree-sitter/tree-sitter-cpp v0.23.4
+	github.com/tree-sitter/tree-sitter-go v0.25.0
+	github.com/tree-sitter/tree-sitter-haskell v0.23.1
+	github.com/tree-sitter/tree-sitter-java v0.23.5
+	github.com/tree-sitter/tree-sitter-javascript v0.25.0
+	github.com/tree-sitter/tree-sitter-php v0.24.2
+	github.com/tree-sitter/tree-sitter-python v0.25.0
+	github.com/tree-sitter/tree-sitter-ruby v0.23.1
+	github.com/tree-sitter/tree-sitter-rust v0.24.0
+	github.com/tree-sitter/tree-sitter-typescript v0.23.2
 	google.golang.org/protobuf v1.31.0
 )
 
@@ -49,6 +63,7 @@ require (
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
+	github.com/mattn/go-pointer v0.0.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/moby/term v0.5.0 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect

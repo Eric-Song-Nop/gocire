@@ -13,6 +13,7 @@ func main() {
 	srcPath := flag.String("src", "", "source file path")
 	indexPath := flag.String("index", "./index.scip", "SCIP Index File Path")
 	outPath := flag.String("output", "", "Output file path (optional). Defaults to source file path with .md extension")
+	lang := flag.String("lang", "", "Language for syntax highlighting (optional)")
 	flag.Parse()
 
 	if *srcPath == "" {
@@ -27,19 +28,38 @@ func main() {
 		os.Exit(1)
 	}
 
+	// SCIP Analysis (optional if index file doesn't exist)
+	var scipAnalyzer *internal.SCIPAnalyer
 	absIndexPath, err := filepath.Abs(*indexPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to resolve index path: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "Warning: failed to resolve index path: %v. SCIP analysis will be skipped.\n", err)
+	} else {
+		scipAnalyzer, err = internal.NewSCIPAnalyer(absIndexPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Load SCIP index file failed: %v. SCIP analysis will be skipped.\n", err)
+		}
 	}
 
 	fmt.Printf("Source path: %s\n", absSrcPath)
-	fmt.Printf("Index path: %s\n", absIndexPath)
+	if scipAnalyzer != nil {
+		fmt.Printf("Index path: %s\n", absIndexPath)
+	}
 
-	analyzer, err := internal.NewSCIPAnalyer(absIndexPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Load scip index file failed: %v\n", err)
-		os.Exit(1)
+	var tokens []internal.TokenInfo
+
+	if scipAnalyzer != nil {
+		tokens = append(tokens, scipAnalyzer.Analyze(absSrcPath)...)
+	}
+
+	// Syntax Highlighting Analysis
+	if *lang != "" {
+		highlightAnalyzer := internal.NewHighlightAnalyzer(*lang)
+		highlightTokens, err := highlightAnalyzer.Analyze(absSrcPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Highlight analysis failed: %v\n", err)
+			os.Exit(1)
+		}
+		tokens = append(tokens, highlightTokens...)
 	}
 
 	generator, err := internal.NewMarkdownGenerator(absSrcPath)
@@ -47,8 +67,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error: Load source file failed for generator: %v\n", err)
 		os.Exit(1)
 	}
-
-	tokens := analyzer.Analyze(absSrcPath)
 
 	internal.SortTokens(tokens)
 	tokens, err = internal.MergeSplitTokens(tokens)
@@ -64,7 +82,7 @@ func main() {
 		finalOutPath = absSrcPath + ".md"
 	}
 
-	err = os.WriteFile(finalOutPath, []byte(markdown), 0644)
+	err = os.WriteFile(finalOutPath, []byte(markdown), 0o644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: Failed to write output file: %v\n", err)
 		os.Exit(1)
