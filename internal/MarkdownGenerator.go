@@ -1,12 +1,14 @@
 package internal
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
 	"github.com/sourcegraph/scip/bindings/go/scip"
 )
 
+// MarkdownGenerator generates markdown code from source code
 type MarkdownGenerator struct {
 	sourceLines []string
 }
@@ -22,15 +24,96 @@ func NewMarkdownGenerator(sourcePath string) (*MarkdownGenerator, error) {
 	}, nil
 }
 
+// GenerateMarkdown do the Markdown generation process
+//
+// Make sure that all tokens are sorted and not intersect with each other before generation.
 func (m *MarkdownGenerator) GenerateMarkdown(tokens []TokenInfo) string {
-	return "<pre><code class='cire'>" + "\n</code></pre>"
+	return "<pre><code class='cire'>" + m.generateMarkdownCode(tokens) + "\n</code></pre>"
+}
+
+func (m *MarkdownGenerator) generateMarkdownCode(tokens []TokenInfo) string {
+	var sb strings.Builder
+	currentPos := scip.Position{Line: 0, Character: 0}
+
+	for _, token := range tokens {
+		m.outputGapText(currentPos, token.Span.Start, &sb)
+
+		m.outputTokenHTML(token, &sb)
+		currentPos = token.Span.End
+	}
+
+	m.outputRemainingText(currentPos, &sb)
+	return sb.String()
+}
+
+func (m *MarkdownGenerator) outputGapText(start, end scip.Position, sb *strings.Builder) {
+	if scip.Position.Compare(start, end) == 0 {
+		return
+	}
+
+	gapRange := scip.Range{Start: start, End: end}
+	content := getSourceFromSpan(m.sourceLines, gapRange)
+
+	sb.WriteString(escapeHTML(content))
+}
+
+func (m *MarkdownGenerator) outputRemainingText(startPos scip.Position, sb *strings.Builder) {
+	if len(m.sourceLines) == 0 {
+		return
+	}
+
+	lastLineIdx := len(m.sourceLines) - 1
+	lastLine := m.sourceLines[lastLineIdx]
+	fileEndPos := scip.Position{
+		Line:      int32(lastLineIdx),
+		Character: int32(len([]rune(lastLine))),
+	}
+
+	if scip.Position.Compare(startPos, fileEndPos) >= 0 {
+		return
+	}
+
+	endRange := scip.Range{Start: startPos, End: fileEndPos}
+	content := getSourceFromSpan(m.sourceLines, endRange)
+	sb.WriteString(escapeHTML(content))
+}
+
+func (m *MarkdownGenerator) outputTokenHTML(token TokenInfo, sb *strings.Builder) {
+	content := getSourceFromSpan(m.sourceLines, token.Span)
+	escapedContent := escapeHTML(content)
+
+	var cssClass string
+	if token.HighlightClass != "" {
+		cssClass = token.HighlightClass
+	}
+
+	switch {
+	case token.IsDefinition:
+		fmt.Fprintf(sb, `<span id="%s" class="%s definition">%s</span>`,
+			escapeHTML(token.Symbol), cssClass, escapedContent)
+	case token.IsReference:
+		fmt.Fprintf(sb, `<a href="#%s" class="%s reference">%s</a>`,
+			escapeHTML(token.Symbol), cssClass, escapedContent)
+	case cssClass != "":
+		fmt.Fprintf(sb, `<span class="%s">%s</span>`,
+			cssClass, escapedContent)
+	default:
+		sb.WriteString(escapedContent)
+	}
+
+	// TODO: don't show inlay hints for now
+	if len(token.InlayText) > 0 && false {
+		sb.WriteString(" ")
+		for _, hint := range token.InlayText {
+			sb.WriteString(escapeHTML(hint))
+		}
+	}
 }
 
 func getSourceFromSpan(sourceLines []string, s scip.Range) string {
 	startLine := s.Start.Line
 	endLine := s.End.Line
 
-	// Check bounds
 	if startLine < 0 || endLine < 0 || startLine >= int32(len(sourceLines)) {
 		return ""
 	}
@@ -38,7 +121,6 @@ func getSourceFromSpan(sourceLines []string, s scip.Range) string {
 		endLine = int32(len(sourceLines)) - 1
 	}
 
-	// Single line case
 	if startLine == endLine {
 		if startLine >= int32(len(sourceLines)) {
 			return ""
@@ -48,7 +130,6 @@ func getSourceFromSpan(sourceLines []string, s scip.Range) string {
 		startChar := s.Start.Character
 		endChar := s.End.Character
 
-		// Check character bounds
 		if startChar < 0 || startChar > int32(len(runes)) {
 			startChar = 0
 		}
@@ -62,10 +143,8 @@ func getSourceFromSpan(sourceLines []string, s scip.Range) string {
 		return string(runes[startChar:endChar])
 	}
 
-	// Multi-line case
 	var result strings.Builder
 
-	// First line
 	if startLine < int32(len(sourceLines)) {
 		firstLine := sourceLines[startLine]
 		firstRunes := []rune(firstLine)
@@ -76,7 +155,6 @@ func getSourceFromSpan(sourceLines []string, s scip.Range) string {
 		result.WriteString("\n")
 	}
 
-	// Middle lines
 	for i := startLine + 1; i < endLine; i++ {
 		if i < int32(len(sourceLines)) {
 			result.WriteString(sourceLines[i])
@@ -84,7 +162,6 @@ func getSourceFromSpan(sourceLines []string, s scip.Range) string {
 		}
 	}
 
-	// Last line
 	if endLine < int32(len(sourceLines)) {
 		lastLine := sourceLines[endLine]
 		lastRunes := []rune(lastLine)

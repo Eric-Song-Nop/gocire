@@ -12,6 +12,7 @@ import (
 func main() {
 	srcPath := flag.String("src", "", "source file path")
 	indexPath := flag.String("index", "./index.scip", "SCIP Index File Path")
+	outPath := flag.String("output", "", "Output file path (optional). Defaults to source file path with .md extension")
 	flag.Parse()
 
 	if *srcPath == "" {
@@ -57,5 +58,17 @@ func main() {
 	}
 
 	markdown := generator.GenerateMarkdown(tokens)
-	fmt.Println(markdown)
+
+	finalOutPath := *outPath
+	if finalOutPath == "" {
+		finalOutPath = absSrcPath + ".md"
+	}
+
+	err = os.WriteFile(finalOutPath, []byte(markdown), 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: Failed to write output file: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Markdown generated at: %s\n", finalOutPath)
 }
