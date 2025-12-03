@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Eric-Song-Nop/gocire/internal"
 )
@@ -12,8 +13,9 @@ import (
 func main() {
 	srcPath := flag.String("src", "", "source file path")
 	indexPath := flag.String("index", "./index.scip", "SCIP Index File Path")
-	outPath := flag.String("output", "", "Output file path (optional). Defaults to source file path with .md extension")
+	outPath := flag.String("output", "", "Output file path (optional). Defaults to source file path with appropriate extension")
 	lang := flag.String("lang", "", "Language for syntax highlighting (optional)")
+	format := flag.String("format", "mdx", "Output format: markdown or mdx")
 	flag.Parse()
 
 	if *srcPath == "" {
@@ -40,6 +42,13 @@ func main() {
 		}
 	}
 
+	// Validate format
+	if *format != "markdown" && *format != "mdx" {
+		fmt.Fprintf(os.Stderr, "Error: format must be 'markdown' or 'mdx'\n")
+		flag.Usage()
+		os.Exit(1)
+	}
+
 	fmt.Printf("Source path: %s\n", absSrcPath)
 	if scipAnalyzer != nil {
 		fmt.Printf("Index path: %s\n", absIndexPath)
@@ -62,12 +71,7 @@ func main() {
 		tokens = append(tokens, highlightTokens...)
 	}
 
-	generator, err := internal.NewMarkdownGenerator(absSrcPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Load source file failed for generator: %v\n", err)
-		os.Exit(1)
-	}
-
+	// Sort and merge tokens first
 	internal.SortTokens(tokens)
 	tokens, err = internal.MergeSplitTokens(tokens)
 	if err != nil {
@@ -75,18 +79,37 @@ func main() {
 		os.Exit(1)
 	}
 
-	markdown := generator.GenerateMarkdown(tokens)
+	var output string
+	if *format == "mdx" {
+		generator, err := internal.NewMDXGenerator(absSrcPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Load source file failed for MDX generator: %v\n", err)
+			os.Exit(1)
+		}
+		output = generator.GenerateMDX(tokens)
+	} else {
+		generator, err := internal.NewMarkdownGenerator(absSrcPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Load source file failed for generator: %v\n", err)
+			os.Exit(1)
+		}
+		output = generator.GenerateMarkdown(tokens, false)
+	}
 
 	finalOutPath := *outPath
 	if finalOutPath == "" {
-		finalOutPath = absSrcPath + ".md"
+		if *format == "mdx" {
+			finalOutPath = absSrcPath + ".mdx"
+		} else {
+			finalOutPath = absSrcPath + ".md"
+		}
 	}
 
-	err = os.WriteFile(finalOutPath, []byte(markdown), 0o644)
+	err = os.WriteFile(finalOutPath, []byte(output), 0o644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: Failed to write output file: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("Markdown generated at: %s\n", finalOutPath)
+	fmt.Printf("%s generated at: %s\n", strings.Title(*format), finalOutPath)
 }

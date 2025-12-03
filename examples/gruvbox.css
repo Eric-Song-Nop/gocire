@@ -1,0 +1,468 @@
+/* === Gruvbox Theme for CIRE Code Blocks === */
+
+/* Base container styles */
+.cire {
+  display: block;
+  padding: 1rem;
+  overflow-x: auto;
+  border-radius: 6px;
+  margin: 1rem 0;
+  border: 1px solid;
+  font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  font-variant-ligatures: common-ligatures;
+}
+
+/* === Gruvbox Light Theme === */
+
+:root .cire,
+html[data-theme='light'] .cire {
+  background-color: #fbf1c7 !important;
+  border-color: #d5c4a1 !important;
+  color: #3c3836 !important;
+}
+
+/* Gruvbox Light Syntax Highlighting */
+:root .cire .function,
+html[data-theme='light'] .cire .function {
+  color: #076678 !important;
+  font-weight: 600;
+}
+
+:root .cire .function.method,
+html[data-theme='light'] .cire .function.method {
+  color: #8f3f71 !important;
+  font-weight: 600;
+}
+
+:root .cire .function.builtin,
+html[data-theme='light'] .cire .function.builtin {
+  color: #b57614 !important;
+  font-weight: 600;
+}
+
+:root .cire .keyword,
+html[data-theme='light'] .cire .keyword {
+  color: #9d0006 !important;
+  font-weight: 600;
+}
+
+:root .cire .string,
+html[data-theme='light'] .cire .string {
+  color: #79740e !important;
+}
+
+:root .cire .string.special,
+html[data-theme='light'] .cire .string.special {
+  color: #b57614 !important;
+}
+
+:root .cire .comment,
+html[data-theme='light'] .cire .comment {
+  color: #928374 !important;
+  font-style: italic;
+}
+
+:root .cire .comment.documentation,
+html[data-theme='light'] .cire .comment.documentation {
+  color: #7c6f64 !important;
+  font-style: italic;
+}
+
+:root .cire .type,
+html[data-theme='light'] .cire .type {
+  color: #8f3f71 !important;
+}
+
+:root .cire .type.builtin,
+html[data-theme='light'] .cire .type.builtin {
+  color: #b57614 !important;
+}
+
+:root .cire .variable,
+html[data-theme='light'] .cire .variable {
+  color: #3c3836 !important;
+}
+
+:root .cire .variable.parameter,
+html[data-theme='light'] .cire .variable.parameter {
+  color: #427b58 !important;
+}
+
+:root .cire .variable.member,
+html[data-theme='light'] .cire .variable.member {
+  color: #076678 !important;
+}
+
+:root .cire .variable.builtin,
+html[data-theme='light'] .cire .variable.builtin {
+  color: #b57614 !important;
+}
+
+:root .cire .number,
+html[data-theme='light'] .cire .number {
+  color: #8f3f71 !important;
+}
+
+:root .cire .number.float,
+html[data-theme='light'] .cire .number.float {
+  color: #b57614 !important;
+}
+
+:root .cire .operator,
+html[data-theme='light'] .cire .operator {
+  color: #928374 !important;
+}
+
+:root .cire .constant,
+html[data-theme='light'] .cire .constant {
+  color: #8f3f71 !important;
+  font-weight: 600;
+}
+
+:root .cire .constant.builtin,
+html[data-theme='light'] .cire .constant.builtin {
+  color: #9d0006 !important;
+  font-weight: 600;
+}
+
+:root .cire .property,
+html[data-theme='light'] .cire .property {
+  color: #427b58 !important;
+}
+
+:root .cire .attribute,
+html[data-theme='light'] .cire .attribute {
+  color: #b57614 !important;
+}
+
+:root .cire .punctuation.bracket,
+html[data-theme='light'] .cire .punctuation.bracket {
+  color: #928374 !important;
+}
+
+:root .cire .punctuation.delimiter,
+html[data-theme='light'] .cire .punctuation.delimiter {
+  color: #928374 !important;
+}
+
+:root .cire .punctuation.special,
+html[data-theme='light'] .cire .punctuation.special {
+  color: #b57614 !important;
+}
+
+/* Escape sequences */
+:root .cire .escape,
+html[data-theme='light'] .cire .escape {
+  color: #b57614 !important;
+  font-weight: 600;
+}
+
+:root .cire .string.escape,
+html[data-theme='light'] .cire .string.escape {
+  color: #af3a03 !important;
+}
+
+/* === Gruvbox Dark Theme === */
+
+html[data-theme='dark'] .cire {
+  background-color: #282828 !important;
+  border-color: #665c54 !important;
+  color: #ebdbb2 !important;
+}
+
+/* Gruvbox Dark Syntax Highlighting */
+html[data-theme='dark'] .cire .function {
+  color: #83a598 !important;
+  font-weight: 600;
+}
+
+html[data-theme='dark'] .cire .function.method {
+  color: #d3869b !important;
+  font-weight: 600;
+}
+
+html[data-theme='dark'] .cire .function.builtin {
+  color: #fabd2f !important;
+  font-weight: 600;
+}
+
+html[data-theme='dark'] .cire .keyword {
+  color: #fb4934 !important;
+  font-weight: 600;
+}
+
+html[data-theme='dark'] .cire .string {
+  color: #b8bb26 !important;
+}
+
+html[data-theme='dark'] .cire .string.special {
+  color: #fabd2f !important;
+}
+
+html[data-theme='dark'] .cire .comment {
+  color: #928374 !important;
+  font-style: italic;
+}
+
+html[data-theme='dark'] .cire .comment.documentation {
+  color: #a89984 !important;
+  font-style: italic;
+}
+
+html[data-theme='dark'] .cire .type {
+  color: #d3869b !important;
+}
+
+html[data-theme='dark'] .cire .type.builtin {
+  color: #fabd2f !important;
+}
+
+html[data-theme='dark'] .cire .variable {
+  color: #ebdbb2 !important;
+}
+
+html[data-theme='dark'] .cire .variable.parameter {
+  color: #83a598 !important;
+}
+
+html[data-theme='dark'] .cire .variable.member {
+  color: #8ec07c !important;
+}
+
+html[data-theme='dark'] .cire .variable.builtin {
+  color: #fabd2f !important;
+}
+
+html[data-theme='dark'] .cire .number {
+  color: #d3869b !important;
+}
+
+html[data-theme='dark'] .cire .number.float {
+  color: #fabd2f !important;
+}
+
+html[data-theme='dark'] .cire .operator {
+  color: #928374 !important;
+}
+
+html[data-theme='dark'] .cire .constant {
+  color: #d3869b !important;
+  font-weight: 600;
+}
+
+html[data-theme='dark'] .cire .constant.builtin {
+  color: #fb4934 !important;
+  font-weight: 600;
+}
+
+html[data-theme='dark'] .cire .property {
+  color: #83a598 !important;
+}
+
+html[data-theme='dark'] .cire .attribute {
+  color: #fabd2f !important;
+}
+
+html[data-theme='dark'] .cire .punctuation.bracket {
+  color: #928374 !important;
+}
+
+html[data-theme='dark'] .cire .punctuation.delimiter {
+  color: #928374 !important;
+}
+
+html[data-theme='dark'] .cire .punctuation.special {
+  color: #fabd2f !important;
+}
+
+/* Escape sequences in dark mode */
+html[data-theme='dark'] .cire .escape {
+  color: #fabd2f !important;
+  font-weight: 600;
+}
+
+html[data-theme='dark'] .cire .string.escape {
+  color: #fe8019 !important;
+}
+
+/* === Links (for definitions and references) === */
+
+:root .cire a,
+html[data-theme='light'] .cire a {
+  color: #076678 !important;
+  text-decoration: none;
+  border-bottom: 1px dotted #076678;
+}
+
+html[data-theme='dark'] .cire a {
+  color: #83a598 !important;
+  text-decoration: none;
+  border-bottom: 1px dotted #83a598;
+}
+
+:root .cire a:hover,
+html[data-theme='light'] .cire a:hover,
+html[data-theme='dark'] .cire a:hover {
+  border-bottom-style: solid;
+}
+
+/* === Special keyword categories === */
+
+:root .cire .keyword.conditional,
+html[data-theme='light'] .cire .keyword.conditional,
+html[data-theme='dark'] .cire .keyword.conditional {
+  color: #cc241d !important;
+  font-weight: 600;
+}
+
+:root .cire .keyword.repeat,
+html[data-theme='light'] .cire .keyword.repeat,
+html[data-theme='dark'] .cire .keyword.repeat {
+  color: #b16286 !important;
+  font-weight: 600;
+}
+
+:root .cire .keyword.import,
+html[data-theme='light'] .cire .keyword.import,
+html[data-theme='dark'] .cire .keyword.import {
+  color: #8f3f71 !important;
+  font-weight: 600;
+}
+
+html[data-theme='dark'] .cire .keyword.conditional {
+  color: #fb4934 !important;
+  font-weight: 600;
+}
+
+html[data-theme='dark'] .cire .keyword.repeat {
+  color: #d3869b !important;
+  font-weight: 600;
+}
+
+html[data-theme='dark'] .cire .keyword.import {
+  color: #d3869b !important;
+  font-weight: 600;
+}
+
+/* === Boolean and special values === */
+
+:root .cire .constant.boolean,
+html[data-theme='light'] .cire .constant.boolean,
+html[data-theme='dark'] .cire .constant.boolean {
+  color: #9d0006 !important;
+  font-weight: 600;
+}
+
+html[data-theme='dark'] .cire .constant.boolean {
+  color: #fb4934 !important;
+  font-weight: 600;
+}
+
+/* === Character literals === */
+
+:root .cire .character,
+html[data-theme='light'] .cire .character {
+  color: #b57614 !important;
+}
+
+html[data-theme='dark'] .cire .character {
+  color: #fabd2f !important;
+}
+
+/* === Function calls vs definitions === */
+
+:root .cire .function.call,
+html[data-theme='light'] .cire .function.call {
+  color: #076678 !important;
+}
+
+:root .cire .function.macro,
+html[data-theme='light'] .cire .function.macro {
+  color: #af3a03 !important;
+  font-weight: 600;
+}
+
+html[data-theme='dark'] .cire .function.call {
+  color: #8ec07c !important;
+}
+
+html[data-theme='dark'] .cire .function.macro {
+  color: #fe8019 !important;
+  font-weight: 600;
+}
+
+/* === Responsive design === */
+@media (max-width: 996px) {
+  .cire {
+    padding: 0.75rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* === Smooth transitions === */
+.cire,
+.cire * {
+  transition: background-color 0.2s ease,
+              border-color 0.2s ease,
+              color 0.2s ease;
+}
+
+/* === Scrollbar styling for webkit browsers === */
+.cire::-webkit-scrollbar {
+  height: 8px;
+}
+
+.cire::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:root .cire::-webkit-scrollbar-thumb,
+html[data-theme='light'] .cire::-webkit-scrollbar-thumb {
+  background: #d5c4a1;
+  border-radius: 4px;
+}
+
+html[data-theme='dark'] .cire::-webkit-scrollbar-thumb {
+  background: #665c54;
+  border-radius: 4px;
+}
+
+:root .cire::-webkit-scrollbar-thumb:hover,
+html[data-theme='light'] .cire::-webkit-scrollbar-thumb:hover {
+  background: #bdae93;
+}
+
+html[data-theme='dark'] .cire::-webkit-scrollbar-thumb:hover {
+  background: #7c6f64;
+}
+
+/* === Integration with Docusaurus === */
+
+/* Ensure CIRE blocks work well alongside Docusaurus code blocks */
+div[class*='codeBlockContainer'] + .cire,
+.cire + div[class*='codeBlockContainer'] {
+  margin-top: 0.5rem;
+}
+
+/* Make sure CIRE blocks respect the page content width */
+.markdown > .cire {
+  max-width: 100%;
+}
+
+/* === Print styles === */
+@media print {
+  :root .cire,
+  html[data-theme='light'] .cire,
+  html[data-theme='dark'] .cire {
+    background: #fff !important;
+    border: 1px solid #000 !important;
+    color: #000 !important;
+    box-shadow: none;
+  }
+
+  .cire * {
+    color: #000 !important;
+  }
+}

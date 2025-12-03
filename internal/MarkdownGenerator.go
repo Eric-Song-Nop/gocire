@@ -27,26 +27,28 @@ func NewMarkdownGenerator(sourcePath string) (*MarkdownGenerator, error) {
 // GenerateMarkdown do the Markdown generation process
 //
 // Make sure that all tokens are sorted and not intersect with each other before generation.
-func (m *MarkdownGenerator) GenerateMarkdown(tokens []TokenInfo) string {
-	return "<pre><code class='cire'>" + m.generateMarkdownCode(tokens) + "\n</code></pre>"
+// The isMDX parameter determines whether to use MDX escaping.
+func (m *MarkdownGenerator) GenerateMarkdown(tokens []TokenInfo, isMDX bool) string {
+	content := m.generateMarkdownCode(tokens, isMDX)
+	return "<pre><code class='cire'>" + content + "\n</code></pre>"
 }
 
-func (m *MarkdownGenerator) generateMarkdownCode(tokens []TokenInfo) string {
+func (m *MarkdownGenerator) generateMarkdownCode(tokens []TokenInfo, isMDX bool) string {
 	var sb strings.Builder
 	currentPos := scip.Position{Line: 0, Character: 0}
 
 	for _, token := range tokens {
-		m.outputGapText(currentPos, token.Span.Start, &sb)
+		m.outputGapText(currentPos, token.Span.Start, &sb, isMDX)
 
-		m.outputTokenHTML(token, &sb)
+		m.outputTokenHTML(token, &sb, isMDX)
 		currentPos = token.Span.End
 	}
 
-	m.outputRemainingText(currentPos, &sb)
+	m.outputRemainingText(currentPos, &sb, isMDX)
 	return sb.String()
 }
 
-func (m *MarkdownGenerator) outputGapText(start, end scip.Position, sb *strings.Builder) {
+func (m *MarkdownGenerator) outputGapText(start, end scip.Position, sb *strings.Builder, isMDX bool) {
 	if scip.Position.Compare(start, end) == 0 {
 		return
 	}
@@ -54,10 +56,14 @@ func (m *MarkdownGenerator) outputGapText(start, end scip.Position, sb *strings.
 	gapRange := scip.Range{Start: start, End: end}
 	content := getSourceFromSpan(m.sourceLines, gapRange)
 
-	sb.WriteString(escapeHTML(content))
+	if isMDX {
+		sb.WriteString(escapeMDX(content))
+	} else {
+		sb.WriteString(escapeHTML(content))
+	}
 }
 
-func (m *MarkdownGenerator) outputRemainingText(startPos scip.Position, sb *strings.Builder) {
+func (m *MarkdownGenerator) outputRemainingText(startPos scip.Position, sb *strings.Builder, isMDX bool) {
 	if len(m.sourceLines) == 0 {
 		return
 	}
@@ -75,12 +81,21 @@ func (m *MarkdownGenerator) outputRemainingText(startPos scip.Position, sb *stri
 
 	endRange := scip.Range{Start: startPos, End: fileEndPos}
 	content := getSourceFromSpan(m.sourceLines, endRange)
-	sb.WriteString(escapeHTML(content))
+	if isMDX {
+		sb.WriteString(escapeMDX(content))
+	} else {
+		sb.WriteString(escapeHTML(content))
+	}
 }
 
-func (m *MarkdownGenerator) outputTokenHTML(token TokenInfo, sb *strings.Builder) {
+func (m *MarkdownGenerator) outputTokenHTML(token TokenInfo, sb *strings.Builder, isMDX bool) {
 	content := getSourceFromSpan(m.sourceLines, token.Span)
-	escapedContent := escapeHTML(content)
+	var escapedContent string
+	if isMDX {
+		escapedContent = escapeMDX(content)
+	} else {
+		escapedContent = escapeHTML(content)
+	}
 
 	var cssClass string
 	if token.HighlightClass != "" {
@@ -105,7 +120,11 @@ func (m *MarkdownGenerator) outputTokenHTML(token TokenInfo, sb *strings.Builder
 	if len(token.InlayText) > 0 && false {
 		sb.WriteString(" ")
 		for _, hint := range token.InlayText {
-			sb.WriteString(escapeHTML(hint))
+			if isMDX {
+				sb.WriteString(escapeMDX(hint))
+			} else {
+				sb.WriteString(escapeHTML(hint))
+			}
 		}
 	}
 }
