@@ -121,21 +121,22 @@ func escapeMDX(text string) string {
 
 	result := text
 
-	// HTML entities (must be escaped for valid HTML/JSX)
+	// HTML entities (must be escaped for valid HTML/JSX) - do this first
 	result = strings.ReplaceAll(result, "&", "&amp;")
 	result = strings.ReplaceAll(result, "<", "&lt;")
 	result = strings.ReplaceAll(result, ">", "&gt;")
 	result = strings.ReplaceAll(result, "\"", "&quot;")
+	result = strings.ReplaceAll(result, "'", "\\'")
 
 	// JSX-specific characters that could break JSX parsing
-	result = strings.ReplaceAll(result, "{", "&#123;")
-	result = strings.ReplaceAll(result, "}", "&#125;")
+	result = strings.ReplaceAll(result, "{", "\\{")
+	result = strings.ReplaceAll(result, "}", "\\}")
 
 	// Markdown conflicts that could interfere with MDX parsing
-	result = strings.ReplaceAll(result, "*", "&#42;")  // Prevent italic/bold parsing
-	result = strings.ReplaceAll(result, "#", "&#35;")  // Prevent heading parsing
-	result = strings.ReplaceAll(result, "`", "&#96;")  // Prevent inline code parsing
-	result = strings.ReplaceAll(result, "|", "&#124;") // Prevent table parsing
+	result = strings.ReplaceAll(result, "*", "\\*") // Prevent italic/bold parsing
+	result = strings.ReplaceAll(result, "#", "\\#") // Prevent heading parsing
+	result = strings.ReplaceAll(result, "`", "\\`") // Prevent inline code parsing
+	result = strings.ReplaceAll(result, "|", "\\|") // Prevent table parsing
 
 	return result
 }
