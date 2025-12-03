@@ -89,10 +89,10 @@ func (m *MarkdownGenerator) outputTokenHTML(token TokenInfo, sb *strings.Builder
 
 	switch {
 	case token.IsDefinition:
-		fmt.Fprintf(sb, `<span id="%s" class="%s definition">%s</span>`,
+		fmt.Fprintf(sb, `<span id="%s" class="%s">%s</span>`,
 			escapeHTML(token.Symbol), cssClass, escapedContent)
 	case token.IsReference:
-		fmt.Fprintf(sb, `<a href="#%s" class="%s reference">%s</a>`,
+		fmt.Fprintf(sb, `<a href="#%s" class="%s">%s</a>`,
 			escapeHTML(token.Symbol), cssClass, escapedContent)
 	case cssClass != "":
 		fmt.Fprintf(sb, `<span class="%s">%s</span>`,

@@ -73,31 +73,19 @@ func (h *HighlightAnalyzer) Analyze(sourcePath string) ([]TokenInfo, error) {
 	defer qc.Close()
 
 	// Fix 2 & 3: QueryCursor iteration
-	captures := qc.Captures(query, tree.RootNode(), sourceContent)
+	matches := qc.Matches(query, tree.RootNode(), sourceContent)
 
 	var tokens []TokenInfo
 
-	for {
-		match, captureIndex := captures.Next()
-		if match == nil {
-			break
-		}
-
-		// 获取 capture 名称
-		captureName := query.CaptureNames()[captureIndex]
-
-		// 获取对应的节点
-		if captureIndex < uint(len(match.Captures)) {
-			capture := match.Captures[captureIndex]
+	for match := matches.Next(); match != nil; match = matches.Next() {
+		for _, capture := range match.Captures {
 			node := capture.Node
-
-			// 提取 token 信息，只设置 HighlightClass 和 Span
 			token := TokenInfo{
-				Symbol:         "",          // 保持为空
-				IsReference:    false,       // 设置为 false
-				IsDefinition:   false,       // 设置为 false
-				HighlightClass: captureName, // 使用 capture 名称作为高亮类别
-				InlayText:      []string{},  // 保持为空
+				Symbol:         "",
+				IsReference:    false,
+				IsDefinition:   false,
+				HighlightClass: query.CaptureNames()[capture.Index],
+				InlayText:      []string{},
 				Span: scip.Range{
 					Start: scip.Position{
 						Line:      int32(node.StartPosition().Row),
