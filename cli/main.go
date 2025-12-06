@@ -53,21 +53,48 @@ func main() {
 		fmt.Printf("Index path: %s\n", absIndexPath)
 	}
 
-	var tokens []internal.TokenInfo
+	// Create channels for concurrent analysis
+	scipChan := make(chan []internal.TokenInfo, 1)
+	highlightChan := make(chan []internal.TokenInfo, 1)
+	errChan := make(chan error, 2)
 
+	// Run SCIP analysis concurrently if available
 	if scipAnalyzer != nil {
-		tokens = append(tokens, scipAnalyzer.Analyze(absSrcPath)...)
+		go func() {
+			scipTokens := scipAnalyzer.Analyze(absSrcPath)
+			scipChan <- scipTokens
+		}()
+	} else {
+		scipChan <- []internal.TokenInfo{} // Send empty result if SCIP not available
 	}
 
-	// Syntax Highlighting Analysis
+	// Run syntax highlighting analysis concurrently if language is specified
 	if *lang != "" {
-		highlightAnalyzer := internal.NewHighlightAnalyzer(*lang)
-		highlightTokens, err := highlightAnalyzer.Analyze(absSrcPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Highlight analysis failed: %v\n", err)
-			os.Exit(1)
-		}
-		tokens = append(tokens, highlightTokens...)
+		go func() {
+			highlightAnalyzer := internal.NewHighlightAnalyzer(*lang)
+			highlightTokens, err := highlightAnalyzer.Analyze(absSrcPath)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			highlightChan <- highlightTokens
+		}()
+	} else {
+		highlightChan <- []internal.TokenInfo{} // Send empty result if no language specified
+	}
+
+	// Collect results from both analyses
+	var tokens []internal.TokenInfo
+	tokens = append(tokens, <-scipChan...)
+	tokens = append(tokens, <-highlightChan...)
+
+	// Check for any errors from concurrent analyses
+	select {
+	case err := <-errChan:
+		fmt.Fprintf(os.Stderr, "Error: Analysis failed: %v\n", err)
+		os.Exit(1)
+	default:
+		// No errors, continue
 	}
 
 	// Sort and merge tokens first
