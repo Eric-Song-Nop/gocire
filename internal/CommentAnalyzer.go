@@ -1,28 +1,34 @@
 package internal
 
 import (
-	"embed"
 	"os"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/sourcegraph/scip/bindings/go/scip"
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
-//go:embed queries/*.scm
-var queryFS embed.FS
-
-type HighlightAnalyzer struct {
+type CommentAnalyzer struct {
 	language string
 }
 
-func NewHighlightAnalyzer(language string) *HighlightAnalyzer {
-	return &HighlightAnalyzer{
+func NewCommentAnalyzer(language string) *CommentAnalyzer {
+	return &CommentAnalyzer{
 		language: language,
 	}
 }
 
-func (h *HighlightAnalyzer) Analyze(sourcePath string) ([]TokenInfo, error) {
+func getCommentQuery(language string) (string, error) {
+	switch strings.ToLower(language) {
+	case "go", "golang":
+		return "(comment)+ @comment", nil
+	default:
+		return "", errors.New("unsupported language")
+	}
+}
+
+func (h *CommentAnalyzer) Analyze(sourcePath string) ([]CommentInfo, error) {
 	lang, queryFileName, err := GetLanguageAndQuery(h.language)
 	if err != nil {
 		return nil, err
@@ -33,6 +39,11 @@ func (h *HighlightAnalyzer) Analyze(sourcePath string) ([]TokenInfo, error) {
 		return nil, errors.Wrapf(err, "failed to read source file %s", sourcePath)
 	}
 
+	query, queryErr := sitter.NewQuery(lang, queryFileName)
+	if queryErr != nil {
+		return nil, errors.Wrapf(queryErr, "failed to create query for %s", h.language)
+	}
+
 	parser := sitter.NewParser()
 	defer parser.Close()
 	parser.SetLanguage(lang)
@@ -40,33 +51,18 @@ func (h *HighlightAnalyzer) Analyze(sourcePath string) ([]TokenInfo, error) {
 	tree := parser.Parse(sourceContent, nil)
 	defer tree.Close()
 
-	queryContent, err := queryFS.ReadFile("queries/" + queryFileName)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read query file %s", queryFileName)
-	}
-
-	query, queryErr := sitter.NewQuery(lang, string(queryContent))
-	if queryErr != nil {
-		return nil, errors.Wrapf(queryErr, "failed to create query for %s", h.language)
-	}
-	defer query.Close()
-
 	qc := sitter.NewQueryCursor()
 	defer qc.Close()
 
 	matches := qc.Matches(query, tree.RootNode(), sourceContent)
 
-	var tokens []TokenInfo
+	var tokens []CommentInfo
 
 	for match := matches.Next(); match != nil; match = matches.Next() {
 		for _, capture := range match.Captures {
 			node := capture.Node
-			token := TokenInfo{
-				Symbol:         "",
-				IsReference:    false,
-				IsDefinition:   false,
-				HighlightClass: query.CaptureNames()[capture.Index],
-				InlayText:      []string{},
+			token := CommentInfo{
+				Content: "",
 				Span: scip.Range{
 					Start: scip.Position{
 						Line:      int32(node.StartPosition().Row),

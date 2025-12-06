@@ -65,7 +65,7 @@ func TestSortTokens(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			SortTokens(tt.tokens)
+			SortBySpan(tt.tokens)
 			for i, expectedToken := range tt.expected {
 				if i >= len(tt.tokens) {
 					t.Errorf("Token count mismatch, expected at least %d tokens, got %d", i+1, len(tt.tokens))

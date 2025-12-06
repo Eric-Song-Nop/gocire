@@ -7,6 +7,10 @@ import (
 	"github.com/sourcegraph/scip/bindings/go/scip"
 )
 
+type WithSpan interface {
+	GetSpan() scip.Range
+}
+
 // TokenInfo represents information about a symbol in code, including its position and attributes
 type TokenInfo struct {
 	Symbol         string     // Symbol name or identifier
@@ -17,14 +21,27 @@ type TokenInfo struct {
 	Span           scip.Range // Position range of the symbol in code
 }
 
-// SortTokens sorts tokens primarily by start position, then by end position in reverse order
-func SortTokens(tokens []TokenInfo) {
+type CommentInfo struct {
+	Content string
+	Span    scip.Range
+}
+
+func (t TokenInfo) GetSpan() scip.Range {
+	return t.Span
+}
+
+func (c CommentInfo) GetSpan() scip.Range {
+	return c.Span
+}
+
+// SortBySpan sorts tokens primarily by start position, then by end position
+func SortBySpan[T WithSpan](tokens []T) {
 	sort.Slice(tokens, func(i, j int) bool {
-		s := scip.Position.Compare(tokens[i].Span.Start, tokens[j].Span.Start)
+		s := scip.Position.Compare(tokens[i].GetSpan().Start, tokens[j].GetSpan().Start)
 		if s != 0 {
 			return s < 0
 		} else {
-			return scip.Position.Less(tokens[i].Span.End, tokens[j].Span.End)
+			return scip.Position.Less(tokens[i].GetSpan().End, tokens[j].GetSpan().End)
 		}
 	})
 }

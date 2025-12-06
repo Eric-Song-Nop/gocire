@@ -98,7 +98,7 @@ func main() {
 	}
 
 	// Sort and merge tokens first
-	internal.SortTokens(tokens)
+	internal.SortBySpan(tokens)
 	tokens, err = internal.MergeSplitTokens(tokens)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: MergeSplitTokens failed: %v\n", err)
