@@ -8,11 +8,15 @@ import (
 	"github.com/sourcegraph/scip/bindings/go/scip"
 )
 
-// MarkdownGenerator generates markdown code from source code
+// MarkdownGenerator generates syntax-highlighted markdown from source code
+// by combining SCIP analysis tokens with syntax highlighting information.
+// It produces markdown with HTML span elements for syntax highlighting.
 type MarkdownGenerator struct {
-	sourceLines []string
+	sourceLines []string // Split source code lines for processing
 }
 
+// NewMarkdownGenerator creates a new MarkdownGenerator instance from the given source file path.
+// It reads the source file and splits it into lines for processing.
 func NewMarkdownGenerator(sourcePath string) (*MarkdownGenerator, error) {
 	sourceContent, err := os.ReadFile(sourcePath)
 	if err != nil {
@@ -27,28 +31,27 @@ func NewMarkdownGenerator(sourcePath string) (*MarkdownGenerator, error) {
 // GenerateMarkdown do the Markdown generation process
 //
 // Make sure that all tokens are sorted and not intersect with each other before generation.
-// The isMDX parameter determines whether to use MDX escaping.
-func (m *MarkdownGenerator) GenerateMarkdown(tokens []TokenInfo, isMDX bool) string {
-	content := m.generateMarkdownCode(tokens, isMDX)
+func (m *MarkdownGenerator) GenerateMarkdown(tokens []TokenInfo) string {
+	content := m.generateMarkdownCode(tokens)
 	return "<pre><code class='cire'>" + content + "\n</code></pre>"
 }
 
-func (m *MarkdownGenerator) generateMarkdownCode(tokens []TokenInfo, isMDX bool) string {
+func (m *MarkdownGenerator) generateMarkdownCode(tokens []TokenInfo) string {
 	var sb strings.Builder
 	currentPos := scip.Position{Line: 0, Character: 0}
 
 	for _, token := range tokens {
-		m.outputGapText(currentPos, token.Span.Start, &sb, isMDX)
+		m.outputGapText(currentPos, token.Span.Start, &sb)
 
-		m.outputTokenHTML(token, &sb, isMDX)
+		m.outputTokenHTML(token, &sb)
 		currentPos = token.Span.End
 	}
 
-	m.outputRemainingText(currentPos, &sb, isMDX)
+	m.outputRemainingText(currentPos, &sb)
 	return sb.String()
 }
 
-func (m *MarkdownGenerator) outputGapText(start, end scip.Position, sb *strings.Builder, isMDX bool) {
+func (m *MarkdownGenerator) outputGapText(start, end scip.Position, sb *strings.Builder) {
 	if scip.Position.Compare(start, end) == 0 {
 		return
 	}
@@ -56,14 +59,10 @@ func (m *MarkdownGenerator) outputGapText(start, end scip.Position, sb *strings.
 	gapRange := scip.Range{Start: start, End: end}
 	content := getSourceFromSpan(m.sourceLines, gapRange)
 
-	if isMDX {
-		sb.WriteString(escapeMDX(content))
-	} else {
-		sb.WriteString(escapeHTML(content))
-	}
+	sb.WriteString(escapeHTML(content))
 }
 
-func (m *MarkdownGenerator) outputRemainingText(startPos scip.Position, sb *strings.Builder, isMDX bool) {
+func (m *MarkdownGenerator) outputRemainingText(startPos scip.Position, sb *strings.Builder) {
 	if len(m.sourceLines) == 0 {
 		return
 	}
@@ -81,21 +80,13 @@ func (m *MarkdownGenerator) outputRemainingText(startPos scip.Position, sb *stri
 
 	endRange := scip.Range{Start: startPos, End: fileEndPos}
 	content := getSourceFromSpan(m.sourceLines, endRange)
-	if isMDX {
-		sb.WriteString(escapeMDX(content))
-	} else {
-		sb.WriteString(escapeHTML(content))
-	}
+	sb.WriteString(escapeHTML(content))
 }
 
-func (m *MarkdownGenerator) outputTokenHTML(token TokenInfo, sb *strings.Builder, isMDX bool) {
+func (m *MarkdownGenerator) outputTokenHTML(token TokenInfo, sb *strings.Builder) {
 	content := getSourceFromSpan(m.sourceLines, token.Span)
 	var escapedContent string
-	if isMDX {
-		escapedContent = escapeMDX(content)
-	} else {
-		escapedContent = escapeHTML(content)
-	}
+	escapedContent = escapeHTML(content)
 
 	var cssClass string
 	if token.HighlightClass != "" {
@@ -104,11 +95,13 @@ func (m *MarkdownGenerator) outputTokenHTML(token TokenInfo, sb *strings.Builder
 
 	switch {
 	case token.IsDefinition:
+		definitionClass := cssClass + " definition"
 		fmt.Fprintf(sb, `<span id="%s" class="%s">%s</span>`,
-			escapeHTML(token.Symbol), cssClass, escapedContent)
+			escapeHTML(token.Symbol), definitionClass, escapedContent)
 	case token.IsReference:
+		referenceClass := cssClass + " reference"
 		fmt.Fprintf(sb, `<a href="#%s" class="%s">%s</a>`,
-			escapeHTML(token.Symbol), cssClass, escapedContent)
+			escapeHTML(token.Symbol), referenceClass, escapedContent)
 	case cssClass != "":
 		fmt.Fprintf(sb, `<span class="%s">%s</span>`,
 			cssClass, escapedContent)
@@ -116,15 +109,12 @@ func (m *MarkdownGenerator) outputTokenHTML(token TokenInfo, sb *strings.Builder
 		sb.WriteString(escapedContent)
 	}
 
-	// TODO: don't show inlay hints for now
+	// Inlay hints are currently disabled to reduce output noise
+	// To enable: change 'false' to 'true'
 	if len(token.InlayText) > 0 && false {
 		sb.WriteString(" ")
 		for _, hint := range token.InlayText {
-			if isMDX {
-				sb.WriteString(escapeMDX(hint))
-			} else {
-				sb.WriteString(escapeHTML(hint))
-			}
+			sb.WriteString(escapeHTML(hint))
 		}
 	}
 }

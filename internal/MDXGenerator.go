@@ -8,11 +8,15 @@ import (
 	"github.com/sourcegraph/scip/bindings/go/scip"
 )
 
-// MDXGenerator generates MDX JSX code from source code
+// MDXGenerator generates MDX (Markdown with JSX) code from source code
+// by combining SCIP analysis tokens with syntax highlighting information.
+// It produces MDX with React components and proper JSX escaping.
 type MDXGenerator struct {
-	sourceLines []string
+	sourceLines []string // Split source code lines for processing
 }
 
+// NewMDXGenerator creates a new MDXGenerator instance from the given source file path.
+// It reads the source file and splits it into lines for processing with JSX compatibility.
 func NewMDXGenerator(sourcePath string) (*MDXGenerator, error) {
 	sourceContent, err := os.ReadFile(sourcePath)
 	if err != nil {
@@ -114,7 +118,8 @@ func (m *MDXGenerator) outputTokenJSX(token TokenInfo, sb *strings.Builder) {
 		sb.WriteString("</span>")
 	}
 
-	// TODO: don't show inlay hints for now
+	// Inlay hints are currently disabled to reduce output noise
+	// To enable: change 'false' to 'true'
 	if len(token.InlayText) > 0 && false {
 		sb.WriteString(" ")
 		for _, hint := range token.InlayText {

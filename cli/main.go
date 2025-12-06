@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/Eric-Song-Nop/gocire/internal"
 )
@@ -31,12 +30,12 @@ func main() {
 	}
 
 	// SCIP Analysis (optional if index file doesn't exist)
-	var scipAnalyzer *internal.SCIPAnalyer
+	var scipAnalyzer *internal.SCIPAnalyzer
 	absIndexPath, err := filepath.Abs(*indexPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to resolve index path: %v. SCIP analysis will be skipped.\n", err)
 	} else {
-		scipAnalyzer, err = internal.NewSCIPAnalyer(absIndexPath)
+		scipAnalyzer, err = internal.NewSCIPAnalyzer(absIndexPath)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: Load SCIP index file failed: %v. SCIP analysis will be skipped.\n", err)
 		}
@@ -93,7 +92,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error: Load source file failed for generator: %v\n", err)
 			os.Exit(1)
 		}
-		output = generator.GenerateMarkdown(tokens, false)
+		output = generator.GenerateMarkdown(tokens)
 	}
 
 	finalOutPath := *outPath
@@ -111,10 +110,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("%s generated at: %s\n", strings.Title(*format), finalOutPath)
-	println(`
-		hahah
-hahah
-		hhhhh
-`)
+	fmt.Printf("%s generated at: %s\n", *format, finalOutPath)
 }

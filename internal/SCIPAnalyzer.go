@@ -13,17 +13,17 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// SCIPAnalyer Analyze with SCIP index file
+// SCIPAnalyzer Analyze with SCIP index file
 //
 // Used to load scip index file and analyze source code
 // to extract language related file info,
 // including hover doc, go to definition info and more.
-type SCIPAnalyer struct {
+type SCIPAnalyzer struct {
 	scipIndex *scip.Index
 	symbolMap map[string]*scip.SymbolInformation
 }
 
-func NewSCIPAnalyer(indexPath string) (*SCIPAnalyer, error) {
+func NewSCIPAnalyzer(indexPath string) (*SCIPAnalyzer, error) {
 	scipFile, err := os.Open(indexPath)
 	if err != nil {
 		return nil, err
@@ -50,13 +50,13 @@ func NewSCIPAnalyer(indexPath string) (*SCIPAnalyer, error) {
 		symbolMap[sym.Symbol] = sym
 	}
 
-	return &SCIPAnalyer{
+	return &SCIPAnalyzer{
 		scipIndex: &scipIndex,
 		symbolMap: symbolMap,
 	}, nil
 }
 
-func (s *SCIPAnalyer) Analyze(sourcePath string) []TokenInfo {
+func (s *SCIPAnalyzer) Analyze(sourcePath string) []TokenInfo {
 	var document *scip.Document
 
 	// Normalize project root from SCIP metadata.
