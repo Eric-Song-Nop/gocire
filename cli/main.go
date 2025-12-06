@@ -56,7 +56,8 @@ func main() {
 	// Create channels for concurrent analysis
 	scipChan := make(chan []internal.TokenInfo, 1)
 	highlightChan := make(chan []internal.TokenInfo, 1)
-	errChan := make(chan error, 2)
+	commentChan := make(chan []internal.CommentInfo, 1)
+	errChan := make(chan error, 3)
 
 	// Run SCIP analysis concurrently if available
 	if scipAnalyzer != nil {
@@ -75,6 +76,7 @@ func main() {
 			highlightTokens, err := highlightAnalyzer.Analyze(absSrcPath)
 			if err != nil {
 				errChan <- err
+				highlightChan <- []internal.TokenInfo{} // Send empty result on error
 				return
 			}
 			highlightChan <- highlightTokens
@@ -83,10 +85,27 @@ func main() {
 		highlightChan <- []internal.TokenInfo{} // Send empty result if no language specified
 	}
 
-	// Collect results from both analyses
+	if *lang != "" {
+		go func() {
+			commentAnalyzer := internal.NewCommentAnalyzer(*lang)
+			commentTokens, err := commentAnalyzer.Analyze(absSrcPath)
+			if err != nil {
+				errChan <- err
+				commentChan <- []internal.CommentInfo{} // Send empty result on error
+				return
+			}
+			commentChan <- commentTokens
+		}()
+	} else {
+		commentChan <- []internal.CommentInfo{} // Send empty result if no language specified
+	}
+
+	// Collect results from both analysis
 	var tokens []internal.TokenInfo
+	var comments []internal.CommentInfo
 	tokens = append(tokens, <-scipChan...)
 	tokens = append(tokens, <-highlightChan...)
+	comments = append(comments, <-commentChan...)
 
 	// Check for any errors from concurrent analyses
 	select {
@@ -99,6 +118,10 @@ func main() {
 
 	// Sort and merge tokens first
 	internal.SortBySpan(tokens)
+	internal.SortBySpan(comments)
+	for _, comment := range comments {
+		println(comment.Content)
+	}
 	tokens, err = internal.MergeSplitTokens(tokens)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: MergeSplitTokens failed: %v\n", err)

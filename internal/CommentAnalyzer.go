@@ -29,7 +29,7 @@ func getCommentQuery(language string) (string, error) {
 }
 
 func (h *CommentAnalyzer) Analyze(sourcePath string) ([]CommentInfo, error) {
-	lang, queryFileName, err := GetLanguageAndQuery(h.language)
+	lang, _, err := GetLanguageAndQuery(h.language)
 	if err != nil {
 		return nil, err
 	}
@@ -39,9 +39,13 @@ func (h *CommentAnalyzer) Analyze(sourcePath string) ([]CommentInfo, error) {
 		return nil, errors.Wrapf(err, "failed to read source file %s", sourcePath)
 	}
 
-	query, queryErr := sitter.NewQuery(lang, queryFileName)
+	q, err := getCommentQuery(h.language)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get comment query for %s", h.language)
+	}
+	query, queryErr := sitter.NewQuery(lang, q)
 	if queryErr != nil {
-		return nil, errors.Wrapf(queryErr, "failed to create query for %s", h.language)
+		return nil, errors.Wrapf(queryErr, "comment analyzer failed to create query for %s", h.language)
 	}
 
 	parser := sitter.NewParser()
