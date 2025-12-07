@@ -208,10 +208,11 @@ func (m *MDXGenerator) outputTokenJSX(token TokenInfo, sb *strings.Builder) {
 
 	if len(token.Document) > 0 {
 		doc := strings.Join(token.Document, "\n")
-		escapedDoc := escapeMDXForTemplateLiteral(doc)
-		// Use rc-tooltip API: overlay prop for content, wrapped in a span to preserve whitespace
-		fmt.Fprintf(sb, `<Tooltip overlay={<span style={{ whiteSpace: 'pre-wrap' }}>{`+"`"+`%s`+"`"+`}</span>} placement="top" trigger={['hover']}>%s</Tooltip>`,
-			escapedDoc, finalOutput)
+		htmlDoc := RenderMarkdown(doc)
+		escapedHTML := escapeForJSTemplateLiteral(htmlDoc)
+		// Use rc-tooltip API with dangerouslySetInnerHTML to render HTML from Markdown
+		fmt.Fprintf(sb, `<Tooltip overlay={<div className="cire-markdown" dangerouslySetInnerHTML={{ __html: `+"`"+`%s`+"`"+` }} />} placement="top" trigger={['hover']}>%s</Tooltip>`,
+			escapedHTML, finalOutput)
 	} else {
 		sb.WriteString(finalOutput)
 	}
@@ -224,6 +225,22 @@ func (m *MDXGenerator) outputTokenJSX(token TokenInfo, sb *strings.Builder) {
 			sb.WriteString(escapeMDXForTemplateLiteral(hint))
 		}
 	}
+}
+
+// escapeForJSTemplateLiteral escapes characters for a JavaScript template literal (backticked string).
+// It does NOT escape HTML entities, allowing safe embedding of HTML strings.
+func escapeForJSTemplateLiteral(text string) string {
+	if text == "" {
+		return ""
+	}
+	result := text
+	// Escape backslashes first!
+	result = strings.ReplaceAll(result, "\\", "\\\\")
+	// Escape backticks
+	result = strings.ReplaceAll(result, "`", "\\`")
+	// Escape variable interpolation start
+	result = strings.ReplaceAll(result, "${", "\\${")
+	return result
 }
 
 // escapeMDXForTemplateLiteral escapes characters for MDX template literal content

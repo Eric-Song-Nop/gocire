@@ -19,15 +19,18 @@ require (
 	github.com/tree-sitter/tree-sitter-ruby v0.23.1
 	github.com/tree-sitter/tree-sitter-rust v0.24.0
 	github.com/tree-sitter/tree-sitter-typescript v0.23.2
+	github.com/yuin/goldmark v1.7.13
 	google.golang.org/protobuf v1.31.0
 )
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
+	github.com/FurqanSoftware/goldmark-katex v0.0.0-20250906161933-da324498b7cf // indirect
 	github.com/Masterminds/semver v1.4.2 // indirect
 	github.com/Masterminds/sprig v2.15.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/aokoli/goutils v1.0.1 // indirect
+	github.com/bluele/gcache v0.0.2 // indirect
 	github.com/bufbuild/buf v1.25.0 // indirect
 	github.com/bufbuild/connect-go v1.9.0 // indirect
 	github.com/bufbuild/connect-opentelemetry-go v0.4.0 // indirect
@@ -63,6 +66,7 @@ require (
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
+	github.com/lithdew/quickjs v0.0.0-20200714182134-aaa42285c9d2 // indirect
 	github.com/mattn/go-pointer v0.0.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/moby/term v0.5.0 // indirect
