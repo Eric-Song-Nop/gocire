@@ -91,40 +91,36 @@ func (s *SCIPAnalyzer) Analyze(sourcePath string) []TokenInfo {
 		isDefinition := (occ.SymbolRoles & int32(scip.SymbolRole_Definition)) != 0
 		isReference := !isDefinition
 
-		var documents []string
-		if symm, ok := s.symbolMap[occ.Symbol]; ok {
-			if signatureDoc := symm.SignatureDocumentation; signatureDoc != nil {
-				documents = append(documents, signatureDoc.GetText())
+		        var documents []string
+				// 1. Prioritize Occurrence-specific override documentation
+				if len(occ.OverrideDocumentation) > 0 {
+					documents = append(documents, occ.OverrideDocumentation...)
+				}
+		
+				if symm, ok := s.symbolMap[occ.Symbol]; ok {
+					// 2. Append general symbol documentation
+					if len(symm.Documentation) > 0 {
+						documents = append(documents, symm.Documentation...)
+					}
+					// The original logic for SignatureDocumentation and getType is removed as per discussion.
+				}
+		
+				tokens = append(tokens, TokenInfo{
+					Symbol:         generateID(occ.Symbol),
+					IsReference:    isReference,
+					IsDefinition:   isDefinition,
+					HighlightClass: "",
+					Document:       documents,
+					Span:           span,
+				})
 			}
+		
+			return tokens
 		}
-
-		tokens = append(tokens, TokenInfo{
-			Symbol:         generateID(occ.Symbol),
-			IsReference:    isReference,
-			IsDefinition:   isDefinition,
-			HighlightClass: "",
-			Document:       documents,
-			Span:           span,
-		})
-	}
-
-	return tokens
-}
-
-func getType(symbol string) string {
-	typeInfo := ""
-	if sym, err := scip.ParseSymbol(symbol); err == nil {
-		for _, desc := range sym.Descriptors {
-			if desc.Suffix == scip.Descriptor_Type {
-				typeInfo = desc.Name
-			}
-		}
-	}
-	return typeInfo
-}
-
-func parseRange(r []int32) scip.Range {
-	if len(r) == 3 {
+		
+		// getType is removed as per discussion.
+		
+		func parseRange(r []int32) scip.Range {	if len(r) == 3 {
 		return scip.Range{
 			Start: scip.Position{Line: r[0], Character: r[1]},
 			End:   scip.Position{Line: r[0], Character: r[2]},
