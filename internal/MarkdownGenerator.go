@@ -115,9 +115,9 @@ func (m *MarkdownGenerator) outputTokenHTML(token TokenInfo, sb *strings.Builder
 
 	// Inlay hints are currently disabled to reduce output noise
 	// To enable: change 'false' to 'true'
-	if len(token.InlayText) > 0 && false {
+	if len(token.Document) > 0 && false {
 		sb.WriteString(" ")
-		for _, hint := range token.InlayText {
+		for _, hint := range token.Document {
 			sb.WriteString(escapeHTML(hint))
 		}
 	}

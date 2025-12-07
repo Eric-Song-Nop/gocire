@@ -66,7 +66,7 @@ func (h *HighlightAnalyzer) Analyze(sourcePath string) ([]TokenInfo, error) {
 				IsReference:    false,
 				IsDefinition:   false,
 				HighlightClass: query.CaptureNames()[capture.Index],
-				InlayText:      []string{},
+				Document:       []string{},
 				Span: scip.Range{
 					Start: scip.Position{
 						Line:      int32(node.StartPosition().Row),

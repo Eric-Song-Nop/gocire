@@ -17,7 +17,7 @@ type TokenInfo struct {
 	IsReference    bool       // Whether this is a reference
 	IsDefinition   bool       // Whether this is a definition
 	HighlightClass string     // Syntax highlighting class
-	InlayText      []string   // Inlay Text, for example, type info
+	Document       []string   // Document text
 	Span           scip.Range // Position range of the symbol in code
 }
 
@@ -158,8 +158,8 @@ func createSegment(start scip.Position, end scip.Position, activeTokens []TokenI
 		if token.HighlightClass != "" {
 			result.HighlightClass = token.HighlightClass
 		}
-		if len(token.InlayText) > 0 {
-			result.InlayText = append(result.InlayText, token.InlayText...)
+		if len(token.Document) > 0 {
+			result.Document = append(result.Document, token.Document...)
 		}
 		result.IsReference = result.IsReference || token.IsReference
 		result.IsDefinition = result.IsDefinition || token.IsDefinition

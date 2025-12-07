@@ -91,14 +91,10 @@ func (s *SCIPAnalyzer) Analyze(sourcePath string) []TokenInfo {
 		isDefinition := (occ.SymbolRoles & int32(scip.SymbolRole_Definition)) != 0
 		isReference := !isDefinition
 
-		var inlayText []string
+		var documents []string
 		if symm, ok := s.symbolMap[occ.Symbol]; ok {
 			if signatureDoc := symm.SignatureDocumentation; signatureDoc != nil {
-				inlayText = append(inlayText, signatureDoc.Text)
-			} else {
-				if ty := getType(occ.Symbol); ty != "" {
-					inlayText = append(inlayText, ty)
-				}
+				documents = append(documents, signatureDoc.GetText())
 			}
 		}
 
@@ -107,7 +103,7 @@ func (s *SCIPAnalyzer) Analyze(sourcePath string) []TokenInfo {
 			IsReference:    isReference,
 			IsDefinition:   isDefinition,
 			HighlightClass: "",
-			InlayText:      inlayText,
+			Document:       documents,
 			Span:           span,
 		})
 	}

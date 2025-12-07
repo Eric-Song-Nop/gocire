@@ -187,27 +187,40 @@ func (m *MDXGenerator) outputTokenJSX(token TokenInfo, sb *strings.Builder) {
 	// Build template literal content
 	templateContent := "{`" + escapedContent + "`}"
 
+	var innerContentBuilder strings.Builder
 	switch {
 	case token.IsDefinition:
-		fmt.Fprintf(sb, `<span id="%s" className="%s">%s</span>`,
+		fmt.Fprintf(&innerContentBuilder, `<span id="%s" className="%s">%s</span>`,
 			escapeMDXAttribute(token.Symbol), cssClass, templateContent)
 	case token.IsReference:
-		fmt.Fprintf(sb, `<a href="#%s" className="%s">%s</a>`,
+		fmt.Fprintf(&innerContentBuilder, `<a href="#%s" className="%s">%s</a>`,
 			escapeMDXAttribute(token.Symbol), cssClass, templateContent)
 	case cssClass != "":
-		fmt.Fprintf(sb, `<span className="%s">%s</span>`,
+		fmt.Fprintf(&innerContentBuilder, `<span className="%s">%s</span>`,
 			cssClass, templateContent)
 	default:
-		sb.WriteString("<span className=\"cire_text\">")
-		sb.WriteString(templateContent)
-		sb.WriteString("</span>")
+		innerContentBuilder.WriteString("<span className=\"cire_text\">")
+		innerContentBuilder.WriteString(templateContent)
+		innerContentBuilder.WriteString("</span>")
+	}
+
+	finalOutput := innerContentBuilder.String()
+
+	if len(token.Document) > 0 {
+		doc := strings.Join(token.Document, "\n")
+		escapedDoc := escapeMDXForTemplateLiteral(doc)
+		// Use rc-tooltip API: overlay prop for content, wrapped in a span to preserve whitespace
+		fmt.Fprintf(sb, `<Tooltip overlay={<span style={{ whiteSpace: 'pre-wrap' }}>{`+"`"+`%s`+"`"+`}</span>} placement="top" trigger={['hover']}>%s</Tooltip>`,
+			escapedDoc, finalOutput)
+	} else {
+		sb.WriteString(finalOutput)
 	}
 
 	// Inlay hints are currently disabled to reduce output noise
 	// To enable: change 'false' to 'true'
-	if len(token.InlayText) > 0 && false {
+	if len(token.Document) > 0 && false {
 		sb.WriteString(" ")
-		for _, hint := range token.InlayText {
+		for _, hint := range token.Document {
 			sb.WriteString(escapeMDXForTemplateLiteral(hint))
 		}
 	}
