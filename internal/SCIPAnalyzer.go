@@ -91,36 +91,32 @@ func (s *SCIPAnalyzer) Analyze(sourcePath string) []TokenInfo {
 		isDefinition := (occ.SymbolRoles & int32(scip.SymbolRole_Definition)) != 0
 		isReference := !isDefinition
 
-		        var documents []string
-				// 1. Prioritize Occurrence-specific override documentation
-				if len(occ.OverrideDocumentation) > 0 {
-					documents = append(documents, occ.OverrideDocumentation...)
-				}
-		
-				if symm, ok := s.symbolMap[occ.Symbol]; ok {
-					// 2. Append general symbol documentation
-					if len(symm.Documentation) > 0 {
-						documents = append(documents, symm.Documentation...)
-					}
-					// The original logic for SignatureDocumentation and getType is removed as per discussion.
-				}
-		
-				tokens = append(tokens, TokenInfo{
-					Symbol:         generateID(occ.Symbol),
-					IsReference:    isReference,
-					IsDefinition:   isDefinition,
-					HighlightClass: "",
-					Document:       documents,
-					Span:           span,
-				})
-			}
-		
-			return tokens
+		var documents []string
+		if len(occ.OverrideDocumentation) > 0 {
+			documents = append(documents, occ.OverrideDocumentation...)
 		}
-		
-		// getType is removed as per discussion.
-		
-		func parseRange(r []int32) scip.Range {	if len(r) == 3 {
+
+		if symm, ok := s.symbolMap[occ.Symbol]; ok {
+			if len(symm.Documentation) > 0 {
+				documents = append(documents, symm.Documentation...)
+			}
+		}
+
+		tokens = append(tokens, TokenInfo{
+			Symbol:         generateID(occ.Symbol),
+			IsReference:    isReference,
+			IsDefinition:   isDefinition,
+			HighlightClass: "",
+			Document:       documents,
+			Span:           span,
+		})
+	}
+
+	return tokens
+}
+
+func parseRange(r []int32) scip.Range {
+	if len(r) == 3 {
 		return scip.Range{
 			Start: scip.Position{Line: r[0], Character: r[1]},
 			End:   scip.Position{Line: r[0], Character: r[2]},
