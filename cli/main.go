@@ -1,3 +1,9 @@
+// ---
+// title: Main entry for cli
+// ---
+//
+// The main file entry point for the CLI.
+// {/* truncate */}
 package main
 
 import (
@@ -15,6 +21,8 @@ func main() {
 	outPath := flag.String("output", "", "Output file path (optional). Defaults to source file path with appropriate extension")
 	lang := flag.String("lang", "", "Language for syntax highlighting (optional)")
 	format := flag.String("format", "mdx", "Output format: markdown or mdx")
+	codeWrapperStart := flag.String("code-wrapper-start", "<details>\n<summary>Expand to view code</summary>\n<pre className=\"cire\"><code>", "Custom opening HTML/JSX for code blocks")
+	codeWrapperEnd := flag.String("code-wrapper-end", "</code></pre>\n</details>", "Custom closing HTML/JSX for code blocks")
 	flag.Parse()
 
 	if *srcPath == "" {
@@ -133,12 +141,24 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error: Load source file failed for MDX generator: %v\n", err)
 			os.Exit(1)
 		}
+		if *codeWrapperStart != "" {
+			generator.CodeWrapperStart = *codeWrapperStart
+		}
+		if *codeWrapperEnd != "" {
+			generator.CodeWrapperEnd = *codeWrapperEnd
+		}
 		output = generator.GenerateMDX(tokens, comments)
 	} else {
 		generator, err := internal.NewMarkdownGenerator(absSrcPath)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Load source file failed for generator: %v\n", err)
 			os.Exit(1)
+		}
+		if *codeWrapperStart != "" {
+			generator.CodeWrapperStart = *codeWrapperStart
+		}
+		if *codeWrapperEnd != "" {
+			generator.CodeWrapperEnd = *codeWrapperEnd
 		}
 		output = generator.GenerateMarkdown(tokens)
 	}

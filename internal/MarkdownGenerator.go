@@ -12,7 +12,9 @@ import (
 // by combining SCIP analysis tokens with syntax highlighting information.
 // It produces markdown with HTML span elements for syntax highlighting.
 type MarkdownGenerator struct {
-	sourceLines []string // Split source code lines for processing
+	sourceLines      []string // Split source code lines for processing
+	CodeWrapperStart string   // Custom opening HTML for code blocks
+	CodeWrapperEnd   string   // Custom closing HTML for code blocks
 }
 
 // NewMarkdownGenerator creates a new MarkdownGenerator instance from the given source file path.
@@ -24,7 +26,9 @@ func NewMarkdownGenerator(sourcePath string) (*MarkdownGenerator, error) {
 	}
 	sourceLines := strings.Split(string(sourceContent), "\n")
 	return &MarkdownGenerator{
-		sourceLines: sourceLines,
+		sourceLines:      sourceLines,
+		CodeWrapperStart: "<pre><code class='cire'>",
+		CodeWrapperEnd:   "</code></pre>",
 	}, nil
 }
 
@@ -33,7 +37,7 @@ func NewMarkdownGenerator(sourcePath string) (*MarkdownGenerator, error) {
 // Make sure that all tokens are sorted and not intersect with each other before generation.
 func (m *MarkdownGenerator) GenerateMarkdown(tokens []TokenInfo) string {
 	content := m.generateMarkdownCode(tokens)
-	return "<pre><code class='cire'>" + content + "\n</code></pre>"
+	return m.CodeWrapperStart + content + "\n" + m.CodeWrapperEnd
 }
 
 func (m *MarkdownGenerator) generateMarkdownCode(tokens []TokenInfo) string {

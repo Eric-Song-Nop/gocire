@@ -13,8 +13,10 @@ import (
 // by combining SCIP analysis tokens with syntax highlighting information.
 // It produces MDX with React components and proper JSX escaping.
 type MDXGenerator struct {
-	sourceLines []string      // Split source code lines for processing
-	comments    []CommentInfo // Comments to interleave
+	sourceLines      []string      // Split source code lines for processing
+	comments         []CommentInfo // Comments to interleave
+	CodeWrapperStart string        // Custom opening HTML/JSX for code blocks
+	CodeWrapperEnd   string        // Custom closing HTML/JSX for code blocks
 }
 
 // NewMDXGenerator creates a new MDXGenerator instance from the given source file path.
@@ -26,8 +28,10 @@ func NewMDXGenerator(sourcePath string) (*MDXGenerator, error) {
 	}
 	sourceLines := strings.Split(string(sourceContent), "\n")
 	return &MDXGenerator{
-		sourceLines: sourceLines,
-		comments:    []CommentInfo{}, // Initialize empty, will be set by GenerateMDX
+		sourceLines:      sourceLines,
+		comments:         []CommentInfo{},                  // Initialize empty, will be set by GenerateMDX
+		CodeWrapperStart: "<pre><code className=\"cire\">", // Default MDX wrapper
+		CodeWrapperEnd:   "</code></pre>",                  // Default MDX wrapper
 	}, nil
 }
 
@@ -98,7 +102,8 @@ func (m *MDXGenerator) GenerateMDX(tokens []TokenInfo, comments []CommentInfo) s
 
 			if gapContent != "" {
 				if !inCodeBlock {
-					sb.WriteString("<pre><code className=\"cire\">\n")
+					sb.WriteString(m.CodeWrapperStart)
+					sb.WriteString("\n")
 					inCodeBlock = true
 				}
 				sb.WriteString("<span className=\"cire_text\">{`")
@@ -115,7 +120,8 @@ func (m *MDXGenerator) GenerateMDX(tokens []TokenInfo, comments []CommentInfo) s
 
 			// Close code block if open
 			if inCodeBlock {
-				sb.WriteString("</code></pre>\n")
+				sb.WriteString(m.CodeWrapperEnd)
+				sb.WriteString("\n")
 				inCodeBlock = false
 			}
 
@@ -136,7 +142,8 @@ func (m *MDXGenerator) GenerateMDX(tokens []TokenInfo, comments []CommentInfo) s
 
 			// Open code block if not already in one
 			if !inCodeBlock {
-				sb.WriteString("<pre><code className=\"cire\">\n")
+				sb.WriteString(m.CodeWrapperStart)
+				sb.WriteString("\n")
 				inCodeBlock = true
 			}
 
@@ -161,7 +168,8 @@ func (m *MDXGenerator) GenerateMDX(tokens []TokenInfo, comments []CommentInfo) s
 
 	// Final closing for any open code block
 	if inCodeBlock {
-		sb.WriteString("</code></pre>\n")
+		sb.WriteString(m.CodeWrapperEnd)
+		sb.WriteString("\n")
 	}
 
 	return sb.String()
