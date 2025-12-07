@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"os"
 	"strings"
 	"unicode"
@@ -182,6 +183,14 @@ func cleanNodeContent(content string, language string) string {
 	return strings.TrimSpace(content)
 }
 
+func isCommentStandalone(sourceContent []byte, startByte int) bool {
+	// Find the start of the current line
+	lineStart := bytes.LastIndexByte(sourceContent[:startByte], '\n') + 1
+	// Check if everything from line start to comment start is whitespace
+	prefix := string(sourceContent[lineStart:startByte])
+	return strings.TrimSpace(prefix) == ""
+}
+
 func (h *CommentAnalyzer) Analyze(sourcePath string) ([]CommentInfo, error) {
 	lang, _, err := GetLanguageAndQuery(h.language)
 	if err != nil {
@@ -217,6 +226,17 @@ func (h *CommentAnalyzer) Analyze(sourcePath string) ([]CommentInfo, error) {
 	var tokens []CommentInfo
 
 	for match := matches.Next(); match != nil; match = matches.Next() {
+		if len(match.Captures) == 0 {
+			continue
+		}
+
+		firstNode := match.Captures[0].Node
+		startByte := int(firstNode.StartByte())
+
+		if !isCommentStandalone(sourceContent, startByte) {
+			continue
+		}
+
 		var contentParts []string
 		var start scip.Position
 		var end scip.Position

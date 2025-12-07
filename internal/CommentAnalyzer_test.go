@@ -150,5 +150,72 @@ func TestCleanNodeContent(t *testing.T) {
 	}
 }
 
+func TestIsCommentStandalone(t *testing.T) {
+	tests := []struct {
+		name        string
+		source      string
+		commentChar int // character index of the start of the comment
+		want        bool
+	}{
+		{
+			name:        "Standalone - beginning of file",
+			source:      "// Comment\nfunc main() {}",
+			commentChar: 0,
+			want:        true,
+		},
+		{
+			name:        "Standalone - on new line",
+			source:      "func init() {\n    // Comment\n}",
+			commentChar: 16, // Index of "// Comment"
+			want:        true,
+		},
+		{
+			name:        "Standalone - with leading spaces",
+			source:      "func init() {\n    // Comment\n}",
+			commentChar: 16, // Index of "// Comment"
+			want:        true,
+		},
+		{
+			name:        "Inline - after code",
+			source:      "func main() { var x int // Comment\n}",
+			commentChar: 22, // Index of "// Comment"
+			want:        false,
+		},
+		{
+			name:        "Inline - after non-whitespace code",
+			source:      "a := 1// Comment",
+			commentChar: 7, // Index of "// Comment"
+			want:        false,
+		},
+		{
+			name:        "Standalone - only comment in file",
+			source:      "// Only comment",
+			commentChar: 0,
+			want:        true,
+		},
+		{
+			name:        "Standalone - with tabs",
+			source:      "\t\t// Comment",
+			commentChar: 2, // Index of "// Comment"
+			want:        true,
+		},
+		{
+			name:        "Inline - tabs before code",
+			source:      "\t\tvar x int // Comment",
+			commentChar: 13, // Index of "// Comment"
+			want:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isCommentStandalone([]byte(tt.source), tt.commentChar)
+			if got != tt.want {
+				t.Errorf("isCommentStandalone(%q, %d) = %v, want %v", tt.source, tt.commentChar, got, tt.want)
+			}
+		})
+	}
+}
+
 // Ensure the function is exported for testing (if it wasn't already in the same package)
 // Since this test is in package 'internal', it can access unexported 'cleanNodeContent'.

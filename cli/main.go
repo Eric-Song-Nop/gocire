@@ -119,9 +119,7 @@ func main() {
 	// Sort and merge tokens first
 	internal.SortBySpan(tokens)
 	internal.SortBySpan(comments)
-	for _, comment := range comments {
-		println(comment.Content)
-	}
+
 	tokens, err = internal.MergeSplitTokens(tokens)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: MergeSplitTokens failed: %v\n", err)
@@ -135,7 +133,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error: Load source file failed for MDX generator: %v\n", err)
 			os.Exit(1)
 		}
-		output = generator.GenerateMDX(tokens)
+		output = generator.GenerateMDX(tokens, comments)
 	} else {
 		generator, err := internal.NewMarkdownGenerator(absSrcPath)
 		if err != nil {

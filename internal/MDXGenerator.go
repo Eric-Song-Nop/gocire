@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"unicode" // Add this import
 
 	"github.com/sourcegraph/scip/bindings/go/scip"
 )
@@ -12,7 +13,8 @@ import (
 // by combining SCIP analysis tokens with syntax highlighting information.
 // It produces MDX with React components and proper JSX escaping.
 type MDXGenerator struct {
-	sourceLines []string // Split source code lines for processing
+	sourceLines []string      // Split source code lines for processing
+	comments    []CommentInfo // Comments to interleave
 }
 
 // NewMDXGenerator creates a new MDXGenerator instance from the given source file path.
@@ -25,69 +27,144 @@ func NewMDXGenerator(sourcePath string) (*MDXGenerator, error) {
 	sourceLines := strings.Split(string(sourceContent), "\n")
 	return &MDXGenerator{
 		sourceLines: sourceLines,
+		comments:    []CommentInfo{}, // Initialize empty, will be set by GenerateMDX
 	}, nil
 }
 
 // GenerateMDX generates MDX JSX code with proper escaping for JSX
-func (m *MDXGenerator) GenerateMDX(tokens []TokenInfo) string {
+func (m *MDXGenerator) GenerateMDX(tokens []TokenInfo, comments []CommentInfo) string {
+	m.comments = comments
 	var sb strings.Builder
 
-	// Start the JSX component
-	sb.WriteString("<pre><code className=\"cire\">\n")
+	// Calculate file end position
+	lastLineIdx := len(m.sourceLines) - 1
+	fileEndPos := scip.Position{Line: 0, Character: 0} // Default for empty file
+	if len(m.sourceLines) > 0 {
+		fileEndPos = scip.Position{Line: int32(lastLineIdx), Character: int32(len([]rune(m.sourceLines[lastLineIdx])))}
+	}
 
 	currentPos := scip.Position{Line: 0, Character: 0}
+	tokenIdx := 0
+	commentIdx := 0
+	inCodeBlock := false
 
-	for _, token := range tokens {
-		m.outputGapText(currentPos, token.Span.Start, &sb)
-		m.outputTokenJSX(token, &sb)
-		currentPos = token.Span.End
+	// Helper to get the start position of the next token or "infinity"
+	getNextTokenStart := func() scip.Position {
+		if tokenIdx < len(tokens) {
+			return tokens[tokenIdx].Span.Start
+		}
+		return scip.Position{Line: 999999, Character: 999999} // "Infinity"
 	}
 
-	m.outputRemainingText(currentPos, &sb)
+	// Helper to get the start position of the next comment or "infinity"
+	getNextCommentStart := func() scip.Position {
+		if commentIdx < len(m.comments) {
+			return m.comments[commentIdx].Span.Start
+		}
+		return scip.Position{Line: 999999, Character: 999999} // "Infinity"
+	}
 
-	// Close the JSX component
-	sb.WriteString("</code></pre>\n")
+	for {
+		// Break condition: if currentPos reached fileEndPos AND no more tokens/comments
+		if scip.Position.Compare(currentPos, fileEndPos) >= 0 && tokenIdx >= len(tokens) && commentIdx >= len(m.comments) {
+			break
+		}
+
+		nextTokenStart := getNextTokenStart()
+		nextCommentStart := getNextCommentStart()
+
+		// Determine the end of the current gap (code or text)
+		gapEnd := fileEndPos
+		if scip.Position.Compare(nextTokenStart, gapEnd) < 0 {
+			gapEnd = nextTokenStart
+		}
+		if scip.Position.Compare(nextCommentStart, gapEnd) < 0 {
+			gapEnd = nextCommentStart
+		}
+
+		// Process gap text (code/plain text)
+		if scip.Position.Compare(currentPos, gapEnd) < 0 {
+			gapContent := getSourceFromSpan(m.sourceLines, scip.Range{Start: currentPos, End: gapEnd})
+
+			// Trim leading whitespace if starting a new code block (after a comment or at file start)
+			if !inCodeBlock {
+				gapContent = strings.TrimLeftFunc(gapContent, unicode.IsSpace)
+			}
+
+			// If this gap is immediately before a comment, trim trailing whitespace
+			if scip.Position.Compare(gapEnd, nextCommentStart) == 0 {
+				gapContent = strings.TrimRightFunc(gapContent, unicode.IsSpace)
+			}
+
+			if gapContent != "" {
+				if !inCodeBlock {
+					sb.WriteString("<pre><code className=\"cire\">\n")
+					inCodeBlock = true
+				}
+				sb.WriteString("<span className=\"cire_text\">{`")
+				sb.WriteString(escapeMDXForTemplateLiteral(gapContent))
+				sb.WriteString("`}</span>")
+			}
+			currentPos = gapEnd
+		}
+
+		// Process next event
+		if scip.Position.Compare(currentPos, nextCommentStart) == 0 && scip.Position.Compare(nextCommentStart, nextTokenStart) <= 0 {
+			// Current event is a comment (or comment and token start at same pos, prefer comment)
+			comment := m.comments[commentIdx]
+
+			// Close code block if open
+			if inCodeBlock {
+				sb.WriteString("</code></pre>\n")
+				inCodeBlock = false
+			}
+
+			// Output comment content (prose)
+			sb.WriteString(comment.Content)
+			sb.WriteString("\n") // Add a newline after the comment content
+
+			currentPos = comment.Span.End
+			commentIdx++
+
+			// Skip any tokens entirely within this comment's span
+			for tokenIdx < len(tokens) && scip.Position.Compare(tokens[tokenIdx].Span.End, currentPos) <= 0 {
+				tokenIdx++
+			}
+		} else if scip.Position.Compare(currentPos, nextTokenStart) == 0 {
+			// Current event is a token
+			token := tokens[tokenIdx]
+
+			// Open code block if not already in one
+			if !inCodeBlock {
+				sb.WriteString("<pre><code className=\"cire\">\n")
+				inCodeBlock = true
+			}
+
+			m.outputTokenJSX(token, &sb)
+			currentPos = token.Span.End
+			tokenIdx++
+		} else if scip.Position.Compare(currentPos, fileEndPos) >= 0 {
+			// Reached end of file, and all tokens/comments processed within the loop break conditions.
+			break
+		} else {
+			// This case should ideally not be hit if all tokens/comments are covered and currentPos advances.
+			// As a safeguard, advance currentPos to prevent infinite loops if something unexpected occurs.
+			currentPos = scip.Position{Line: currentPos.Line, Character: currentPos.Character + 1}
+			if currentPos.Character > int32(len(m.sourceLines[currentPos.Line])) {
+				currentPos = scip.Position{Line: currentPos.Line + 1, Character: 0}
+			}
+			if currentPos.Line >= int32(len(m.sourceLines)) {
+				currentPos = fileEndPos
+			}
+		}
+	}
+
+	// Final closing for any open code block
+	if inCodeBlock {
+		sb.WriteString("</code></pre>\n")
+	}
 
 	return sb.String()
-}
-
-func (m *MDXGenerator) outputGapText(start, end scip.Position, sb *strings.Builder) {
-	if scip.Position.Compare(start, end) == 0 {
-		return
-	}
-
-	gapRange := scip.Range{Start: start, End: end}
-	content := getSourceFromSpan(m.sourceLines, gapRange)
-
-	// Use unified template literal format, avoid nesting
-	sb.WriteString("<span className=\"cire_text\">{`")
-	sb.WriteString(escapeMDXForTemplateLiteral(content))
-	sb.WriteString("`}</span>")
-}
-
-func (m *MDXGenerator) outputRemainingText(startPos scip.Position, sb *strings.Builder) {
-	if len(m.sourceLines) == 0 {
-		return
-	}
-
-	lastLineIdx := len(m.sourceLines) - 1
-	lastLine := m.sourceLines[lastLineIdx]
-	fileEndPos := scip.Position{
-		Line:      int32(lastLineIdx),
-		Character: int32(len([]rune(lastLine))),
-	}
-
-	if scip.Position.Compare(startPos, fileEndPos) >= 0 {
-		return
-	}
-
-	endRange := scip.Range{Start: startPos, End: fileEndPos}
-	content := getSourceFromSpan(m.sourceLines, endRange)
-
-	// Use unified template literal format
-	sb.WriteString("<span className=\"cire_text\">{`")
-	sb.WriteString(escapeMDXForTemplateLiteral(content))
-	sb.WriteString("`}</span>")
 }
 
 func (m *MDXGenerator) outputTokenJSX(token TokenInfo, sb *strings.Builder) {
