@@ -1,8 +1,6 @@
 package internal
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -10,32 +8,16 @@ import (
 )
 
 func TestNewMarkdownGenerator(t *testing.T) {
-	// Create a temporary file
 	content := "line1\nline2\nline3"
-	tmpDir := t.TempDir()
-	tmpFile := filepath.Join(tmpDir, "test.go")
-	err := os.WriteFile(tmpFile, []byte(content), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
+	sourceLines := strings.Split(content, "\n")
 
 	t.Run("Success", func(t *testing.T) {
-		gen, err := NewMarkdownGenerator(tmpFile)
-		if err != nil {
-			t.Fatalf("NewMarkdownGenerator failed: %v", err)
-		}
+		gen := NewMarkdownGenerator(sourceLines)
 		if len(gen.sourceLines) != 3 {
 			t.Errorf("Expected 3 lines, got %d", len(gen.sourceLines))
 		}
 		if gen.sourceLines[0] != "line1" {
 			t.Errorf("Expected line1, got %s", gen.sourceLines[0])
-		}
-	})
-
-	t.Run("FileNotFound", func(t *testing.T) {
-		_, err := NewMarkdownGenerator(filepath.Join(tmpDir, "nonexistent.go"))
-		if err == nil {
-			t.Error("Expected error for non-existent file, got nil")
 		}
 	})
 }
@@ -48,17 +30,9 @@ func TestGenerateMarkdown(t *testing.T) {
 	// Line 3:	    print("Hello")
 	// Line 4:	}
 	content := "package main\n\nfunc main() {\n\tprint(\"Hello\")\n}"
-	tmpDir := t.TempDir()
-	tmpFile := filepath.Join(tmpDir, "main.go")
-	err := os.WriteFile(tmpFile, []byte(content), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
+	sourceLines := strings.Split(content, "\n")
 
-	gen, err := NewMarkdownGenerator(tmpFile)
-	if err != nil {
-		t.Fatalf("Failed to create generator: %v", err)
-	}
+	gen := NewMarkdownGenerator(sourceLines)
 
 	// Define tokens
 	// Token 1: "package" keyword

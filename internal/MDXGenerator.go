@@ -2,7 +2,6 @@ package internal
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"unicode" // Add this import
 
@@ -19,20 +18,14 @@ type MDXGenerator struct {
 	CodeWrapperEnd   string        // Custom closing HTML/JSX for code blocks
 }
 
-// NewMDXGenerator creates a new MDXGenerator instance from the given source file path.
-// It reads the source file and splits it into lines for processing with JSX compatibility.
-func NewMDXGenerator(sourcePath string) (*MDXGenerator, error) {
-	sourceContent, err := os.ReadFile(sourcePath)
-	if err != nil {
-		return nil, err
-	}
-	sourceLines := strings.Split(string(sourceContent), "\n")
+// NewMDXGenerator creates a new MDXGenerator instance from the given source lines.
+func NewMDXGenerator(sourceLines []string) *MDXGenerator {
 	return &MDXGenerator{
 		sourceLines:      sourceLines,
 		comments:         []CommentInfo{},                  // Initialize empty, will be set by GenerateMDX
 		CodeWrapperStart: "<pre><code className=\"cire\">", // Default MDX wrapper
 		CodeWrapperEnd:   "</code></pre>",                  // Default MDX wrapper
-	}, nil
+	}
 }
 
 // GenerateMDX generates MDX JSX code with proper escaping for JSX

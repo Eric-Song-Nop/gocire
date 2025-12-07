@@ -2,7 +2,6 @@ package internal
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/sourcegraph/scip/bindings/go/scip"
@@ -17,19 +16,13 @@ type MarkdownGenerator struct {
 	CodeWrapperEnd   string   // Custom closing HTML for code blocks
 }
 
-// NewMarkdownGenerator creates a new MarkdownGenerator instance from the given source file path.
-// It reads the source file and splits it into lines for processing.
-func NewMarkdownGenerator(sourcePath string) (*MarkdownGenerator, error) {
-	sourceContent, err := os.ReadFile(sourcePath)
-	if err != nil {
-		return nil, err
-	}
-	sourceLines := strings.Split(string(sourceContent), "\n")
+// NewMarkdownGenerator creates a new MarkdownGenerator instance from the given source lines.
+func NewMarkdownGenerator(sourceLines []string) *MarkdownGenerator {
 	return &MarkdownGenerator{
 		sourceLines:      sourceLines,
 		CodeWrapperStart: "<pre><code class='cire'>",
 		CodeWrapperEnd:   "</code></pre>",
-	}, nil
+	}
 }
 
 // GenerateMarkdown do the Markdown generation process

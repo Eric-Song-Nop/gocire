@@ -2,7 +2,6 @@ package internal
 
 import (
 	"bytes"
-	"os"
 	"strings"
 	"unicode"
 
@@ -191,15 +190,10 @@ func isCommentStandalone(sourceContent []byte, startByte int) bool {
 	return strings.TrimSpace(prefix) == ""
 }
 
-func (h *CommentAnalyzer) Analyze(sourcePath string) ([]CommentInfo, error) {
+func (h *CommentAnalyzer) Analyze(sourceContent []byte) ([]CommentInfo, error) {
 	lang, _, err := GetLanguageAndQuery(h.language)
 	if err != nil {
 		return nil, err
-	}
-
-	sourceContent, err := os.ReadFile(sourcePath)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read source file %s", sourcePath)
 	}
 
 	q, err := getCommentQuery(h.language)

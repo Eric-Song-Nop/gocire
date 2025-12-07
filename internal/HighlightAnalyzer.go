@@ -2,7 +2,6 @@ package internal
 
 import (
 	"embed"
-	"os"
 
 	"github.com/cockroachdb/errors"
 	"github.com/sourcegraph/scip/bindings/go/scip"
@@ -22,15 +21,10 @@ func NewHighlightAnalyzer(language string) *HighlightAnalyzer {
 	}
 }
 
-func (h *HighlightAnalyzer) Analyze(sourcePath string) ([]TokenInfo, error) {
+func (h *HighlightAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 	lang, queryFileName, err := GetLanguageAndQuery(h.language)
 	if err != nil {
 		return nil, err
-	}
-
-	sourceContent, err := os.ReadFile(sourcePath)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read source file %s", sourcePath)
 	}
 
 	parser := sitter.NewParser()
