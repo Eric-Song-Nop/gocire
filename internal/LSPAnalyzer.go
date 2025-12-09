@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -104,6 +105,7 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 			captureName := query.CaptureNames()[capture.Index]
 
 			var docs []string
+			var symbolID string           // Initialize empty symbol ID
 			var isDefinition bool = false // Initialize to false
 			var isReference bool = false  // Initialize to false
 
@@ -121,22 +123,49 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 
 				// Process definition results
 				if len(defs) > 0 {
-					for _, d := range defs {
-						if strings.HasSuffix(string(d.URI), filepath.Base(l.sourcePath)) {
-							if int(d.Range.Start.Line) == int(start.Row) &&
-								int(d.Range.Start.Character) == int(start.Column) {
-								isDefinition = true
-							} else {
-								isReference = true
-							}
-						}
+					d := defs[0]
+					// Generate a unique symbol ID based on the definition location
+					// This allows references to link to this specific definition
+					// We use the first definition if multiple are returned
+					uriStr := string(d.URI)
+					// Use 0-based indexing for the ID to match internal logic,
+					// though LSP uses 0-based too.
+					symID := getSymbolID(uriStr, int(d.Range.Start.Line), int(d.Range.Start.Character))
+
+					// If we have a valid definition location, we assign the symbol ID
+					// This effectively links this token (reference or def) to that ID.
+					if symID != "" {
+						symbolID = symID
+					}
+
+					// Check if this token IS the definition
+					// We compare the returned definition location with the current token's location
+					// We must check if the file matches.
+					// d.URI is usually file://...
+					// l.sourcePath is usually an absolute path /Users/...
+					// We do a loose check: if d.URI ends with sourcePath (handling protocol prefix)
+					defPath := strings.TrimPrefix(uriStr, "file://")
+					isCurrentFile := false
+
+					// Simple check: do they refer to the same file?
+					// l.sourcePath should be absolute.
+					if defPath == l.sourcePath || strings.HasSuffix(defPath, l.sourcePath) || strings.HasSuffix(l.sourcePath, defPath) {
+						isCurrentFile = true
+					}
+
+					if isCurrentFile &&
+						int(d.Range.Start.Line) == int(start.Row) &&
+						int(d.Range.Start.Character) == int(start.Column) {
+						isDefinition = true
+					} else if isCurrentFile { // Only mark as reference if definition is in current file
+						isReference = true
 					}
 				}
 			}
 
 			// Always create a TokenInfo for syntax highlighting and any available LSP data
 			token := TokenInfo{
-				Symbol:         "",
+				Symbol:         symbolID,
 				IsReference:    isReference,
 				IsDefinition:   isDefinition,
 				HighlightClass: captureName,
@@ -157,6 +186,24 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 	}
 
 	return tokens, nil
+}
+
+func getSymbolID(uriStr string, line, col int) string {
+	// Create a safe ID string from the URI and position
+	// Remove file:// prefix
+	path := strings.TrimPrefix(uriStr, "file://")
+
+	// Sanitize path to be ID-safe (alphanumeric + underscores)
+	// We just replace common separators.
+	safePath := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			return r
+		}
+		return '_'
+	}, path)
+
+	// Format: def_path_line_col
+	return fmt.Sprintf("def_%s_%d_%d", safePath, line, col)
 }
 
 func isIgnoredCapture(name string) bool {
