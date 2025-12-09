@@ -23,6 +23,7 @@ func main() {
 	indexPath := flag.String("index", "./index.scip", "SCIP Index File Path")
 	outPath := flag.String("output", "", "Output file path (optional). Defaults to source file path with appropriate extension")
 	lang := flag.String("lang", "", "Language for syntax highlighting (optional)")
+	useLSP := flag.Bool("lsp", false, "Use LSP for analysis (requires language server installed)")
 	format := flag.String("format", "mdx", "Output format: markdown or mdx")
 	codeWrapperStart := flag.String("code-wrapper-start", "<details open=\"true\">\n<summary>Expand to view code</summary>\n<pre className=\"cire\"><code>", "Custom opening HTML/JSX for code blocks")
 	codeWrapperEnd := flag.String("code-wrapper-end", "</code></pre>\n</details>", "Custom closing HTML/JSX for code blocks")
@@ -102,16 +103,27 @@ func main() {
 		})
 	}
 
-	// 2. Run syntax highlighting analysis
+	// 2. Run syntax highlighting or LSP analysis
 	if *lang != "" {
 		wg.Go(func() {
 			defer func() {
 				if r := recover(); r != nil {
-					addError(fmt.Errorf("Highlight analysis panic: %v", r))
+					addError(fmt.Errorf("Analysis panic: %v", r))
 				}
 			}()
-			highlightAnalyzer := internal.NewHighlightAnalyzer(*lang)
-			tokens, err := highlightAnalyzer.Analyze(sourceContent)
+
+			var tokens []internal.TokenInfo
+			var err error
+
+			if *useLSP {
+				fmt.Printf("Starting LSP analysis for %s...\n", *lang)
+				lspAnalyzer := internal.NewLSPAnalyzer(*lang, absSrcPath)
+				tokens, err = lspAnalyzer.Analyze(sourceContent)
+			} else {
+				highlightAnalyzer := internal.NewHighlightAnalyzer(*lang)
+				tokens, err = highlightAnalyzer.Analyze(sourceContent)
+			}
+
 			if err != nil {
 				addError(err)
 				return
