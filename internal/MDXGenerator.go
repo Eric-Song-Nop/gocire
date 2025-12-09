@@ -245,10 +245,6 @@ func escapeMDXForTemplateLiteral(text string) string {
 
 	result := text
 
-	// HTML entity escaping (required)
-	result = strings.ReplaceAll(result, "<", "&lt;")
-	result = strings.ReplaceAll(result, ">", "&gt;")
-
 	// Template literal specific escaping
 	result = strings.ReplaceAll(result, "\\", "\\\\") // Escape backslashes
 	result = strings.ReplaceAll(result, "`", "\\`")   // Escape backticks
@@ -256,6 +252,9 @@ func escapeMDXForTemplateLiteral(text string) string {
 
 	// Tab normalization (convert to escape sequence)
 	result = strings.ReplaceAll(result, "\t", "\\t")
+	
+	// Escape spaces to prevent them from being collapsed/ignored
+	result = strings.ReplaceAll(result, " ", "\\ ")
 
 	// Other characters that need explicit handling in template literals
 	result = strings.ReplaceAll(result, "\r", "\\r") // Carriage return
@@ -276,7 +275,7 @@ func escapeMDXAttribute(text string) string {
 	result = strings.ReplaceAll(result, "&", "&amp;")
 	result = strings.ReplaceAll(result, "<", "&lt;")
 	result = strings.ReplaceAll(result, ">", "&gt;")
-	// result = strings.ReplaceAll(result, "\"", "&quot;")
+	result = strings.ReplaceAll(result, "\"", "&quot;")
 	result = strings.ReplaceAll(result, "'", "&#39;")
 
 	// Tab normalization
