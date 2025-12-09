@@ -14,6 +14,7 @@ var LanguageRegistry = map[string]LanguageConfig{
 	"rust":       {Command: "rust-analyzer", Args: []string{}},
 	"cpp":        {Command: "clangd", Args: []string{}},
 	"c":          {Command: "clangd", Args: []string{}},
+	"haskell":    {Command: "haskell-language-server-wrapper", Args: []string{"--lsp"}},
 }
 
 func GetConfig(lang string) (LanguageConfig, bool) {
