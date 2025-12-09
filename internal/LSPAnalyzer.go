@@ -1,0 +1,173 @@
+package internal
+
+import (
+	"context"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/Eric-Song-Nop/gocire/internal/lsp"
+	"github.com/cockroachdb/errors"
+	"github.com/sourcegraph/scip/bindings/go/scip"
+	sitter "github.com/tree-sitter/go-tree-sitter"
+)
+
+type LSPAnalyzer struct {
+	language   string
+	sourcePath string
+}
+
+func NewLSPAnalyzer(language, sourcePath string) *LSPAnalyzer {
+	return &LSPAnalyzer{
+		language:   language,
+		sourcePath: sourcePath,
+	}
+}
+
+func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
+	// 1. Get Config
+	langCfg, ok := lsp.GetConfig(l.language)
+	if !ok {
+		return nil, errors.Newf("no lsp server configured for language %s", l.language)
+	}
+
+	// 2. Start Client
+	// Use a generous timeout for the entire analysis session
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	// Determine root. Use file dir as a simple fallback for now.
+	rootDir := filepath.Dir(l.sourcePath)
+
+	client, err := lsp.NewClient(ctx, langCfg.Command, langCfg.Args)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to start lsp client")
+	}
+	defer client.Shutdown()
+
+	if err := client.Initialize(rootDir); err != nil {
+		return nil, errors.Wrap(err, "lsp initialize failed")
+	}
+
+	if err := client.DidOpen(l.sourcePath, string(sourceContent)); err != nil {
+		return nil, errors.Wrap(err, "lsp didOpen failed")
+	}
+
+	// 3. Find Tokens using Tree-sitter
+	lang, queryFileName, err := GetLanguageAndQuery(l.language)
+	if err != nil {
+		return nil, err
+	}
+
+	parser := sitter.NewParser()
+	defer parser.Close()
+	parser.SetLanguage(lang)
+
+	tree := parser.Parse(sourceContent, nil)
+	defer tree.Close()
+
+	queryContent, err := queryFS.ReadFile("queries/" + queryFileName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to read query file %s", queryFileName)
+	}
+
+	query, qErr := sitter.NewQuery(lang, string(queryContent))
+	if qErr != nil {
+		return nil, errors.Wrapf(qErr, "failed to create query for %s", l.language)
+	}
+	defer query.Close()
+
+	qc := sitter.NewQueryCursor()
+	defer qc.Close()
+
+	matches := qc.Matches(query, tree.RootNode(), sourceContent)
+
+	var tokens []TokenInfo
+	type posKey struct {
+		line, char int32
+	}
+	seen := make(map[posKey]bool)
+
+	for match := matches.Next(); match != nil; match = matches.Next() {
+		for _, capture := range match.Captures {
+			node := capture.Node
+			start := node.StartPosition()
+			end := node.EndPosition()
+
+			// Deduplication check
+			key := posKey{int32(start.Row), int32(start.Column)}
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+
+			captureName := query.CaptureNames()[capture.Index]
+
+			var docs []string
+			var isDefinition bool = false // Initialize to false
+			var isReference bool = false  // Initialize to false
+
+			// Only query LSP if the capture is not ignored
+			if !isIgnoredCapture(captureName) {
+				// Query LSP
+				// We query at the start of the token
+				hover, _ := client.Hover(l.sourcePath, int(start.Row), int(start.Column))
+				defs, _ := client.Definition(l.sourcePath, int(start.Row), int(start.Column))
+
+				// Process hover results
+				if hover != nil && hover.Contents.Value != "" {
+					docs = append(docs, hover.Contents.Value)
+				}
+
+				// Process definition results
+				if len(defs) > 0 {
+					for _, d := range defs {
+						if strings.HasSuffix(string(d.URI), filepath.Base(l.sourcePath)) {
+							if int(d.Range.Start.Line) == int(start.Row) &&
+								int(d.Range.Start.Character) == int(start.Column) {
+								isDefinition = true
+							} else {
+								isReference = true
+							}
+						}
+					}
+				}
+			}
+
+			// Always create a TokenInfo for syntax highlighting and any available LSP data
+			token := TokenInfo{
+				Symbol:         "",
+				IsReference:    isReference,
+				IsDefinition:   isDefinition,
+				HighlightClass: captureName,
+				Document:       docs,
+				Span: scip.Range{
+					Start: scip.Position{
+						Line:      int32(start.Row),
+						Character: int32(start.Column),
+					},
+					End: scip.Position{
+						Line:      int32(end.Row),
+						Character: int32(end.Column),
+					},
+				},
+			}
+			tokens = append(tokens, token)
+		}
+	}
+
+	return tokens, nil
+}
+
+func isIgnoredCapture(name string) bool {
+	// Ignore punctuation, brackets, operators, and basic keywords from expensive LSP queries
+	// unless we really want them.
+	// But Tree-sitter queries might capture "type", "function", "variable" etc.
+	ignore := []string{"punctuation", "keyword", "operator", "comment", "string"}
+	for _, i := range ignore {
+		if strings.Contains(name, i) {
+			return true
+		}
+	}
+	return false
+}
