@@ -246,7 +246,6 @@ func escapeMDXForTemplateLiteral(text string) string {
 	result := text
 
 	// HTML entity escaping (required)
-	result = strings.ReplaceAll(result, "&", "&")
 	result = strings.ReplaceAll(result, "<", "&lt;")
 	result = strings.ReplaceAll(result, ">", "&gt;")
 
