@@ -50,7 +50,7 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 		return nil, errors.Wrap(err, "lsp initialize failed")
 	}
 
-	if err := client.DidOpen(l.sourcePath, string(sourceContent)); err != nil {
+	if err := client.DidOpen(l.sourcePath, l.language, string(sourceContent)); err != nil {
 		return nil, errors.Wrap(err, "lsp didOpen failed")
 	}
 

@@ -97,7 +97,7 @@ func (c *Client) Initialize(rootPath string) error {
 	return nil
 }
 
-func (c *Client) DidOpen(filePath string, content string) error {
+func (c *Client) DidOpen(filePath string, languageID string, content string) error {
 	absPath, err := filepath.Abs(filePath)
 	if err != nil {
 		return err
@@ -106,7 +106,7 @@ func (c *Client) DidOpen(filePath string, content string) error {
 	params := &protocol.DidOpenTextDocumentParams{
 		TextDocument: protocol.TextDocumentItem{
 			URI:        uri.File(absPath),
-			LanguageID: "go", // This might need to be dynamic later
+			LanguageID: protocol.LanguageIdentifier(languageID),
 			Version:    1,
 			Text:       content,
 		},
