@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Eric-Song-Nop/gocire/internal/languages"
 	"github.com/Eric-Song-Nop/gocire/internal/lsp"
 	"github.com/cockroachdb/errors"
 	"github.com/sourcegraph/scip/bindings/go/scip"
@@ -27,8 +28,12 @@ func NewLSPAnalyzer(language, sourcePath string) *LSPAnalyzer {
 
 func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 	// 1. Get Config
-	langCfg, ok := lsp.GetConfig(l.language)
-	if !ok {
+	cfg, err := languages.GetConfig(l.language)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.LSPCommand == "" {
 		return nil, errors.Newf("no lsp server configured for language %s", l.language)
 	}
 
@@ -40,7 +45,7 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 	// Determine root. Use file dir as a simple fallback for now.
 	rootDir := filepath.Dir(l.sourcePath)
 
-	client, err := lsp.NewClient(ctx, langCfg.Command, langCfg.Args)
+	client, err := lsp.NewClient(ctx, cfg.LSPCommand, cfg.LSPArgs)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start lsp client")
 	}
@@ -55,24 +60,19 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 	}
 
 	// 3. Find Tokens using Tree-sitter
-	lang, queryFileName, err := GetLanguageAndQuery(l.language)
-	if err != nil {
-		return nil, err
-	}
-
 	parser := sitter.NewParser()
 	defer parser.Close()
-	parser.SetLanguage(lang)
+	parser.SetLanguage(cfg.SitterLanguage)
 
 	tree := parser.Parse(sourceContent, nil)
 	defer tree.Close()
 
-	queryContent, err := queryFS.ReadFile("queries/" + queryFileName)
+	queryContent, err := queryFS.ReadFile("queries/" + cfg.QueryFileName)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read query file %s", queryFileName)
+		return nil, errors.Wrapf(err, "failed to read query file %s", cfg.QueryFileName)
 	}
 
-	query, qErr := sitter.NewQuery(lang, string(queryContent))
+	query, qErr := sitter.NewQuery(cfg.SitterLanguage, string(queryContent))
 	if qErr != nil {
 		return nil, errors.Wrapf(qErr, "failed to create query for %s", l.language)
 	}
@@ -110,7 +110,7 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 			var isReference bool = false  // Initialize to false
 
 			// Only query LSP if the capture is not ignored
-			if !isIgnoredCapture(captureName) {
+			if !isIgnoredCapture(captureName, cfg.IgnoredCaptures) {
 				// Query LSP
 				// We query at the start of the token
 				hover, _ := client.Hover(l.sourcePath, int(start.Row), int(start.Column))
@@ -206,12 +206,10 @@ func getSymbolID(uriStr string, line, col int) string {
 	return fmt.Sprintf("def_%s_%d_%d", safePath, line, col)
 }
 
-func isIgnoredCapture(name string) bool {
+func isIgnoredCapture(name string, ignoreList []string) bool {
 	// Ignore punctuation, brackets, operators, and basic keywords from expensive LSP queries
 	// unless we really want them.
-	// But Tree-sitter queries might capture "type", "function", "variable" etc.
-	ignore := []string{"punctuation", "keyword", "operator", "comment", "string"}
-	for _, i := range ignore {
+	for _, i := range ignoreList {
 		if strings.Contains(name, i) {
 			return true
 		}
