@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/Eric-Song-Nop/gocire/internal/languages"
 	"github.com/cockroachdb/errors"
 	"github.com/sourcegraph/scip/bindings/go/scip"
 	sitter "github.com/tree-sitter/go-tree-sitter"
@@ -191,7 +192,7 @@ func isCommentStandalone(sourceContent []byte, startByte int) bool {
 }
 
 func (h *CommentAnalyzer) Analyze(sourceContent []byte) ([]CommentInfo, error) {
-	lang, _, err := GetLanguageAndQuery(h.language)
+	cfg, err := languages.GetConfig(h.language)
 	if err != nil {
 		return nil, err
 	}
@@ -200,14 +201,14 @@ func (h *CommentAnalyzer) Analyze(sourceContent []byte) ([]CommentInfo, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get comment query for %s", h.language)
 	}
-	query, queryErr := sitter.NewQuery(lang, q)
+	query, queryErr := sitter.NewQuery(cfg.SitterLanguage, q)
 	if queryErr != nil {
 		return nil, errors.Wrapf(queryErr, "comment analyzer failed to create query for %s", h.language)
 	}
 
 	parser := sitter.NewParser()
 	defer parser.Close()
-	parser.SetLanguage(lang)
+	parser.SetLanguage(cfg.SitterLanguage)
 
 	tree := parser.Parse(sourceContent, nil)
 	defer tree.Close()

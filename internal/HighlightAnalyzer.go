@@ -3,6 +3,7 @@ package internal
 import (
 	"embed"
 
+	"github.com/Eric-Song-Nop/gocire/internal/languages"
 	"github.com/cockroachdb/errors"
 	"github.com/sourcegraph/scip/bindings/go/scip"
 	sitter "github.com/tree-sitter/go-tree-sitter"
@@ -22,24 +23,24 @@ func NewHighlightAnalyzer(language string) *HighlightAnalyzer {
 }
 
 func (h *HighlightAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
-	lang, queryFileName, err := GetLanguageAndQuery(h.language)
+	cfg, err := languages.GetConfig(h.language)
 	if err != nil {
 		return nil, err
 	}
 
 	parser := sitter.NewParser()
 	defer parser.Close()
-	parser.SetLanguage(lang)
+	parser.SetLanguage(cfg.SitterLanguage)
 
 	tree := parser.Parse(sourceContent, nil)
 	defer tree.Close()
 
-	queryContent, err := queryFS.ReadFile("queries/" + queryFileName)
+	queryContent, err := queryFS.ReadFile("queries/" + cfg.QueryFileName)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read query file %s", queryFileName)
+		return nil, errors.Wrapf(err, "failed to read query file %s", cfg.QueryFileName)
 	}
 
-	query, queryErr := sitter.NewQuery(lang, string(queryContent))
+	query, queryErr := sitter.NewQuery(cfg.SitterLanguage, string(queryContent))
 	if queryErr != nil {
 		return nil, errors.Wrapf(queryErr, "failed to create query for %s", h.language)
 	}

@@ -252,7 +252,7 @@ func escapeMDXForTemplateLiteral(text string) string {
 
 	// Tab normalization (convert to escape sequence)
 	result = strings.ReplaceAll(result, "\t", "\\t")
-	
+
 	// Escape spaces to prevent them from being collapsed/ignored
 	result = strings.ReplaceAll(result, " ", "\\ ")
 
