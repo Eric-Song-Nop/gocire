@@ -1,6 +1,8 @@
 package languages
 
 import (
+	"slices"
+	"path/filepath"
 	"strings"
 
 	dartsitter "github.com/UserNobody14/tree-sitter-dart/bindings/go"
@@ -26,6 +28,7 @@ type LanguageConfig struct {
 	LSPCommand      string
 	LSPArgs         []string
 	IgnoredCaptures []string
+	Extensions      []string
 }
 
 var defaultIgnoredCaptures = []string{"punctuation", "keyword", "operator", "comment", "string"}
@@ -37,6 +40,7 @@ var registry = map[string]LanguageConfig{
 		LSPCommand:      "gopls",
 		LSPArgs:         []string{},
 		IgnoredCaptures: defaultIgnoredCaptures,
+		Extensions:      []string{".go"},
 	},
 	"python": {
 		SitterLanguage:  sitter.NewLanguage(pythonsitter.Language()),
@@ -44,6 +48,7 @@ var registry = map[string]LanguageConfig{
 		LSPCommand:      "pylsp",
 		LSPArgs:         []string{},
 		IgnoredCaptures: defaultIgnoredCaptures,
+		Extensions:      []string{".py"},
 	},
 	"typescript": {
 		SitterLanguage:  sitter.NewLanguage(typescript.LanguageTypescript()),
@@ -51,6 +56,7 @@ var registry = map[string]LanguageConfig{
 		LSPCommand:      "typescript-language-server",
 		LSPArgs:         []string{"--stdio"},
 		IgnoredCaptures: defaultIgnoredCaptures,
+		Extensions:      []string{".ts", ".tsx"},
 	},
 	"javascript": {
 		SitterLanguage:  sitter.NewLanguage(javascript.Language()),
@@ -58,6 +64,7 @@ var registry = map[string]LanguageConfig{
 		LSPCommand:      "typescript-language-server",
 		LSPArgs:         []string{"--stdio"},
 		IgnoredCaptures: defaultIgnoredCaptures,
+		Extensions:      []string{".js", ".jsx"},
 	},
 	"rust": {
 		SitterLanguage:  sitter.NewLanguage(rustsitter.Language()),
@@ -65,6 +72,7 @@ var registry = map[string]LanguageConfig{
 		LSPCommand:      "rust-analyzer",
 		LSPArgs:         []string{},
 		IgnoredCaptures: defaultIgnoredCaptures,
+		Extensions:      []string{".rs"},
 	},
 	"cpp": {
 		SitterLanguage:  sitter.NewLanguage(cppsitter.Language()),
@@ -72,6 +80,7 @@ var registry = map[string]LanguageConfig{
 		LSPCommand:      "clangd",
 		LSPArgs:         []string{},
 		IgnoredCaptures: defaultIgnoredCaptures,
+		Extensions:      []string{".cpp", ".cxx", ".cc", ".hpp"},
 	},
 	"c": {
 		SitterLanguage:  sitter.NewLanguage(csitter.Language()),
@@ -79,6 +88,7 @@ var registry = map[string]LanguageConfig{
 		LSPCommand:      "clangd",
 		LSPArgs:         []string{},
 		IgnoredCaptures: defaultIgnoredCaptures,
+		Extensions:      []string{".c", ".h"},
 	},
 	"haskell": {
 		SitterLanguage:  sitter.NewLanguage(haskellsitter.Language()),
@@ -86,31 +96,37 @@ var registry = map[string]LanguageConfig{
 		LSPCommand:      "haskell-language-server-wrapper",
 		LSPArgs:         []string{"--lsp"},
 		IgnoredCaptures: defaultIgnoredCaptures,
+		Extensions:      []string{".hs"},
 	},
 	"java": {
 		SitterLanguage:  sitter.NewLanguage(javasitter.Language()),
 		QueryFileName:   "java.scm",
 		IgnoredCaptures: defaultIgnoredCaptures,
+		Extensions:      []string{".java"},
 	},
 	"ruby": {
 		SitterLanguage:  sitter.NewLanguage(rubysitter.Language()),
 		QueryFileName:   "ruby.scm",
 		IgnoredCaptures: defaultIgnoredCaptures,
+		Extensions:      []string{".rb"},
 	},
 	"csharp": {
 		SitterLanguage:  sitter.NewLanguage(csharpsitter.Language()),
 		QueryFileName:   "c_sharp.scm",
 		IgnoredCaptures: defaultIgnoredCaptures,
+		Extensions:      []string{".cs"},
 	},
 	"php": {
 		SitterLanguage:  sitter.NewLanguage(phpsitter.LanguagePHP()),
 		QueryFileName:   "php.scm",
 		IgnoredCaptures: defaultIgnoredCaptures,
+		Extensions:      []string{".php"},
 	},
 	"dart": {
 		SitterLanguage:  sitter.NewLanguage(dartsitter.Language()),
 		QueryFileName:   "dart.scm",
 		IgnoredCaptures: defaultIgnoredCaptures,
+		Extensions:      []string{".dart"},
 	},
 }
 
@@ -137,4 +153,16 @@ func GetConfig(language string) (*LanguageConfig, error) {
 		return nil, errors.Newf("unsupported language: %s", language)
 	}
 	return &cfg, nil
+}
+
+// DetectLanguage attempts to determine the language from the file extension.
+// It returns the language name (key in registry) and an error if not found.
+func DetectLanguage(filename string) (string, error) {
+	ext := strings.ToLower(filepath.Ext(filename))
+	for lang, config := range registry {
+		if slices.Contains(config.Extensions, ext) {
+				return lang, nil
+			}
+	}
+	return "", errors.Newf("could not detect language for extension: %s", ext)
 }
