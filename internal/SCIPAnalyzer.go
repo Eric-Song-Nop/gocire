@@ -85,7 +85,11 @@ func (s *SCIPAnalyzer) Analyze(sourcePath string) []TokenInfo {
 	}
 
 	var tokens []TokenInfo
-	for _, occ := range document.Occurrences {
+	for i, occ := range document.Occurrences {
+		// we skip first occurrence of rust file this is the module
+		if document.Language == "rust" && i == 0 {
+			continue
+		}
 		span := parseRange(occ.Range)
 
 		isDefinition := (occ.SymbolRoles & int32(scip.SymbolRole_Definition)) != 0
