@@ -79,6 +79,7 @@ func (c *Config) ResolveOutputPath() string {
 	var prefix string
 	if c.PrefixDate {
 		prefix = time.Now().Format("2006-01-02")
+		prefix = prefix + "-"
 	}
 
 	ext := ".md"
