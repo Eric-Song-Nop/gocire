@@ -15,14 +15,16 @@ import (
 )
 
 type LSPAnalyzer struct {
-	language   string
-	sourcePath string
+	language      string
+	sourcePath    string
+	workspaceRoot string
 }
 
-func NewLSPAnalyzer(language, sourcePath string) *LSPAnalyzer {
+func NewLSPAnalyzer(language, sourcePath string, workspaceRoot string) *LSPAnalyzer {
 	return &LSPAnalyzer{
-		language:   language,
-		sourcePath: sourcePath,
+		language:      language,
+		sourcePath:    sourcePath,
+		workspaceRoot: workspaceRoot,
 	}
 }
 
@@ -42,8 +44,12 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	// Determine root. Use file dir as a simple fallback for now.
-	rootDir := filepath.Dir(l.sourcePath)
+	var rootDir string
+	if l.workspaceRoot != "" {
+		rootDir = l.workspaceRoot
+	} else {
+		rootDir = filepath.Dir(l.sourcePath)
+	}
 
 	client, err := lsp.NewClient(ctx, cfg.LSPCommand, cfg.LSPArgs)
 	if err != nil {

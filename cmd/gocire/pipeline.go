@@ -44,7 +44,7 @@ func NewPipeline(cfg *Config) (*Pipeline, error) {
 		}
 		fmt.Printf("Starting LSP analysis for %s...\n", cfg.Lang)
 		p.analyzers = append(p.analyzers, &LSPWrapper{
-			inner: internal.NewLSPAnalyzer(cfg.Lang, cfg.AbsSrcPath),
+			inner: internal.NewLSPAnalyzer(cfg.Lang, cfg.AbsSrcPath, cfg.LSPRoot),
 		})
 	} else {
 		// Static Mode: SCIP + Highlight

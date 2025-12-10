@@ -15,6 +15,7 @@ type Config struct {
 	OutPath          string
 	Lang             string
 	UseLSP           bool
+	LSPRoot          string
 	Format           string
 	PrefixDate       bool
 	CodeWrapperStart string
@@ -29,6 +30,7 @@ func ParseConfig() (*Config, error) {
 	flag.StringVar(&cfg.OutPath, "output", "", "Output file path (optional). Defaults to source file path with appropriate extension")
 	flag.StringVar(&cfg.Lang, "lang", "", "Language for syntax highlighting (optional)")
 	flag.BoolVar(&cfg.UseLSP, "lsp", false, "Use LSP for analysis (requires language server installed)")
+	flag.StringVar(&cfg.LSPRoot, "lsp-root", "", "Workspace root for lsp")
 	flag.StringVar(&cfg.Format, "format", "mdx", "Output format: markdown or mdx")
 	flag.BoolVar(&cfg.PrefixDate, "date", false, "Prefix output file with current date")
 	flag.StringVar(&cfg.CodeWrapperStart, "code-wrapper-start", `<details open="true">
