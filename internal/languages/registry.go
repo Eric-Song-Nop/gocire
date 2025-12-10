@@ -1,8 +1,8 @@
 package languages
 
 import (
-	"slices"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	dartsitter "github.com/UserNobody14/tree-sitter-dart/bindings/go"
@@ -161,8 +161,8 @@ func DetectLanguage(filename string) (string, error) {
 	ext := strings.ToLower(filepath.Ext(filename))
 	for lang, config := range registry {
 		if slices.Contains(config.Extensions, ext) {
-				return lang, nil
-			}
+			return lang, nil
+		}
 	}
 	return "", errors.Newf("could not detect language for extension: %s", ext)
 }
