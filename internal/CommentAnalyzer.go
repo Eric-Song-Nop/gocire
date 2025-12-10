@@ -23,8 +23,11 @@ func NewCommentAnalyzer(language string) *CommentAnalyzer {
 
 func getCommentQuery(language string) (string, error) {
 	switch strings.ToLower(language) {
-	case "go", "golang", "java", "js", "javascript", "ts", "typescript", "rust", "c", "cpp", "c++", "csharp", "c#", "cs", "php", "dart", "ruby", "python", "py", "haskell":
+	case "go", "golang", "java", "js", "javascript", "ts", "typescript", "c", "cpp", "c++", "csharp", "c#", "cs", "php", "dart", "ruby", "python", "py", "haskell":
 		return "(comment)+ @comment", nil
+	case "rust":
+		// when rust, query line_comment or block_comment or doc_comment
+		return "[( line_comment ) ( block_comment ) ( doc_comment )]+ @comment", nil
 	default:
 		return "", errors.Newf("unsupported language: %s", language)
 	}
