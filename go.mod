@@ -3,8 +3,10 @@ module github.com/Eric-Song-Nop/gocire
 go 1.25.4
 
 require (
+	github.com/FurqanSoftware/goldmark-katex v0.0.0-20250906161933-da324498b7cf
 	github.com/UserNobody14/tree-sitter-dart v0.0.0-20251004150700-d4d8f3e337d8
 	github.com/cockroachdb/errors v1.11.1
+	github.com/sourcegraph/jsonrpc2 v0.2.1
 	github.com/sourcegraph/scip v0.6.1
 	github.com/tree-sitter/go-tree-sitter v0.25.0
 	github.com/tree-sitter/tree-sitter-c v0.24.1
@@ -20,12 +22,12 @@ require (
 	github.com/tree-sitter/tree-sitter-rust v0.24.0
 	github.com/tree-sitter/tree-sitter-typescript v0.23.2
 	github.com/yuin/goldmark v1.7.13
+	golang.org/x/sync v0.17.0
 	google.golang.org/protobuf v1.31.0
 )
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
-	github.com/FurqanSoftware/goldmark-katex v0.0.0-20250906161933-da324498b7cf // indirect
 	github.com/Masterminds/semver v1.4.2 // indirect
 	github.com/Masterminds/sprig v2.15.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
@@ -54,7 +56,6 @@ require (
 	github.com/gofrs/uuid/v5 v5.0.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-containerregistry v0.15.2 // indirect
 	github.com/google/pprof v0.0.0-20230705174524-200ffdc848b8 // indirect
 	github.com/google/uuid v1.3.0 // indirect
@@ -82,18 +83,12 @@ require (
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/rs/cors v1.9.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/segmentio/asm v1.1.3 // indirect
-	github.com/segmentio/encoding v0.3.4 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/sourcegraph/beaut v0.0.0-20240611013027-627e4c25335a // indirect
 	github.com/spf13/cobra v1.7.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tetratelabs/wazero v1.3.0 // indirect
 	github.com/vbatts/tar-split v0.11.3 // indirect
-	go.lsp.dev/jsonrpc2 v0.10.0 // indirect
-	go.lsp.dev/pkg v0.0.0-20210717090340-384b27a52fb2 // indirect
-	go.lsp.dev/protocol v0.12.0 // indirect
-	go.lsp.dev/uri v0.3.0 // indirect
 	go.opentelemetry.io/otel v1.16.0 // indirect
 	go.opentelemetry.io/otel/metric v1.16.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.16.0 // indirect
@@ -104,7 +99,6 @@ require (
 	golang.org/x/crypto v0.42.0 // indirect
 	golang.org/x/mod v0.28.0 // indirect
 	golang.org/x/net v0.44.0 // indirect
-	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/telemetry v0.0.0-20250908211612-aef8a434d053 // indirect
 	golang.org/x/term v0.35.0 // indirect

@@ -2,22 +2,43 @@ package lsp
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 
 	"github.com/cockroachdb/errors"
-	"go.lsp.dev/jsonrpc2"
-	"go.lsp.dev/protocol"
-	"go.lsp.dev/uri"
+	"github.com/sourcegraph/jsonrpc2"
 )
 
 type Client struct {
 	process *exec.Cmd
-	conn    jsonrpc2.Conn
+	conn    *jsonrpc2.Conn
 	ctx     context.Context
 	cancel  context.CancelFunc
+}
+
+type readWriteCloser struct {
+	r io.ReadCloser
+	w io.WriteCloser
+}
+
+func (c *readWriteCloser) Read(p []byte) (n int, err error) {
+	return c.r.Read(p)
+}
+
+func (c *readWriteCloser) Write(p []byte) (n int, err error) {
+	return c.w.Write(p)
+}
+
+func (c *readWriteCloser) Close() error {
+	err := c.r.Close()
+	wErr := c.w.Close()
+	if err != nil {
+		return err
+	}
+	return wErr
 }
 
 func NewClient(ctx context.Context, cmdName string, args []string) (*Client, error) {
@@ -33,30 +54,26 @@ func NewClient(ctx context.Context, cmdName string, args []string) (*Client, err
 		return nil, errors.Wrap(err, "failed to get stdout pipe")
 	}
 
-	// We redirect stderr to the parent's stderr for debugging purposes,
-	// or we could capture it. For now, inheriting is useful.
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Start(); err != nil {
 		return nil, errors.Wrapf(err, "failed to start command %s", cmdName)
 	}
 
-	// Create a read-write closer that combines stdout (read) and stdin (write)
-	rwc := struct {
-		io.ReadCloser
-		io.Writer
-	}{
-		ReadCloser: stdout,
-		Writer:     stdin,
+	rwc := &readWriteCloser{
+		r: stdout,
+		w: stdin,
 	}
 
-	stream := jsonrpc2.NewStream(rwc)
-	conn := jsonrpc2.NewConn(stream)
+	stream := jsonrpc2.NewBufferedStream(rwc, jsonrpc2.VSCodeObjectCodec{})
+
+	handler := jsonrpc2.HandlerWithError(func(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
+		return nil, nil
+	})
+
+	conn := jsonrpc2.NewConn(ctx, stream, handler)
 
 	clientCtx, cancel := context.WithCancel(ctx)
-
-	// Start the connection handling loop in the background
-	conn.Go(clientCtx, jsonrpc2.MethodNotFoundHandler)
 
 	return &Client{
 		process: cmd,
@@ -72,25 +89,24 @@ func (c *Client) Initialize(rootPath string) error {
 		return err
 	}
 
-	params := &protocol.InitializeParams{
-		RootURI: uri.File(absPath),
-		Capabilities: protocol.ClientCapabilities{
-			TextDocument: &protocol.TextDocumentClientCapabilities{
-				Hover: &protocol.HoverTextDocumentClientCapabilities{
-					ContentFormat: []protocol.MarkupKind{protocol.Markdown},
+	params := &InitializeParams{
+		RootURI: ToURI(absPath),
+		Capabilities: ClientCapabilities{
+			TextDocument: &TextDocumentClientCapabilities{
+				Hover: &HoverTextDocumentClientCapabilities{
+					ContentFormat: []string{Markdown},
 				},
-				Definition: &protocol.DefinitionTextDocumentClientCapabilities{},
+				Definition: &DefinitionTextDocumentClientCapabilities{},
 			},
 		},
 	}
 
-	var result protocol.InitializeResult
-	_, err = c.conn.Call(c.ctx, protocol.MethodInitialize, params, &result)
-	if err != nil {
+	var result InitializeResult
+	if err := c.conn.Call(c.ctx, MethodInitialize, params, &result); err != nil {
 		return errors.Wrap(err, "initialize request failed")
 	}
 
-	if err := c.conn.Notify(c.ctx, protocol.MethodInitialized, &protocol.InitializedParams{}); err != nil {
+	if err := c.conn.Notify(c.ctx, MethodInitialized, &InitializedParams{}); err != nil {
 		return errors.Wrap(err, "initialized notification failed")
 	}
 
@@ -103,92 +119,95 @@ func (c *Client) DidOpen(filePath string, languageID string, content string) err
 		return err
 	}
 
-	params := &protocol.DidOpenTextDocumentParams{
-		TextDocument: protocol.TextDocumentItem{
-			URI:        uri.File(absPath),
-			LanguageID: protocol.LanguageIdentifier(languageID),
+	params := &DidOpenTextDocumentParams{
+		TextDocument: TextDocumentItem{
+			URI:        ToURI(absPath),
+			LanguageID: languageID,
 			Version:    1,
 			Text:       content,
 		},
 	}
 
-	err = c.conn.Notify(c.ctx, protocol.MethodTextDocumentDidOpen, params)
+	err = c.conn.Notify(c.ctx, MethodTextDocumentDidOpen, params)
 	return errors.Wrap(err, "textDocument/didOpen failed")
 }
 
-func (c *Client) Hover(filePath string, line, char int) (*protocol.Hover, error) {
+func (c *Client) Hover(filePath string, line, char int) (*Hover, error) {
 	absPath, err := filepath.Abs(filePath)
 	if err != nil {
 		return nil, err
 	}
 
-	params := &protocol.HoverParams{
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: protocol.TextDocumentIdentifier{
-				URI: uri.File(absPath),
+	params := &HoverParams{
+		TextDocumentPositionParams: TextDocumentPositionParams{
+			TextDocument: TextDocumentIdentifier{
+				URI: ToURI(absPath),
 			},
-			Position: protocol.Position{
-				Line:      uint32(line),
-				Character: uint32(char),
+			Position: Position{
+				Line:      line,
+				Character: char,
 			},
 		},
 	}
 
-	var result protocol.Hover
-	_, err = c.conn.Call(c.ctx, protocol.MethodTextDocumentHover, params, &result)
-	if err != nil {
+	var result Hover
+	println("Called Hover")
+	if err := c.conn.Call(c.ctx, MethodTextDocumentHover, params, &result); err != nil {
+		println("Called Hover Failed")
 		return nil, errors.Wrap(err, "hover request failed")
 	}
+	println("Called Hover Success with Kind:", result.Contents.Kind)
 
 	return &result, nil
 }
 
-func (c *Client) Definition(filePath string, line, char int) ([]protocol.Location, error) {
+func (c *Client) Definition(filePath string, line, char int) ([]Location, error) {
 	absPath, err := filepath.Abs(filePath)
 	if err != nil {
 		return nil, err
 	}
 
-	params := &protocol.DefinitionParams{
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: protocol.TextDocumentIdentifier{
-				URI: uri.File(absPath),
+	params := &DefinitionParams{
+		TextDocumentPositionParams: TextDocumentPositionParams{
+			TextDocument: TextDocumentIdentifier{
+				URI: ToURI(absPath),
 			},
-			Position: protocol.Position{
-				Line:      uint32(line),
-				Character: uint32(char),
+			Position: Position{
+				Line:      line,
+				Character: char,
 			},
 		},
 	}
 
-	// Definition can return Location or []Location.
-	// The library might handle unmarshaling into a slice, but sometimes it returns a single object.
-	// Let's try unmarshaling into a slice first.
-	var result []protocol.Location
-	_, err = c.conn.Call(c.ctx, protocol.MethodTextDocumentDefinition, params, &result)
-
-	// Handle single Location case if unmarshal fails or result is empty (some servers return null or empty array)
-	// But strictly speaking, the response can be Location | Location[] | null.
-	// We might need a raw json.RawMessage if this fails often.
-	// For now, let's assume standard behavior or try to catch it.
-	if err != nil {
-		// Try single location
-		var singleRes protocol.Location
-		_, errSingle := c.conn.Call(c.ctx, protocol.MethodTextDocumentDefinition, params, &singleRes)
-		if errSingle == nil {
-			return []protocol.Location{singleRes}, nil
-		}
+	var raw json.RawMessage
+	if err := c.conn.Call(c.ctx, MethodTextDocumentDefinition, params, &raw); err != nil {
 		return nil, errors.Wrap(err, "definition request failed")
 	}
 
-	return result, nil
+	var result []Location
+	if err := json.Unmarshal(raw, &result); err == nil {
+		return result, nil
+	}
+
+	var single Location
+	if err := json.Unmarshal(raw, &single); err == nil {
+		return []Location{single}, nil
+	}
+
+	println("GOto Def gives", raw)
+
+	return nil, errors.New("failed to unmarshal definition result for ")
 }
 
 func (c *Client) Shutdown() error {
-	// Ignore errors on shutdown as we are exiting anyway
-	c.conn.Call(c.ctx, protocol.MethodShutdown, nil, nil)
-	c.conn.Notify(c.ctx, protocol.MethodExit, nil)
+	c.conn.Call(c.ctx, MethodShutdown, nil, nil)
+	c.conn.Notify(c.ctx, MethodExit, nil)
 	c.cancel()
 	c.conn.Close()
 	return c.process.Wait()
+}
+
+// status Get status of the language server
+func (c *Client) status() error {
+	return nil
 }
