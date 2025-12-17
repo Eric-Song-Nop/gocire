@@ -7,6 +7,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/sourcegraph/jsonrpc2"
@@ -17,6 +21,11 @@ type Client struct {
 	conn    *jsonrpc2.Conn
 	ctx     context.Context
 	cancel  context.CancelFunc
+
+	// Synchronization for work done progress
+	mu           sync.Mutex
+	activeWork   map[string]bool
+	workDoneCond *sync.Cond
 }
 
 type readWriteCloser struct {
@@ -67,20 +76,126 @@ func NewClient(ctx context.Context, cmdName string, args []string) (*Client, err
 
 	stream := jsonrpc2.NewBufferedStream(rwc, jsonrpc2.VSCodeObjectCodec{})
 
+	clientCtx, cancel := context.WithCancel(ctx)
+
+	c := &Client{
+		process:    cmd,
+		ctx:        clientCtx,
+		cancel:     cancel,
+		activeWork: make(map[string]bool),
+	}
+	c.workDoneCond = sync.NewCond(&c.mu)
+
 	handler := jsonrpc2.HandlerWithError(func(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
+		println("RX Method:", req.Method) // Log every method received
+		if req.Method == MethodWindowWorkDoneProgressCreate {
+			println("RX Progress Create")
+			return nil, nil // Accept the request to create progress
+		}
+		if req.Method == MethodProgress {
+			var params ProgressParams
+			if err := json.Unmarshal(*req.Params, &params); err == nil {
+				c.handleProgress(params)
+			} else {
+				println("Failed to unmarshal progress params:", err.Error())
+			}
+		}
 		return nil, nil
 	})
 
 	conn := jsonrpc2.NewConn(ctx, stream, handler)
+	c.conn = conn
 
-	clientCtx, cancel := context.WithCancel(ctx)
+	return c, nil
+}
 
-	return &Client{
-		process: cmd,
-		conn:    conn,
-		ctx:     clientCtx,
-		cancel:  cancel,
-	}, nil
+func (c *Client) handleProgress(params ProgressParams) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Convert token to string key
+	tokenStr := ""
+	switch t := params.Token.(type) {
+	case string:
+		tokenStr = t
+	case float64: // JSON numbers are float64
+		tokenStr = strconv.Itoa(int(t))
+	default:
+		println("Unknown token type:", t)
+		return // Unknown token type
+	}
+
+	// Parse value
+	// We need to re-marshal interface{} to handle the specific WorkDoneProgressValue struct
+	// or blindly cast map[string]interface{}
+	valBytes, _ := json.Marshal(params.Value)
+	var workVal WorkDoneProgressValue
+	json.Unmarshal(valBytes, &workVal)
+
+	println("Progress Update:", tokenStr, workVal.Kind, workVal.Message, workVal.Title)
+
+	switch workVal.Kind {
+	case "begin":
+		c.activeWork[tokenStr] = true
+	case "end":
+		delete(c.activeWork, tokenStr)
+		c.workDoneCond.Broadcast()
+	default:
+		// Check for implicit completion in report messages
+		// e.g. "15/15", "100%"
+		if strings.Contains(workVal.Message, "15/15") || strings.Contains(workVal.Message, "100%") {
+			println("Force completing task due to message:", workVal.Message)
+			delete(c.activeWork, tokenStr)
+			c.workDoneCond.Broadcast()
+		}
+	}
+	println("Active Work Count:", len(c.activeWork))
+}
+
+func (c *Client) WaitForIndexing(timeout time.Duration) error {
+	println("WaitForIndexing: Starting sleep (500ms)")
+	// Give the server a moment to start reporting progress
+	time.Sleep(500 * time.Millisecond)
+
+	c.mu.Lock()
+	initialWork := len(c.activeWork)
+	c.mu.Unlock()
+	println("WaitForIndexing: Sleep done. Active work items:", initialWork)
+
+	// Wait until no active work, or timeout
+	// Simple implementation: wait loop with condition
+	done := make(chan struct{})
+
+	go func() {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		for len(c.activeWork) > 0 {
+			c.workDoneCond.Wait()
+		}
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		println("WaitForIndexing: All work finished.")
+		return nil
+	case <-time.After(timeout):
+		// Log which tasks are stuck
+		c.mu.Lock()
+		keys := make([]string, 0, len(c.activeWork))
+		for k := range c.activeWork {
+			keys = append(keys, k)
+		}
+		c.mu.Unlock()
+		println("WaitForIndexing: Timeout reached. Stuck tasks:", strings.Join(keys, ", "))
+
+		// It's okay if we timeout, we just proceed.
+		// Some servers might never send "end" or start something else.
+		// We just want to give it a chance to finish initial indexing.
+		return errors.New("timeout waiting for indexing")
+	case <-c.ctx.Done():
+		return c.ctx.Err()
+	}
 }
 
 func (c *Client) Initialize(rootPath string) error {
@@ -91,7 +206,16 @@ func (c *Client) Initialize(rootPath string) error {
 
 	params := &InitializeParams{
 		RootURI: ToURI(absPath),
+		WorkspaceFolders: []WorkspaceFolder{
+			{
+				URI:  ToURI(absPath),
+				Name: filepath.Base(absPath),
+			},
+		},
 		Capabilities: ClientCapabilities{
+			Window: &WindowClientCapabilities{
+				WorkDoneProgress: true,
+			},
 			TextDocument: &TextDocumentClientCapabilities{
 				Hover: &HoverTextDocumentClientCapabilities{
 					ContentFormat: []string{Markdown},
@@ -150,11 +274,18 @@ func (c *Client) Hover(filePath string, line, char int) (*Hover, error) {
 		},
 	}
 
-	var result Hover
+	var raw json.RawMessage
 	println("Called Hover")
-	if err := c.conn.Call(c.ctx, MethodTextDocumentHover, params, &result); err != nil {
+	if err := c.conn.Call(c.ctx, MethodTextDocumentHover, params, &raw); err != nil {
 		println("Called Hover Failed")
 		return nil, errors.Wrap(err, "hover request failed")
+	}
+	// Print raw response for debugging
+	println("Hover Raw Response:", string(raw))
+
+	var result Hover
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal hover result")
 	}
 	println("Called Hover Success with Kind:", result.Contents.Kind)
 
@@ -184,6 +315,9 @@ func (c *Client) Definition(filePath string, line, char int) ([]Location, error)
 		return nil, errors.Wrap(err, "definition request failed")
 	}
 
+	// Print raw response for debugging
+	println("Definition Raw Response:", string(raw))
+
 	var result []Location
 	if err := json.Unmarshal(raw, &result); err == nil {
 		return result, nil
@@ -194,9 +328,7 @@ func (c *Client) Definition(filePath string, line, char int) ([]Location, error)
 		return []Location{single}, nil
 	}
 
-	println("GOto Def gives", raw)
-
-	return nil, errors.New("failed to unmarshal definition result for ")
+	return nil, errors.New("failed to unmarshal definition result")
 }
 
 func (c *Client) Shutdown() error {
