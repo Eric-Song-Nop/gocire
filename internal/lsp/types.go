@@ -7,14 +7,16 @@ import (
 
 // JSON-RPC Method Constants
 const (
-	MethodInitialize             = "initialize"
-	MethodInitialized            = "initialized"
-	MethodTextDocumentDidOpen    = "textDocument/didOpen"
-	MethodTextDocumentHover      = "textDocument/hover"
-	MethodTextDocumentDefinition = "textDocument/definition"
-	MethodStatus                 = "status"
-	MethodShutdown               = "shutdown"
-	MethodExit                   = "exit"
+	MethodInitialize                   = "initialize"
+	MethodInitialized                  = "initialized"
+	MethodTextDocumentDidOpen          = "textDocument/didOpen"
+	MethodTextDocumentHover            = "textDocument/hover"
+	MethodTextDocumentDefinition       = "textDocument/definition"
+	MethodStatus                       = "status"
+	MethodShutdown                     = "shutdown"
+	MethodExit                         = "exit"
+	MethodProgress                     = "$/progress"
+	MethodWindowWorkDoneProgressCreate = "window/workDoneProgress/create"
 )
 
 // MarkupKind Constants
@@ -60,13 +62,24 @@ type MarkupContent struct {
 // Params & Results
 
 type InitializeParams struct {
-	ProcessID    int                `json:"processId,omitempty"`
-	RootURI      DocumentURI        `json:"rootUri,omitempty"`
-	Capabilities ClientCapabilities `json:"capabilities"`
+	ProcessID        int                `json:"processId,omitempty"`
+	RootURI          DocumentURI        `json:"rootUri,omitempty"`
+	WorkspaceFolders []WorkspaceFolder  `json:"workspaceFolders,omitempty"`
+	Capabilities     ClientCapabilities `json:"capabilities"`
+}
+
+type WorkspaceFolder struct {
+	URI  DocumentURI `json:"uri"`
+	Name string      `json:"name"`
 }
 
 type ClientCapabilities struct {
 	TextDocument *TextDocumentClientCapabilities `json:"textDocument,omitempty"`
+	Window       *WindowClientCapabilities       `json:"window,omitempty"`
+}
+
+type WindowClientCapabilities struct {
+	WorkDoneProgress bool `json:"workDoneProgress,omitempty"`
 }
 
 type TextDocumentClientCapabilities struct {
@@ -123,4 +136,21 @@ type Hover struct {
 
 type DefinitionParams struct {
 	TextDocumentPositionParams
+}
+
+// Progress Types
+type ProgressParams struct {
+	Token interface{} `json:"token"`
+	Value interface{} `json:"value"`
+}
+
+type WorkDoneProgressValue struct {
+	Kind       string `json:"kind"`
+	Title      string `json:"title,omitempty"`
+	Message    string `json:"message,omitempty"`
+	Percentage int    `json:"percentage,omitempty"`
+}
+
+type WorkDoneProgressCreateParams struct {
+	Token interface{} `json:"token"`
 }

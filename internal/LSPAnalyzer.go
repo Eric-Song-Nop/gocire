@@ -41,7 +41,7 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 
 	// 2. Start Client
 	// Use a generous timeout for the entire analysis session
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	var rootDir string
@@ -61,9 +61,16 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 		return nil, errors.Wrap(err, "lsp initialize failed")
 	}
 
+	// Wait for server to finish indexing (up to 10 seconds)
+	// This helps avoid empty results if the server is still parsing the workspace.
+	_ = client.WaitForIndexing(10 * time.Second)
+
 	if err := client.DidOpen(l.sourcePath, l.language, string(sourceContent)); err != nil {
 		return nil, errors.Wrap(err, "lsp didOpen failed")
 	}
+
+	// Give the server a moment to process the file open event
+	time.Sleep(1 * time.Second)
 
 	// 3. Find Tokens using Tree-sitter
 	parser := sitter.NewParser()
