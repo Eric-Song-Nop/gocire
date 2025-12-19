@@ -4,7 +4,9 @@ import (
 	"bytes"
 
 	katex "github.com/FurqanSoftware/goldmark-katex"
+	formatter "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/yuin/goldmark"
+	highlight "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer/html"
@@ -17,6 +19,11 @@ func RenderMarkdown(input string) string {
 		goldmark.WithExtensions(
 			extension.GFM, // GitHub Flavored Markdown for tables, task lists, etc.
 			&katex.Extender{},
+		),
+		goldmark.WithExtensions(
+			highlight.NewHighlighting(highlight.WithFormatOptions(
+				formatter.WithClasses(true),
+			), highlight.WithGuessLanguage(true)),
 		),
 		goldmark.WithParserOptions(
 			parser.WithAutoHeadingID(), // Automatically generate heading IDs
