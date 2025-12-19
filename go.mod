@@ -31,6 +31,7 @@ require (
 	github.com/Masterminds/semver v1.4.2 // indirect
 	github.com/Masterminds/sprig v2.15.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
+	github.com/alecthomas/chroma/v2 v2.21.1 // indirect
 	github.com/aokoli/goutils v1.0.1 // indirect
 	github.com/bluele/gcache v0.0.2 // indirect
 	github.com/bufbuild/buf v1.25.0 // indirect
@@ -41,6 +42,7 @@ require (
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.14.3 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
+	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/docker/cli v24.0.4+incompatible // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
 	github.com/docker/docker v24.0.4+incompatible // indirect
@@ -89,6 +91,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tetratelabs/wazero v1.3.0 // indirect
 	github.com/vbatts/tar-split v0.11.3 // indirect
+	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc // indirect
 	go.opentelemetry.io/otel v1.16.0 // indirect
 	go.opentelemetry.io/otel/metric v1.16.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.16.0 // indirect

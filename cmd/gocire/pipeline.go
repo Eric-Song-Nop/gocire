@@ -46,6 +46,9 @@ func NewPipeline(cfg *Config) (*Pipeline, error) {
 		p.analyzers = append(p.analyzers, &LSPWrapper{
 			inner: internal.NewLSPAnalyzer(cfg.Lang, cfg.AbsSrcPath, cfg.LSPRoot),
 		})
+		p.analyzers = append(p.analyzers, &HighlightWrapper{
+			inner: internal.NewHighlightAnalyzer(cfg.Lang),
+		})
 	} else {
 		// Static Mode: SCIP + Highlight
 		if cfg.AbsIndexPath != "" {

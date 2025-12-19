@@ -510,3 +510,139 @@ div[class*='codeBlockContainer'] + .cire,
 .rc-tooltip-placement-bottomRight .rc-tooltip-arrow {
   border-bottom-color: var(--ifm-background-color) !important;
 }
+
+/* === Gruvbox Light Chroma Theme === */
+
+html[data-theme='light'] .chroma { 
+  color: #3c3836; 
+  background-color: #fbf1c7;
+  font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  font-variant-ligatures: common-ligatures;
+}
+html[data-theme='light'] .chroma .bg { color: #3c3836; background-color: #fbf1c7; }
+html[data-theme='light'] .chroma .err { color: #cc241d; background-color: #fbf1c7 }
+html[data-theme='light'] .chroma .ln { color: #a89984; margin-right: 0.4em; padding: 0 0.4em 0 0.4em; }
+html[data-theme='light'] .chroma .k, 
+html[data-theme='light'] .chroma .kc, 
+html[data-theme='light'] .chroma .kd, 
+html[data-theme='light'] .chroma .kn, 
+html[data-theme='light'] .chroma .kp, 
+html[data-theme='light'] .chroma .kr { color: #9d0006; font-weight: 600; } /* Red */
+html[data-theme='light'] .chroma .kt,
+html[data-theme='light'] .chroma .nc { color: #8f3f71 } /* Purple */
+html[data-theme='light'] .chroma .nf { color: #076678; font-weight: 600; } /* Blue */
+html[data-theme='light'] .chroma .n, 
+html[data-theme='light'] .chroma .na, 
+html[data-theme='light'] .chroma .no, 
+html[data-theme='light'] .chroma .nd, 
+html[data-theme='light'] .chroma .ne, 
+html[data-theme='light'] .chroma .nx { color: #3c3836 } /* FG */
+html[data-theme='light'] .chroma .nt { color: #9d0006 } /* Red */
+html[data-theme='light'] .chroma .nb,
+html[data-theme='light'] .chroma .bp { color: #b57614 } /* Yellow */
+html[data-theme='light'] .chroma .l, 
+html[data-theme='light'] .chroma .ld, 
+html[data-theme='light'] .chroma .s, 
+html[data-theme='light'] .chroma .sa, 
+html[data-theme='light'] .chroma .sb, 
+html[data-theme='light'] .chroma .dl, 
+html[data-theme='light'] .chroma .sd, 
+html[data-theme='light'] .chroma .s2, 
+html[data-theme='light'] .chroma .se, 
+html[data-theme='light'] .chroma .sh, 
+html[data-theme='light'] .chroma .si, 
+html[data-theme='light'] .chroma .sx, 
+html[data-theme='light'] .chroma .sr, 
+html[data-theme='light'] .chroma .s1, 
+html[data-theme='light'] .chroma .ss { color: #79740e } /* Green */
+html[data-theme='light'] .chroma .sc { color: #b57614 } /* Yellow */
+html[data-theme='light'] .chroma .m, 
+html[data-theme='light'] .chroma .mb, 
+html[data-theme='light'] .chroma .mf, 
+html[data-theme='light'] .chroma .mh, 
+html[data-theme='light'] .chroma .mi, 
+html[data-theme='light'] .chroma .il, 
+html[data-theme='light'] .chroma .mo { color: #8f3f71 } /* Purple */
+html[data-theme='light'] .chroma .o, 
+html[data-theme='light'] .chroma .ow { color: #928374 } /* Gray */
+html[data-theme='light'] .chroma .c, 
+html[data-theme='light'] .chroma .ch, 
+html[data-theme='light'] .chroma .cm, 
+html[data-theme='light'] .chroma .c1, 
+html[data-theme='light'] .chroma .cs, 
+html[data-theme='light'] .chroma .cp, 
+html[data-theme='light'] .chroma .cpf { color: #928374 } /* Gray */
+html[data-theme='light'] .chroma .gd { color: #9d0006 }
+html[data-theme='light'] .chroma .gi { color: #79740e }
+html[data-theme='light'] .chroma .ge { font-style: italic }
+html[data-theme='light'] .chroma .gs { font-weight: bold }
+
+/* === Gruvbox Dark Chroma Theme === */
+
+html[data-theme='dark'] .chroma { 
+  color: #ebdbb2; 
+  background-color: #282828;
+  font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  font-variant-ligatures: common-ligatures;
+}
+html[data-theme='dark'] .chroma .bg { color: #ebdbb2; background-color: #282828; }
+html[data-theme='dark'] .chroma .err { color: #fb4934; background-color: #282828 }
+html[data-theme='dark'] .chroma .ln { color: #a89984; margin-right: 0.4em; padding: 0 0.4em 0 0.4em; }
+html[data-theme='dark'] .chroma .k, 
+html[data-theme='dark'] .chroma .kc, 
+html[data-theme='dark'] .chroma .kd, 
+html[data-theme='dark'] .chroma .kn, 
+html[data-theme='dark'] .chroma .kp, 
+html[data-theme='dark'] .chroma .kr { color: #fb4934; font-weight: 600; } /* Red */
+html[data-theme='dark'] .chroma .kt,
+html[data-theme='dark'] .chroma .nc { color: #d3869b } /* Purple */
+html[data-theme='dark'] .chroma .nf { color: #83a598; font-weight: 600; } /* Blue */
+html[data-theme='dark'] .chroma .n, 
+html[data-theme='dark'] .chroma .na, 
+html[data-theme='dark'] .chroma .no, 
+html[data-theme='dark'] .chroma .nd, 
+html[data-theme='dark'] .chroma .ne, 
+html[data-theme='dark'] .chroma .nx { color: #ebdbb2 } /* FG */
+html[data-theme='dark'] .chroma .nt { color: #fb4934 } /* Red */
+html[data-theme='dark'] .chroma .nb,
+html[data-theme='dark'] .chroma .bp { color: #fabd2f } /* Yellow */
+html[data-theme='dark'] .chroma .l, 
+html[data-theme='dark'] .chroma .ld, 
+html[data-theme='dark'] .chroma .s, 
+html[data-theme='dark'] .chroma .sa, 
+html[data-theme='dark'] .chroma .sb, 
+html[data-theme='dark'] .chroma .dl, 
+html[data-theme='dark'] .chroma .sd, 
+html[data-theme='dark'] .chroma .s2, 
+html[data-theme='dark'] .chroma .se, 
+html[data-theme='dark'] .chroma .sh, 
+html[data-theme='dark'] .chroma .si, 
+html[data-theme='dark'] .chroma .sx, 
+html[data-theme='dark'] .chroma .sr, 
+html[data-theme='dark'] .chroma .s1, 
+html[data-theme='dark'] .chroma .ss { color: #b8bb26 } /* Green */
+html[data-theme='dark'] .chroma .sc { color: #fabd2f } /* Yellow */
+html[data-theme='dark'] .chroma .m, 
+html[data-theme='dark'] .chroma .mb, 
+html[data-theme='dark'] .chroma .mf, 
+html[data-theme='dark'] .chroma .mh, 
+html[data-theme='dark'] .chroma .mi, 
+html[data-theme='dark'] .chroma .il, 
+html[data-theme='dark'] .chroma .mo { color: #d3869b } /* Purple */
+html[data-theme='dark'] .chroma .o, 
+html[data-theme='dark'] .chroma .ow { color: #928374 } /* Gray */
+html[data-theme='dark'] .chroma .c, 
+html[data-theme='dark'] .chroma .ch, 
+html[data-theme='dark'] .chroma .cm, 
+html[data-theme='dark'] .chroma .c1, 
+html[data-theme='dark'] .chroma .cs, 
+html[data-theme='dark'] .chroma .cp, 
+html[data-theme='dark'] .chroma .cpf { color: #928374 } /* Gray */
+html[data-theme='dark'] .chroma .gd { color: #fb4934 }
+html[data-theme='dark'] .chroma .gi { color: #b8bb26 }
+html[data-theme='dark'] .chroma .ge { font-style: italic }
+html[data-theme='dark'] .chroma .gs { font-weight: bold }

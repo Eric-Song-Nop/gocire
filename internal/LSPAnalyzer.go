@@ -176,12 +176,11 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 				}
 			}
 
-			// Always create a TokenInfo for syntax highlighting and any available LSP data
 			token := TokenInfo{
 				Symbol:         symbolID,
 				IsReference:    isReference,
 				IsDefinition:   isDefinition,
-				HighlightClass: captureName,
+				HighlightClass: "",
 				Document:       docs,
 				Span: scip.Range{
 					Start: scip.Position{
