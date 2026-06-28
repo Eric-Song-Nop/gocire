@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Eric-Song-Nop/gocire/internal/languages"
@@ -21,6 +22,17 @@ type LSPAnalyzer struct {
 	workspaceRoot string
 }
 
+// LSPSession owns one initialized language-server process and reuses it across files.
+type LSPSession struct {
+	language string
+	cfg      *languages.LanguageConfig
+	client   *lsp.Client
+
+	requestMu sync.Mutex
+	closeMu   sync.Mutex
+	closed    bool
+}
+
 func NewLSPAnalyzer(language, sourcePath string, workspaceRoot string) *LSPAnalyzer {
 	return &LSPAnalyzer{
 		language:      language,
@@ -30,35 +42,40 @@ func NewLSPAnalyzer(language, sourcePath string, workspaceRoot string) *LSPAnaly
 }
 
 func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
-	// 1. Get Config
-	cfg, err := languages.GetConfig(l.language)
-	if err != nil {
-		return nil, err
-	}
-
-	if cfg.LSPCommand == "" {
-		return nil, errors.Newf("no lsp server configured for language %s", l.language)
-	}
-
-	// 2. Start Client
-	// Use a generous timeout for the entire analysis session
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
-	var rootDir string
-	if l.workspaceRoot != "" {
-		rootDir = l.workspaceRoot
-	} else {
-		rootDir = filepath.Dir(l.sourcePath)
+	session, err := NewLSPSession(ctx, l.language, resolveLSPWorkspaceRoot(l.workspaceRoot, l.sourcePath))
+	if err != nil {
+		return nil, err
 	}
+	defer session.Close()
+
+	return session.AnalyzeFile(l.sourcePath, sourceContent)
+}
+
+// NewLSPSession starts and initializes one language server for a workspace.
+func NewLSPSession(ctx context.Context, language, workspaceRoot string) (*LSPSession, error) {
+	cfg, err := languages.GetConfig(language)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.LSPCommand == "" {
+		return nil, errors.Newf("no lsp server configured for language %s", language)
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	rootDir := resolveLSPWorkspaceRoot(workspaceRoot, "")
 
 	client, err := lsp.NewClient(ctx, cfg.LSPCommand, cfg.LSPArgs)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start lsp client")
 	}
-	defer client.Shutdown()
 
 	if err := client.Initialize(rootDir); err != nil {
+		_ = client.Shutdown()
 		return nil, errors.Wrap(err, "lsp initialize failed")
 	}
 
@@ -66,14 +83,86 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 	// This helps avoid empty results if the server is still parsing the workspace.
 	_ = client.WaitForIndexing(10 * time.Second)
 
-	if err := client.DidOpen(l.sourcePath, l.language, string(sourceContent)); err != nil {
+	return &LSPSession{
+		language: language,
+		cfg:      cfg,
+		client:   client,
+	}, nil
+}
+
+func resolveLSPWorkspaceRoot(workspaceRoot, sourcePath string) string {
+	if workspaceRoot != "" {
+		return workspaceRoot
+	}
+	if sourcePath != "" {
+		return filepath.Dir(sourcePath)
+	}
+	return "."
+}
+
+// AnalyzeFile analyzes one file through the session's language server.
+func (s *LSPSession) AnalyzeFile(sourcePath string, sourceContent []byte) ([]TokenInfo, error) {
+	if err := s.withLSPClient(func(client *lsp.Client) error {
+		return client.DidOpen(sourcePath, s.language, string(sourceContent))
+	}); err != nil {
 		return nil, errors.Wrap(err, "lsp didOpen failed")
 	}
 
 	// Give the server a moment to process the file open event
 	time.Sleep(1 * time.Second)
 
-	// 3. Find Tokens using Tree-sitter
+	return analyzeLSPTokens(s.language, sourcePath, sourceContent, s.cfg, func(line, char int) (*lsp.Hover, []lsp.Location) {
+		var hover *lsp.Hover
+		var defs []lsp.Location
+		_ = s.withLSPClient(func(client *lsp.Client) error {
+			hover, _ = client.Hover(sourcePath, line, char)
+			defs, _ = client.Definition(sourcePath, line, char)
+			return nil
+		})
+		return hover, defs
+	})
+}
+
+// Close shuts down the language-server process owned by the session.
+func (s *LSPSession) Close() error {
+	s.closeMu.Lock()
+	if s.closed {
+		s.closeMu.Unlock()
+		return nil
+	}
+	s.closed = true
+	s.closeMu.Unlock()
+
+	s.requestMu.Lock()
+	defer s.requestMu.Unlock()
+
+	return s.client.Shutdown()
+}
+
+func (s *LSPSession) withLSPClient(fn func(*lsp.Client) error) error {
+	s.closeMu.Lock()
+	closed := s.closed
+	s.closeMu.Unlock()
+	if closed {
+		return errors.New("lsp session is closed")
+	}
+
+	s.requestMu.Lock()
+	defer s.requestMu.Unlock()
+
+	s.closeMu.Lock()
+	closed = s.closed
+	s.closeMu.Unlock()
+	if closed {
+		return errors.New("lsp session is closed")
+	}
+
+	return fn(s.client)
+}
+
+type lspTokenQuery func(line, char int) (*lsp.Hover, []lsp.Location)
+
+func analyzeLSPTokens(language, sourcePath string, sourceContent []byte, cfg *languages.LanguageConfig, queryLSP lspTokenQuery) ([]TokenInfo, error) {
 	parser := sitter.NewParser()
 	defer parser.Close()
 	parser.SetLanguage(cfg.SitterLanguage)
@@ -88,7 +177,7 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 
 	query, qErr := sitter.NewQuery(cfg.SitterLanguage, string(queryContent))
 	if qErr != nil {
-		return nil, errors.Wrapf(qErr, "failed to create query for %s", l.language)
+		return nil, errors.Wrapf(qErr, "failed to create query for %s", language)
 	}
 	defer query.Close()
 
@@ -138,8 +227,7 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 			if !isIgnoredCapture(captureName, cfg.IgnoredCaptures) {
 				// Query LSP
 				// We query at the start of the token
-				hover, _ := client.Hover(l.sourcePath, int(start.Row), int(start.Column))
-				defs, _ := client.Definition(l.sourcePath, int(start.Row), int(start.Column))
+				hover, defs := queryLSP(int(start.Row), int(start.Column))
 
 				// Process hover results
 				if hover != nil && hover.Contents.Value != "" {
@@ -166,7 +254,7 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 					// Check if this token IS the definition
 					// We compare the returned definition location with the current token's location
 					// across normalized file paths.
-					isDefinition = isDefinitionLocation(definition, l.sourcePath, span)
+					isDefinition = isDefinitionLocation(definition, sourcePath, span)
 					isReference = !isDefinition
 				}
 			}

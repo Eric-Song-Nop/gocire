@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"time"
 )
 
@@ -16,6 +17,10 @@ type Config struct {
 	Lang             string
 	UseLSP           bool
 	LSPRoot          string
+	Project          bool
+	Site             bool
+	ConfigPath       string
+	Jobs             int
 	Format           string
 	PrefixDate       bool
 	CodeWrapperStart string
@@ -27,10 +32,14 @@ func ParseConfig() (*Config, error) {
 
 	flag.StringVar(&cfg.SrcPath, "src", "", "source file path")
 	flag.StringVar(&cfg.IndexPath, "index", "./index.scip", "SCIP Index File Path")
-	flag.StringVar(&cfg.OutPath, "output", "", "Output file path (optional). Defaults to source file path with appropriate extension")
+	flag.StringVar(&cfg.OutPath, "output", "", "Output file path for single-file mode, or output directory override for project mode")
 	flag.StringVar(&cfg.Lang, "lang", "", "Language for syntax highlighting (optional)")
 	flag.BoolVar(&cfg.UseLSP, "lsp", false, "Use LSP for analysis (requires language server installed)")
 	flag.StringVar(&cfg.LSPRoot, "lsp-root", "", "Workspace root for lsp")
+	flag.BoolVar(&cfg.Project, "project", false, "Export all project files using .gocire.yml")
+	flag.BoolVar(&cfg.Site, "site", false, "Alias for -project")
+	flag.StringVar(&cfg.ConfigPath, "config", "", "Project config file path (defaults to .gocire.yml)")
+	flag.IntVar(&cfg.Jobs, "jobs", runtime.NumCPU(), "Project export concurrency")
 	flag.StringVar(&cfg.Format, "format", "mdx", "Output format: markdown or mdx")
 	flag.BoolVar(&cfg.PrefixDate, "date", false, "Prefix output file with current date")
 	flag.StringVar(&cfg.CodeWrapperStart, "code-wrapper-start", `<details open="true">
@@ -41,23 +50,21 @@ func ParseConfig() (*Config, error) {
 
 	flag.Parse()
 
-	if cfg.SrcPath == "" {
-		flag.Usage()
-		return nil, fmt.Errorf("source file path is required")
-	}
-
 	if cfg.Format != "markdown" && cfg.Format != "mdx" {
 		flag.Usage()
 		return nil, fmt.Errorf("format must be 'markdown' or 'mdx'")
 	}
 
-	var err error
-	cfg.AbsSrcPath, err = filepath.Abs(cfg.SrcPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve source path: %w", err)
+	if cfg.Site {
+		cfg.Project = true
 	}
 
-	// Index path is optional but we resolve it if present
+	if cfg.Jobs < 1 {
+		flag.Usage()
+		return nil, fmt.Errorf("jobs must be greater than 0")
+	}
+
+	var err error
 	if cfg.IndexPath != "" {
 		cfg.AbsIndexPath, err = filepath.Abs(cfg.IndexPath)
 		if err != nil {
@@ -65,7 +72,25 @@ func ParseConfig() (*Config, error) {
 		}
 	}
 
+	if cfg.Project {
+		return cfg, nil
+	}
+
+	if cfg.SrcPath == "" {
+		flag.Usage()
+		return nil, fmt.Errorf("source file path is required")
+	}
+
+	cfg.AbsSrcPath, err = filepath.Abs(cfg.SrcPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve source path: %w", err)
+	}
+
 	return cfg, nil
+}
+
+func (c *Config) ProjectMode() bool {
+	return c != nil && (c.Project || c.Site)
 }
 
 // ResolveOutputPath calculates the final output path.
