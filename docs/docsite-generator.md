@@ -88,6 +88,29 @@ into different output formats.
 The docsite output is an additional bundled site output, not a replacement for
 the existing Markdown or MDX outputs.
 
+## Frontend Runtime
+
+The first docsite backend should use Astro to build the static site. `gocire`
+should focus on source analysis and semantic page data, while Astro handles page
+layout, routing, assets, and the documentation/blog/source page presentation.
+
+The generated site should not depend on React, Vue, or another client-side app
+framework by default. Most core features should remain static HTML and CSS:
+
+- cross-file jump-to-definition uses normal links.
+- line anchors use normal HTML ids.
+- syntax highlighting uses generated classes and CSS.
+- docs, blogs, source pages, sidebars, and navigation are static pages.
+
+The only planned client-side dependency for the first version is Floating UI for
+hover tooltips. Tooltip behavior benefits from JavaScript because placement,
+edge flipping, scrolling, focus, and mobile interactions are difficult to handle
+well with CSS alone.
+
+Other JavaScript features such as search, command palettes, complex filtering,
+or persisted user preferences can be considered later. They are not part of the
+initial frontend runtime decision.
+
 ## Configuration
 
 The generator needs project configuration. The long-term model should support
