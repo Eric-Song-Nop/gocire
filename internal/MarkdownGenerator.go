@@ -90,15 +90,29 @@ func (m *MarkdownGenerator) outputTokenHTML(token TokenInfo, sb *strings.Builder
 		cssClass = token.HighlightClass
 	}
 
+	id := token.Anchor
+	if id == "" && token.IsDefinition {
+		id = token.Symbol
+	}
+	href := token.Href
+	if href == "" && token.IsReference && token.Symbol != "" {
+		href = "#" + token.Symbol
+	}
+
 	switch {
-	case token.IsDefinition:
-		definitionClass := cssClass + " definition"
+	case href != "":
+		referenceClass := strings.TrimSpace(cssClass + " reference")
+		if id != "" {
+			fmt.Fprintf(sb, `<a id="%s" href="%s" class="%s">%s</a>`,
+				escapeHTML(id), escapeHTML(href), referenceClass, escapedContent)
+		} else {
+			fmt.Fprintf(sb, `<a href="%s" class="%s">%s</a>`,
+				escapeHTML(href), referenceClass, escapedContent)
+		}
+	case id != "":
+		definitionClass := strings.TrimSpace(cssClass + " definition")
 		fmt.Fprintf(sb, `<span id="%s" class="%s">%s</span>`,
-			escapeHTML(token.Symbol), definitionClass, escapedContent)
-	case token.IsReference:
-		referenceClass := cssClass + " reference"
-		fmt.Fprintf(sb, `<a href="#%s" class="%s">%s</a>`,
-			escapeHTML(token.Symbol), referenceClass, escapedContent)
+			escapeHTML(id), definitionClass, escapedContent)
 	case cssClass != "":
 		fmt.Fprintf(sb, `<span class="%s">%s</span>`,
 			cssClass, escapedContent)

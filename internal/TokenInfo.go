@@ -11,6 +11,12 @@ type WithSpan interface {
 	GetSpan() scip.Range
 }
 
+type SourceLocation struct {
+	URI   string
+	Path  string
+	Range scip.Range
+}
+
 // TokenInfo represents information about a symbol in code, including its position and attributes
 type TokenInfo struct {
 	Symbol         string     // Symbol name or identifier
@@ -19,6 +25,9 @@ type TokenInfo struct {
 	HighlightClass string     // Syntax highlighting class
 	Document       []string   // Document text
 	Span           scip.Range // Position range of the symbol in code
+	Definition     *SourceLocation
+	Href           string
+	Anchor         string
 }
 
 type CommentInfo struct {
@@ -160,6 +169,16 @@ func createSegment(start scip.Position, end scip.Position, activeTokens []TokenI
 		}
 		if len(token.Document) > 0 {
 			result.Document = append(result.Document, token.Document...)
+		}
+		if token.Definition != nil {
+			definition := *token.Definition
+			result.Definition = &definition
+		}
+		if token.Href != "" {
+			result.Href = token.Href
+		}
+		if token.Anchor != "" {
+			result.Anchor = token.Anchor
 		}
 		result.IsReference = result.IsReference || token.IsReference
 		result.IsDefinition = result.IsDefinition || token.IsDefinition
