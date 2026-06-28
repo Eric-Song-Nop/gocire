@@ -196,6 +196,7 @@ func (c *Client) Initialize(rootPath string) error {
 					ContentFormat: []string{Markdown},
 				},
 				Definition: &DefinitionTextDocumentClientCapabilities{},
+				InlayHint:  &InlayHintTextDocumentClientCapabilities{},
 			},
 		},
 	}
@@ -296,6 +297,30 @@ func (c *Client) Definition(filePath string, line, char int) ([]Location, error)
 	}
 
 	return nil, errors.New("failed to unmarshal definition result")
+}
+
+func (c *Client) InlayHint(filePath string, startLine, startChar, endLine, endChar int) ([]InlayHint, error) {
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	params := &InlayHintParams{
+		TextDocument: TextDocumentIdentifier{
+			URI: ToURI(absPath),
+		},
+		Range: Range{
+			Start: Position{Line: startLine, Character: startChar},
+			End:   Position{Line: endLine, Character: endChar},
+		},
+	}
+
+	var result []InlayHint
+	if err := c.conn.Call(c.ctx, MethodTextDocumentInlayHint, params, &result); err != nil {
+		return nil, errors.Wrap(err, "inlayHint request failed")
+	}
+
+	return result, nil
 }
 
 func (c *Client) Shutdown() error {

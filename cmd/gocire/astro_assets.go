@@ -462,6 +462,9 @@ html[data-theme="light"] {
   --code-deleted: #b42318;
   --code-inserted: #1f7a4d;
   --code-reference-border: rgba(15, 102, 128, 0.38);
+  --code-inlay-hint-text: #5f6874;
+  --code-inlay-hint-bg: rgba(47, 111, 143, 0.1);
+  --code-inlay-hint-border: rgba(47, 111, 143, 0.18);
   --hover-underline: rgba(47, 111, 143, 0.58);
   --tooltip-bg: #ffffff;
   --tooltip-text: #202833;
@@ -517,6 +520,9 @@ html[data-theme="dark"] {
   --code-deleted: #ff9b9b;
   --code-inserted: #9ed6a3;
   --code-reference-border: rgba(142, 202, 230, 0.45);
+  --code-inlay-hint-text: #a4adba;
+  --code-inlay-hint-bg: rgba(127, 200, 234, 0.12);
+  --code-inlay-hint-border: rgba(127, 200, 234, 0.2);
   --hover-underline: rgba(127, 200, 234, 0.66);
   --tooltip-bg: #1d232c;
   --tooltip-text: #f5f8fb;
@@ -1035,6 +1041,23 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
 
 .cire .reference {
   border-bottom: 1px solid var(--code-reference-border);
+}
+
+.cire .inlay-hint {
+  display: inline-block;
+  margin-inline: 0.12em;
+  padding: 0 0.28em;
+  border: 1px solid var(--code-inlay-hint-border);
+  border-radius: 4px;
+  background: var(--code-inlay-hint-bg);
+  color: var(--code-inlay-hint-text);
+  font-size: 0.78em;
+  font-style: normal;
+  line-height: 1.35;
+  text-decoration: none;
+  user-select: none;
+  vertical-align: baseline;
+  white-space: pre;
 }
 
 .page-content [data-hover],

@@ -81,6 +81,11 @@ func (m *MarkdownGenerator) outputRemainingText(startPos scip.Position, sb *stri
 }
 
 func (m *MarkdownGenerator) outputTokenHTML(token TokenInfo, sb *strings.Builder) {
+	if token.InlayHintLabel != "" {
+		fmt.Fprintf(sb, `<span class="inlay-hint">%s</span>`, escapeHTML(token.InlayHintLabel))
+		return
+	}
+
 	content := getSourceFromSpan(m.sourceLines, token.Span)
 	var escapedContent string
 	escapedContent = escapeHTML(content)
@@ -118,15 +123,6 @@ func (m *MarkdownGenerator) outputTokenHTML(token TokenInfo, sb *strings.Builder
 			cssClass, escapedContent)
 	default:
 		sb.WriteString(escapedContent)
-	}
-
-	// Inlay hints are currently disabled to reduce output noise
-	// To enable: change 'false' to 'true'
-	if len(token.Document) > 0 && false {
-		sb.WriteString(" ")
-		for _, hint := range token.Document {
-			sb.WriteString(escapeHTML(hint))
-		}
 	}
 }
 

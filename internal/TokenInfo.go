@@ -24,6 +24,7 @@ type TokenInfo struct {
 	IsDefinition   bool       // Whether this is a definition
 	HighlightClass string     // Syntax highlighting class
 	Document       []string   // Document text
+	InlayHintLabel string     // Inlay hint text
 	Span           scip.Range // Position range of the symbol in code
 	Definition     *SourceLocation
 	Href           string
@@ -81,10 +82,11 @@ func MergeSplitTokens(tokens []TokenInfo) ([]TokenInfo, error) {
 			}
 		}
 
-		newIndex, newActiveTokens, err := processSplitAtPosition(nextSplit, tokens, index, activeTokens)
+		newIndex, newActiveTokens, pointTokens, err := processSplitAtPosition(nextSplit, tokens, index, activeTokens)
 		if err != nil {
 			return nil, err
 		}
+		result = append(result, pointTokens...)
 
 		activeTokens = newActiveTokens
 		curPos = nextSplit
@@ -94,15 +96,20 @@ func MergeSplitTokens(tokens []TokenInfo) ([]TokenInfo, error) {
 }
 
 // processSplitAtPosition processes tokens that start or end at the given position and updates the active tokens list
-func processSplitAtPosition(pos scip.Position, tokens []TokenInfo, index int, activeTokens []TokenInfo) (int, []TokenInfo, error) {
+func processSplitAtPosition(pos scip.Position, tokens []TokenInfo, index int, activeTokens []TokenInfo) (int, []TokenInfo, []TokenInfo, error) {
 	newSplitIndex := index
 	newActiveTokens := activeTokens
+	var pointTokens []TokenInfo
 
 	for {
 		if newSplitIndex >= len(tokens) || scip.Position.Compare(tokens[newSplitIndex].Span.Start, pos) != 0 {
 			break
 		}
-		newActiveTokens = append(newActiveTokens, tokens[newSplitIndex])
+		if scip.Position.Compare(tokens[newSplitIndex].Span.End, pos) == 0 {
+			pointTokens = append(pointTokens, tokens[newSplitIndex])
+		} else {
+			newActiveTokens = append(newActiveTokens, tokens[newSplitIndex])
+		}
 		newSplitIndex++
 	}
 
@@ -115,7 +122,7 @@ func processSplitAtPosition(pos scip.Position, tokens []TokenInfo, index int, ac
 	}
 	newActiveTokens = newActiveTokens[:n]
 
-	return newSplitIndex, newActiveTokens, nil
+	return newSplitIndex, newActiveTokens, pointTokens, nil
 }
 
 // findNextSplit finds the next token start position or the earliest token end position

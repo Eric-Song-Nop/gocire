@@ -156,6 +156,59 @@ func TestGenerateMDXUsesResolvedHrefAndAnchor(t *testing.T) {
 	}
 }
 
+func TestGenerateMDXOutputsInlayHintOnly(t *testing.T) {
+	sourceLines := []string{"let value = call()"}
+	gen := NewMDXGenerator(sourceLines)
+
+	output := gen.GenerateMDX([]TokenInfo{
+		{
+			InlayHintLabel: "`${type}`",
+			Document:       []string{"hover must not render"},
+			Href:           "#bad",
+			Anchor:         "bad",
+			Span: scip.Range{
+				Start: scip.Position{Line: 0, Character: 9},
+				End:   scip.Position{Line: 0, Character: 9},
+			},
+		},
+	}, nil)
+
+	if !strings.Contains(output, `className="inlay-hint"`) {
+		t.Fatalf("output missing inlay hint span\nGot:\n%s", output)
+	}
+	if !strings.Contains(output, `\${type}`) {
+		t.Fatalf("output did not escape template interpolation\nGot:\n%s", output)
+	}
+	if strings.Count(output, "\\`") < 2 {
+		t.Fatalf("output did not escape inlay hint backticks\nGot:\n%s", output)
+	}
+	for _, unwanted := range []string{"className=\"cire_text\">{``}</span>", "<Tooltip", "href=", "id=\"bad\"", "hover must not render"} {
+		if strings.Contains(output, unwanted) {
+			t.Fatalf("inlay hint output should not contain %q\nGot:\n%s", unwanted, output)
+		}
+	}
+}
+
+func TestGenerateMarkdownOutputsInlayHint(t *testing.T) {
+	sourceLines := []string{"let value = call()"}
+	gen := NewMarkdownGenerator(sourceLines)
+
+	output := gen.GenerateMarkdown([]TokenInfo{
+		{
+			InlayHintLabel: ": <T> &",
+			Span: scip.Range{
+				Start: scip.Position{Line: 0, Character: 9},
+				End:   scip.Position{Line: 0, Character: 9},
+			},
+		},
+	})
+
+	expected := `<span class="inlay-hint">: &lt;T&gt; &amp;</span>`
+	if !strings.Contains(output, expected) {
+		t.Fatalf("output missing escaped inlay hint %q\nGot:\n%s", expected, output)
+	}
+}
+
 func TestGetSourceFromSpan(t *testing.T) {
 	lines := []string{
 		"line0",

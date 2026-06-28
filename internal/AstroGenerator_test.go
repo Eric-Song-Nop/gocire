@@ -203,6 +203,36 @@ func TestGenerateAstroOutputsRenderedHoverHTMLAttribute(t *testing.T) {
 	}
 }
 
+func TestGenerateAstroOutputsInlayHintOnly(t *testing.T) {
+	sourceLines := []string{"let value = call()"}
+	gen := NewAstroGenerator(sourceLines)
+
+	output := gen.GenerateAstro([]TokenInfo{
+		{
+			InlayHintLabel: ": <T> {x} &",
+			Document:       []string{"hover must not render"},
+			Href:           "#bad",
+			Anchor:         "bad",
+			Span: scip.Range{
+				Start: scip.Position{Line: 0, Character: 9},
+				End:   scip.Position{Line: 0, Character: 9},
+			},
+		},
+	}, nil, AstroPageOptions{
+		RenderMode: AstroRenderModeSource,
+	})
+
+	expected := `<span class="inlay-hint" data-inlay-hint aria-hidden="true">: &lt;T&gt; &#123;x&#125; &amp;</span>`
+	if !strings.Contains(output, expected) {
+		t.Fatalf("output missing escaped inlay hint %q\nGot:\n%s", expected, output)
+	}
+	for _, unwanted := range []string{"data-hover", "data-hover-html", "href=", "id=\"bad\"", "hover must not render"} {
+		if strings.Contains(output, unwanted) {
+			t.Fatalf("inlay hint output should not contain %q\nGot:\n%s", unwanted, output)
+		}
+	}
+}
+
 func extractAstroAttribute(t *testing.T, output string, attr string) string {
 	t.Helper()
 

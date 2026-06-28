@@ -302,6 +302,49 @@ func TestMergeSplitTokensPreservesDefinitionLinkFields(t *testing.T) {
 	}
 }
 
+func TestMergeSplitTokensPreservesPointTokens(t *testing.T) {
+	tokens := []TokenInfo{
+		createTestToken("value", false, true, "variable", 0, 0, 0, 10),
+		{
+			InlayHintLabel: ": i32",
+			Span: scip.Range{
+				Start: scip.Position{Line: 0, Character: 4},
+				End:   scip.Position{Line: 0, Character: 4},
+			},
+		},
+		createTestToken("inner", true, false, "function", 0, 6, 0, 8),
+	}
+
+	result, err := MergeSplitTokens(tokens)
+	if err != nil {
+		t.Fatalf("MergeSplitTokens returned error: %v", err)
+	}
+	if len(result) != 5 {
+		t.Fatalf("expected 5 tokens including point token, got %d: %#v", len(result), result)
+	}
+
+	point := result[1]
+	if point.InlayHintLabel != ": i32" {
+		t.Fatalf("point token InlayHintLabel = %q, want : i32", point.InlayHintLabel)
+	}
+	if scip.Position.Compare(point.Span.Start, point.Span.End) != 0 {
+		t.Fatalf("point token span should be zero-length: %+v", point.Span)
+	}
+	if scip.Position.Compare(point.Span.Start, (scip.Position{Line: 0, Character: 4})) != 0 {
+		t.Fatalf("point token position = %+v, want line 0 char 4", point.Span.Start)
+	}
+
+	for i, token := range []TokenInfo{result[0], result[2], result[3], result[4]} {
+		if token.InlayHintLabel != "" {
+			t.Fatalf("ordinary split segment %d unexpectedly inherited inlay label %q", i, token.InlayHintLabel)
+		}
+	}
+	if scip.Position.Compare(result[0].Span.End, point.Span.Start) != 0 ||
+		scip.Position.Compare(result[2].Span.Start, point.Span.End) != 0 {
+		t.Fatalf("ordinary spans were not split around point token: %#v", result)
+	}
+}
+
 // Benchmark tests
 func BenchmarkMergeSplitTokens(b *testing.B) {
 	tokens := []TokenInfo{

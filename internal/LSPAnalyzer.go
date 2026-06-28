@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -111,7 +112,9 @@ func (s *LSPSession) AnalyzeFile(sourcePath string, sourceContent []byte) ([]Tok
 	// Give the server a moment to process the file open event
 	time.Sleep(1 * time.Second)
 
-	return analyzeLSPTokens(s.language, sourcePath, sourceContent, s.cfg, func(line, char int) (*lsp.Hover, []lsp.Location) {
+	inlayHintTokens := s.fetchInlayHintTokens(sourcePath, sourceContent)
+
+	tokens, err := analyzeLSPTokens(s.language, sourcePath, sourceContent, s.cfg, func(line, char int) (*lsp.Hover, []lsp.Location) {
 		var hover *lsp.Hover
 		var defs []lsp.Location
 		_ = s.withLSPClient(func(client *lsp.Client) error {
@@ -121,6 +124,11 @@ func (s *LSPSession) AnalyzeFile(sourcePath string, sourceContent []byte) ([]Tok
 		})
 		return hover, defs
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	return append(tokens, inlayHintTokens...), nil
 }
 
 // Close shuts down the language-server process owned by the session.
@@ -161,6 +169,134 @@ func (s *LSPSession) withLSPClient(fn func(*lsp.Client) error) error {
 }
 
 type lspTokenQuery func(line, char int) (*lsp.Hover, []lsp.Location)
+
+func (s *LSPSession) fetchInlayHintTokens(sourcePath string, sourceContent []byte) []TokenInfo {
+	hintRange := fullDocumentInlayHintRange(sourceContent)
+
+	var hints []lsp.InlayHint
+	var requestErr error
+	const maxRetries = 3
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		requestErr = s.withLSPClient(func(client *lsp.Client) error {
+			var err error
+			hints, err = client.InlayHint(
+				sourcePath,
+				hintRange.Start.Line,
+				hintRange.Start.Character,
+				hintRange.End.Line,
+				hintRange.End.Character,
+			)
+			return err
+		})
+		if requestErr == nil {
+			return tokenInfosFromInlayHints(hints)
+		}
+		if !isContentModifiedError(requestErr) || attempt == maxRetries-1 {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	fmt.Fprintf(os.Stderr, "Warning: Failed to fetch inlay hints for %s: %v\n", sourcePath, requestErr)
+	return nil
+}
+
+func fullDocumentInlayHintRange(sourceContent []byte) lsp.Range {
+	source := string(sourceContent)
+	lines := strings.Split(source, "\n")
+	lineCount := len(lines)
+	if lineCount > 0 && lines[lineCount-1] == "" && strings.HasSuffix(source, "\n") {
+		lineCount--
+	}
+
+	lastLineIdx := lineCount - 1
+	if lastLineIdx < 0 {
+		lastLineIdx = 0
+	}
+
+	lastLineLen := 0
+	if lineCount > 0 {
+		lastLineLen = len([]rune(lines[lastLineIdx]))
+	}
+
+	return lsp.Range{
+		Start: lsp.Position{Line: 0, Character: 0},
+		End:   lsp.Position{Line: lastLineIdx, Character: lastLineLen},
+	}
+}
+
+func tokenInfosFromInlayHints(hints []lsp.InlayHint) []TokenInfo {
+	tokens := make([]TokenInfo, 0, len(hints))
+	for _, hint := range hints {
+		label := inlayHintLabel(hint)
+		if label == "" {
+			continue
+		}
+
+		pos := scip.Position{
+			Line:      int32(hint.Position.Line),
+			Character: int32(hint.Position.Character),
+		}
+		tokens = append(tokens, TokenInfo{
+			InlayHintLabel: label,
+			Span: scip.Range{
+				Start: pos,
+				End:   pos,
+			},
+		})
+	}
+	return tokens
+}
+
+func inlayHintLabel(hint lsp.InlayHint) string {
+	label := inlayHintBaseLabel(hint.Label)
+	if label == "" {
+		return ""
+	}
+	if hint.PaddingLeft {
+		label = " " + label
+	}
+	if hint.PaddingRight {
+		label += " "
+	}
+	return label
+}
+
+func inlayHintBaseLabel(label interface{}) string {
+	switch v := label.(type) {
+	case string:
+		return v
+	case []lsp.InlayHintLabelPart:
+		var sb strings.Builder
+		for _, part := range v {
+			sb.WriteString(part.Value)
+		}
+		return sb.String()
+	case []interface{}:
+		var sb strings.Builder
+		for _, part := range v {
+			switch p := part.(type) {
+			case lsp.InlayHintLabelPart:
+				sb.WriteString(p.Value)
+			case map[string]interface{}:
+				if value, ok := p["value"].(string); ok {
+					sb.WriteString(value)
+				}
+			}
+		}
+		return sb.String()
+	default:
+		return ""
+	}
+}
+
+func isContentModifiedError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "content modified") || strings.Contains(msg, "-32801")
+}
 
 func analyzeLSPTokens(language, sourcePath string, sourceContent []byte, cfg *languages.LanguageConfig, queryLSP lspTokenQuery) ([]TokenInfo, error) {
 	parser := sitter.NewParser()
