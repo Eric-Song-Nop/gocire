@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
@@ -107,6 +108,16 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 			node := capture.Node
 			start := node.StartPosition()
 			end := node.EndPosition()
+			span := scip.Range{
+				Start: scip.Position{
+					Line:      int32(start.Row),
+					Character: int32(start.Column),
+				},
+				End: scip.Position{
+					Line:      int32(end.Row),
+					Character: int32(end.Column),
+				},
+			}
 
 			// Deduplication check
 			key := posKey{int32(start.Row), int32(start.Column)}
@@ -121,6 +132,7 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 			var symbolID string           // Initialize empty symbol ID
 			var isDefinition bool = false // Initialize to false
 			var isReference bool = false  // Initialize to false
+			var definition *SourceLocation
 
 			// Only query LSP if the capture is not ignored
 			if !isIgnoredCapture(captureName, cfg.IgnoredCaptures) {
@@ -137,13 +149,13 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 				// Process definition results
 				if len(defs) > 0 {
 					d := defs[0]
+					definition = sourceLocationFromLSP(d)
 					// Generate a unique symbol ID based on the definition location
 					// This allows references to link to this specific definition
 					// We use the first definition if multiple are returned
-					uriStr := string(d.URI)
 					// Use 0-based indexing for the ID to match internal logic,
 					// though LSP uses 0-based too.
-					symID := getSymbolID(uriStr, int(d.Range.Start.Line), int(d.Range.Start.Character))
+					symID := getSymbolID(definition.URI, int(definition.Range.Start.Line), int(definition.Range.Start.Character))
 
 					// If we have a valid definition location, we assign the symbol ID
 					// This effectively links this token (reference or def) to that ID.
@@ -153,26 +165,9 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 
 					// Check if this token IS the definition
 					// We compare the returned definition location with the current token's location
-					// We must check if the file matches.
-					// d.URI is usually file://...
-					// l.sourcePath is usually an absolute path /Users/...
-					// We do a loose check: if d.URI ends with sourcePath (handling protocol prefix)
-					defPath := strings.TrimPrefix(uriStr, "file://")
-					isCurrentFile := false
-
-					// Simple check: do they refer to the same file?
-					// l.sourcePath should be absolute.
-					if defPath == l.sourcePath || strings.HasSuffix(defPath, l.sourcePath) || strings.HasSuffix(l.sourcePath, defPath) {
-						isCurrentFile = true
-					}
-
-					if isCurrentFile &&
-						int(d.Range.Start.Line) == int(start.Row) &&
-						int(d.Range.Start.Character) == int(start.Column) {
-						isDefinition = true
-					} else if isCurrentFile { // Only mark as reference if definition is in current file
-						isReference = true
-					}
+					// across normalized file paths.
+					isDefinition = isDefinitionLocation(definition, l.sourcePath, span)
+					isReference = !isDefinition
 				}
 			}
 
@@ -182,22 +177,93 @@ func (l *LSPAnalyzer) Analyze(sourceContent []byte) ([]TokenInfo, error) {
 				IsDefinition:   isDefinition,
 				HighlightClass: "",
 				Document:       docs,
-				Span: scip.Range{
-					Start: scip.Position{
-						Line:      int32(start.Row),
-						Character: int32(start.Column),
-					},
-					End: scip.Position{
-						Line:      int32(end.Row),
-						Character: int32(end.Column),
-					},
-				},
+				Span:           span,
+				Definition:     definition,
 			}
 			tokens = append(tokens, token)
 		}
 	}
 
 	return tokens, nil
+}
+
+func sourceLocationFromLSP(location lsp.Location) *SourceLocation {
+	uriStr := string(location.URI)
+	return &SourceLocation{
+		URI:   uriStr,
+		Path:  normalizedPathFromURI(uriStr),
+		Range: lspRangeToSCIP(location.Range),
+	}
+}
+
+func lspRangeToSCIP(r lsp.Range) scip.Range {
+	return scip.Range{
+		Start: scip.Position{
+			Line:      int32(r.Start.Line),
+			Character: int32(r.Start.Character),
+		},
+		End: scip.Position{
+			Line:      int32(r.End.Line),
+			Character: int32(r.End.Character),
+		},
+	}
+}
+
+func isDefinitionLocation(definition *SourceLocation, sourcePath string, span scip.Range) bool {
+	if definition == nil || !samePath(definition.Path, sourcePath) {
+		return false
+	}
+
+	return scip.Position.Compare(definition.Range.Start, span.Start) == 0
+}
+
+func samePath(left, right string) bool {
+	if left == "" || right == "" {
+		return false
+	}
+	return normalizePath(left) == normalizePath(right)
+}
+
+func normalizedPathFromURI(uriStr string) string {
+	if uriStr == "" {
+		return ""
+	}
+
+	parsed, err := url.Parse(uriStr)
+	if err == nil && parsed.Scheme == "file" {
+		path := parsed.Path
+		if parsed.Host != "" {
+			path = "//" + parsed.Host + path
+		}
+		return normalizePath(path)
+	}
+
+	if strings.HasPrefix(uriStr, "file://") {
+		return normalizePath(strings.TrimPrefix(uriStr, "file://"))
+	}
+
+	if err == nil && parsed.Scheme == "" {
+		return normalizePath(uriStr)
+	}
+
+	return ""
+}
+
+func normalizePath(path string) string {
+	if path == "" {
+		return ""
+	}
+
+	if decoded, err := url.PathUnescape(path); err == nil {
+		path = decoded
+	}
+
+	path = filepath.FromSlash(path)
+	if absPath, err := filepath.Abs(path); err == nil {
+		path = absPath
+	}
+
+	return filepath.Clean(path)
 }
 
 func getSymbolID(uriStr string, line, col int) string {

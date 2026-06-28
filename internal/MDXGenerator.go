@@ -181,13 +181,29 @@ func (m *MDXGenerator) outputTokenJSX(token TokenInfo, sb *strings.Builder) {
 	templateContent := "{`" + escapedContent + "`}"
 
 	var innerContentBuilder strings.Builder
+	id := token.Anchor
+	if id == "" && token.IsDefinition {
+		id = token.Symbol
+	}
+	href := token.Href
+	if href == "" && token.IsReference && token.Symbol != "" {
+		href = "#" + token.Symbol
+	}
+
 	switch {
-	case token.IsDefinition:
+	case href != "":
+		referenceClass := strings.TrimSpace(cssClass + " reference")
+		if id != "" {
+			fmt.Fprintf(&innerContentBuilder, `<a id="%s" href="%s" className="%s">%s</a>`,
+				escapeMDXAttribute(id), escapeMDXAttribute(href), referenceClass, templateContent)
+		} else {
+			fmt.Fprintf(&innerContentBuilder, `<a href="%s" className="%s">%s</a>`,
+				escapeMDXAttribute(href), referenceClass, templateContent)
+		}
+	case id != "":
+		definitionClass := strings.TrimSpace(cssClass + " definition")
 		fmt.Fprintf(&innerContentBuilder, `<span id="%s" className="%s">%s</span>`,
-			escapeMDXAttribute(token.Symbol), cssClass, templateContent)
-	case token.IsReference:
-		fmt.Fprintf(&innerContentBuilder, `<a href="#%s" className="%s">%s</a>`,
-			escapeMDXAttribute(token.Symbol), cssClass, templateContent)
+			escapeMDXAttribute(id), definitionClass, templateContent)
 	case cssClass != "":
 		fmt.Fprintf(&innerContentBuilder, `<span className="%s">%s</span>`,
 			cssClass, templateContent)

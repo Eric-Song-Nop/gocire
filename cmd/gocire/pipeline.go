@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/Eric-Song-Nop/gocire/internal"
+	"github.com/Eric-Song-Nop/gocire/internal/languages"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -154,6 +157,10 @@ func (p *Pipeline) Run() error {
 		return fmt.Errorf("merge split tokens failed: %w", err)
 	}
 
+	if err := p.resolveTokenLinks(allTokens); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: resolve token links failed: %v\n", err)
+	}
+
 	// Generate Output
 	output := p.generator.Generate(allTokens, comments)
 
@@ -165,6 +172,59 @@ func (p *Pipeline) Run() error {
 
 	fmt.Printf("%s generated at: %s\n", p.cfg.Format, outPath)
 	return nil
+}
+
+func (p *Pipeline) resolveTokenLinks(tokens []internal.TokenInfo) error {
+	root := p.cfg.LSPRoot
+	if root == "" {
+		root = filepath.Dir(p.cfg.AbsSrcPath)
+	}
+
+	sourcePaths, err := collectSourcePaths(root)
+	if err != nil {
+		return err
+	}
+
+	manifest, err := internal.NewSourceRouteManifest(root, sourcePaths)
+	if err != nil {
+		return err
+	}
+
+	for _, warning := range internal.ResolveTokenLinks(p.cfg.AbsSrcPath, tokens, manifest) {
+		fmt.Fprintf(os.Stderr, "Warning: definition link not resolved: %s\n", warning.String())
+	}
+
+	return nil
+}
+
+func collectSourcePaths(root string) ([]string, error) {
+	var sourcePaths []string
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if shouldSkipSourceDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		if _, err := languages.DetectLanguage(path); err == nil {
+			sourcePaths = append(sourcePaths, path)
+		}
+		return nil
+	})
+	return sourcePaths, err
+}
+
+func shouldSkipSourceDir(name string) bool {
+	switch name {
+	case ".git", ".gocire", "node_modules", "vendor", "dist", "build":
+		return true
+	default:
+		return false
+	}
 }
 
 // --- Wrappers ---

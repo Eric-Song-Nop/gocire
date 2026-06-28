@@ -112,6 +112,50 @@ func TestGenerateMarkdown(t *testing.T) {
 	}
 }
 
+func TestGenerateMarkdownUsesResolvedHrefAndAnchor(t *testing.T) {
+	sourceLines := []string{"foo"}
+	gen := NewMarkdownGenerator(sourceLines)
+
+	output := gen.GenerateMarkdown([]TokenInfo{
+		{
+			HighlightClass: "function",
+			Href:           "/_source/internal/foo.go.html#L1C1",
+			Anchor:         "L1C1",
+			Span: scip.Range{
+				Start: scip.Position{Line: 0, Character: 0},
+				End:   scip.Position{Line: 0, Character: 3},
+			},
+		},
+	})
+
+	expected := `<a id="L1C1" href="/_source/internal/foo.go.html#L1C1" class="function reference">foo</a>`
+	if !strings.Contains(output, expected) {
+		t.Fatalf("output missing resolved link %q\nGot:\n%s", expected, output)
+	}
+}
+
+func TestGenerateMDXUsesResolvedHrefAndAnchor(t *testing.T) {
+	sourceLines := []string{"foo"}
+	gen := NewMDXGenerator(sourceLines)
+
+	output := gen.GenerateMDX([]TokenInfo{
+		{
+			HighlightClass: "function",
+			Href:           "/_source/internal/foo.go.html#L1C1",
+			Anchor:         "L1C1",
+			Span: scip.Range{
+				Start: scip.Position{Line: 0, Character: 0},
+				End:   scip.Position{Line: 0, Character: 3},
+			},
+		},
+	}, nil)
+
+	expectedStart := `<a id="L1C1" href="/_source/internal/foo.go.html#L1C1" className="function reference">`
+	if !strings.Contains(output, expectedStart) || !strings.Contains(output, "{`foo`}</a>") {
+		t.Fatalf("output missing resolved MDX link\nGot:\n%s", output)
+	}
+}
+
 func TestGetSourceFromSpan(t *testing.T) {
 	lines := []string{
 		"line0",

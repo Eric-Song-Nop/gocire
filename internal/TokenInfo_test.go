@@ -240,6 +240,68 @@ func TestMergeSplitTokens(t *testing.T) {
 	}
 }
 
+func TestMergeSplitTokensPreservesDefinitionLinkFields(t *testing.T) {
+	definition := &SourceLocation{
+		URI:  "file:///repo/internal/target.go",
+		Path: "/repo/internal/target.go",
+		Range: scip.Range{
+			Start: scip.Position{Line: 6, Character: 2},
+			End:   scip.Position{Line: 6, Character: 8},
+		},
+	}
+
+	tokens := []TokenInfo{
+		{
+			Symbol:      "target_symbol",
+			IsReference: true,
+			Definition:  definition,
+			Href:        "/_source/internal/target.go.html#L7C3",
+			Anchor:      "L7C3",
+			Span: scip.Range{
+				Start: scip.Position{Line: 0, Character: 0},
+				End:   scip.Position{Line: 0, Character: 6},
+			},
+		},
+		{
+			HighlightClass: "function",
+			Span: scip.Range{
+				Start: scip.Position{Line: 0, Character: 2},
+				End:   scip.Position{Line: 0, Character: 4},
+			},
+		},
+	}
+
+	result, err := MergeSplitTokens(tokens)
+	if err != nil {
+		t.Fatalf("MergeSplitTokens returned error: %v", err)
+	}
+	if len(result) != 3 {
+		t.Fatalf("expected 3 split segments, got %d: %#v", len(result), result)
+	}
+
+	for i, segment := range result {
+		if segment.Definition == nil {
+			t.Fatalf("segment %d lost Definition", i)
+		}
+		if segment.Definition.URI != definition.URI {
+			t.Errorf("segment %d Definition.URI = %q, want %q", i, segment.Definition.URI, definition.URI)
+		}
+		if scip.Position.Compare(segment.Definition.Range.Start, definition.Range.Start) != 0 {
+			t.Errorf("segment %d Definition.Range.Start = %+v, want %+v", i, segment.Definition.Range.Start, definition.Range.Start)
+		}
+		if segment.Href != "/_source/internal/target.go.html#L7C3" {
+			t.Errorf("segment %d Href = %q", i, segment.Href)
+		}
+		if segment.Anchor != "L7C3" {
+			t.Errorf("segment %d Anchor = %q", i, segment.Anchor)
+		}
+	}
+
+	if result[1].HighlightClass != "function" {
+		t.Fatalf("overlap segment HighlightClass = %q, want function", result[1].HighlightClass)
+	}
+}
+
 // Benchmark tests
 func BenchmarkMergeSplitTokens(b *testing.B) {
 	tokens := []TokenInfo{
