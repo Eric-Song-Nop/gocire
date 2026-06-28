@@ -37,19 +37,25 @@ func (w LinkResolutionWarning) String() string {
 }
 
 type SourceRouteManifest struct {
-	Root   string
-	Routes map[string]string
+	Root        string
+	RoutePrefix string
+	Routes      map[string]string
 }
 
 func NewSourceRouteManifest(root string, sourcePaths []string) (SourceRouteManifest, error) {
+	return NewSourceRouteManifestWithPrefix(root, "/_source", sourcePaths)
+}
+
+func NewSourceRouteManifestWithPrefix(root string, routePrefix string, sourcePaths []string) (SourceRouteManifest, error) {
 	rootPath, err := cleanAbsPath(root)
 	if err != nil {
 		return SourceRouteManifest{}, err
 	}
 
 	manifest := SourceRouteManifest{
-		Root:   rootPath,
-		Routes: make(map[string]string, len(sourcePaths)),
+		Root:        rootPath,
+		RoutePrefix: normalizeRoutePrefix(routePrefix),
+		Routes:      make(map[string]string, len(sourcePaths)),
 	}
 
 	for _, sourcePath := range sourcePaths {
@@ -57,14 +63,27 @@ func NewSourceRouteManifest(root string, sourcePaths []string) (SourceRouteManif
 		if !ok {
 			continue
 		}
-		manifest.Routes[relPath] = SourceRoute(relPath)
+		manifest.Routes[relPath] = manifest.SourceRoute(relPath)
 	}
 
 	return manifest, nil
 }
 
 func SourceRoute(relPath string) string {
-	return "/_source/" + normalizeRelPath(relPath) + ".html"
+	return sourceRoute("/_source", relPath)
+}
+
+func (m SourceRouteManifest) SourceRoute(relPath string) string {
+	return sourceRoute(m.RoutePrefix, relPath)
+}
+
+func sourceRoute(routePrefix, relPath string) string {
+	routePrefix = normalizeRoutePrefix(routePrefix)
+	relPath = normalizeRelPath(relPath)
+	if routePrefix == "/" {
+		return "/" + relPath + ".html"
+	}
+	return routePrefix + "/" + relPath + ".html"
 }
 
 func LineAnchor(pos scip.Position) string {
@@ -234,6 +253,18 @@ func normalizeRelPath(relPath string) string {
 	relPath = strings.TrimPrefix(relPath, "./")
 	relPath = strings.TrimLeft(relPath, "/")
 	return relPath
+}
+
+func normalizeRoutePrefix(routePrefix string) string {
+	routePrefix = strings.TrimSpace(routePrefix)
+	if routePrefix == "" {
+		return "/"
+	}
+	routePrefix = path.Clean("/" + strings.TrimLeft(routePrefix, "/"))
+	if routePrefix != "/" {
+		routePrefix = strings.TrimRight(routePrefix, "/")
+	}
+	return routePrefix
 }
 
 func normalizeOSPath(pathValue string) string {
