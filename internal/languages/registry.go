@@ -23,24 +23,39 @@ import (
 )
 
 type LanguageConfig struct {
-	SitterLanguage  *sitter.Language
-	QueryFileName   string
-	LSPCommand      string
-	LSPArgs         []string
-	IgnoredCaptures []string
-	Extensions      []string
+	SitterLanguage           *sitter.Language
+	QueryFileName            string
+	LSPCommand               string
+	LSPArgs                  []string
+	LSPInitializationOptions map[string]interface{}
+	IgnoredCaptures          []string
+	Extensions               []string
 }
 
 var defaultIgnoredCaptures = []string{"punctuation", "keyword", "operator", "comment", "string"}
 
+var goplsInitializationOptions = map[string]interface{}{
+	"hints": map[string]bool{
+		"assignVariableTypes":    true,
+		"compositeLiteralFields": true,
+		"compositeLiteralTypes":  true,
+		"constantValues":         true,
+		"functionTypeParameters": true,
+		"ignoredError":           true,
+		"parameterNames":         true,
+		"rangeVariableTypes":     true,
+	},
+}
+
 var registry = map[string]LanguageConfig{
 	"go": {
-		SitterLanguage:  sitter.NewLanguage(golangsitter.Language()),
-		QueryFileName:   "go.scm",
-		LSPCommand:      "gopls",
-		LSPArgs:         []string{},
-		IgnoredCaptures: defaultIgnoredCaptures,
-		Extensions:      []string{".go"},
+		SitterLanguage:           sitter.NewLanguage(golangsitter.Language()),
+		QueryFileName:            "go.scm",
+		LSPCommand:               "gopls",
+		LSPArgs:                  []string{},
+		LSPInitializationOptions: goplsInitializationOptions,
+		IgnoredCaptures:          defaultIgnoredCaptures,
+		Extensions:               []string{".go"},
 	},
 	"python": {
 		SitterLanguage:  sitter.NewLanguage(pythonsitter.Language()),

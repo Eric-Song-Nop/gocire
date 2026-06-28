@@ -63,10 +63,11 @@ type MarkupContent struct {
 // Params & Results
 
 type InitializeParams struct {
-	ProcessID        int                `json:"processId,omitempty"`
-	RootURI          DocumentURI        `json:"rootUri,omitempty"`
-	WorkspaceFolders []WorkspaceFolder  `json:"workspaceFolders,omitempty"`
-	Capabilities     ClientCapabilities `json:"capabilities"`
+	ProcessID             int                `json:"processId,omitempty"`
+	RootURI               DocumentURI        `json:"rootUri,omitempty"`
+	WorkspaceFolders      []WorkspaceFolder  `json:"workspaceFolders,omitempty"`
+	Capabilities          ClientCapabilities `json:"capabilities"`
+	InitializationOptions interface{}        `json:"initializationOptions,omitempty"`
 }
 
 type WorkspaceFolder struct {
