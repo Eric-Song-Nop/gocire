@@ -54,6 +54,7 @@ func (a AstroSiteAssets) files() (map[string]string, error) {
 		"src/layouts/SiteLayout.astro":  astroSiteLayout(siteTitle),
 		"src/components/CodePage.astro": astroCodePage(),
 		"src/styles/global.css":         astroGlobalCSS(),
+		"src/scripts/theme.js":          astroThemeJS(),
 		"src/scripts/tooltip.js":        astroTooltipJS(),
 	}, nil
 }
@@ -138,16 +139,40 @@ const pageTitle = title === siteTitle ? siteTitle : title + " | " + siteTitle;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     <title>{pageTitle}</title>
+    <script is:inline>
+      (() => {
+        const storageKey = "gocire-theme";
+        const validThemes = new Set(["light", "dark"]);
+
+        const readStoredTheme = () => {
+          try {
+            return localStorage.getItem(storageKey);
+          } catch {
+            return null;
+          }
+        };
+
+        const preferredTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        const storedTheme = readStoredTheme();
+        document.documentElement.setAttribute("data-theme", validThemes.has(storedTheme) ? storedTheme : preferredTheme);
+      })();
+    </script>
   </head>
   <body>
     <header class="site-header">
       <div class="site-header__inner">
         <a class="site-brand" href="/">{siteTitle}</a>
-        <nav class="site-nav" aria-label="Main navigation">
-          <a href="/">Home</a>
-          <a href="/#docs">Docs</a>
-          <a href="/#blog">Blog</a>
-        </nav>
+        <div class="site-actions">
+          <nav class="site-nav" aria-label="Main navigation">
+            <a href="/">Home</a>
+            <a href="/#docs">Docs</a>
+            <a href="/#blog">Blog</a>
+          </nav>
+          <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle color theme" title="Toggle color theme">
+            <span class="theme-toggle__icon theme-toggle__icon--sun" aria-hidden="true"></span>
+            <span class="theme-toggle__icon theme-toggle__icon--moon" aria-hidden="true"></span>
+          </button>
+        </div>
       </div>
     </header>
     <slot />
@@ -155,6 +180,7 @@ const pageTitle = title === siteTitle ? siteTitle : title + " | " + siteTitle;
       <span>{siteTitle}</span>
     </footer>
     <script>
+      import "../scripts/theme.js";
       import "../scripts/tooltip.js";
     </script>
   </body>
@@ -239,7 +265,8 @@ const kindLabel = String(kind || "Source");
 }
 
 func astroGlobalCSS() string {
-	return `:root {
+	return `:root,
+html[data-theme="light"] {
   color-scheme: light;
   --page-bg: #f7f8fa;
   --surface: #ffffff;
@@ -248,16 +275,54 @@ func astroGlobalCSS() string {
   --muted: #68717d;
   --line: #d9dee6;
   --accent: #2f6f8f;
+  --link-hover: #245b78;
   --accent-warm: #8a5b2e;
   --focus: #c87822;
+  --inline-code-text: #28313a;
+  --meta-text: #4d5662;
+  --body-gradient-start: rgba(255, 255, 255, 0.92);
+  --body-gradient-end: rgba(247, 248, 250, 0.98);
+  --header-bg: rgba(255, 255, 255, 0.86);
   --code-bg: #151a21;
   --code-text: #edf2f7;
   --code-muted: #aeb8c6;
+  --code-border: #cfd6df;
+  --code-shadow: rgba(31, 36, 43, 0.08);
+  --hover-underline: rgba(47, 111, 143, 0.58);
   --tooltip-bg: #20262e;
   --tooltip-text: #f7fafc;
+  --tooltip-border: rgba(255, 255, 255, 0.14);
   --radius: 8px;
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --page-bg: #111418;
+  --surface: #171b21;
+  --surface-muted: #222831;
+  --text: #e6eaf0;
+  --muted: #a4adba;
+  --line: #303842;
+  --accent: #7fc8ea;
+  --link-hover: #a7dff4;
+  --accent-warm: #dfb16d;
+  --focus: #f0a642;
+  --inline-code-text: #e6eaf0;
+  --meta-text: #c4cbd5;
+  --body-gradient-start: rgba(23, 27, 33, 0.96);
+  --body-gradient-end: rgba(17, 20, 24, 0.98);
+  --header-bg: rgba(17, 20, 24, 0.84);
+  --code-bg: #0d1117;
+  --code-text: #e7edf5;
+  --code-muted: #909aa8;
+  --code-border: #2d3540;
+  --code-shadow: rgba(0, 0, 0, 0.24);
+  --hover-underline: rgba(127, 200, 234, 0.66);
+  --tooltip-bg: #1d232c;
+  --tooltip-text: #f5f8fb;
+  --tooltip-border: rgba(255, 255, 255, 0.12);
 }
 
 * {
@@ -276,7 +341,7 @@ body {
   min-width: 320px;
   margin: 0;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 248, 250, 0.98) 260px),
+    linear-gradient(180deg, var(--body-gradient-start), var(--body-gradient-end) 260px),
     var(--page-bg);
 }
 
@@ -287,7 +352,7 @@ a {
 }
 
 a:hover {
-  color: #245b78;
+  color: var(--link-hover);
 }
 
 :focus-visible {
@@ -298,7 +363,7 @@ a:hover {
 
 .site-header {
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.86);
+  background: var(--header-bg);
   backdrop-filter: blur(12px);
 }
 
@@ -324,6 +389,13 @@ a:hover {
   text-decoration: none;
 }
 
+.site-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
 .site-nav {
   display: flex;
   align-items: center;
@@ -340,6 +412,60 @@ a:hover {
 
 .site-nav a:hover {
   color: var(--text);
+}
+
+.theme-toggle {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+}
+
+.theme-toggle__icon {
+  position: absolute;
+  display: block;
+  width: 15px;
+  height: 15px;
+  opacity: 0;
+  transform: scale(0.72) rotate(-18deg);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.theme-toggle__icon--sun {
+  border: 2px solid currentColor;
+  border-radius: 999px;
+  box-shadow:
+    0 -8px 0 -5px currentColor,
+    0 8px 0 -5px currentColor,
+    8px 0 0 -5px currentColor,
+    -8px 0 0 -5px currentColor,
+    5.7px 5.7px 0 -5px currentColor,
+    -5.7px 5.7px 0 -5px currentColor,
+    5.7px -5.7px 0 -5px currentColor,
+    -5.7px -5.7px 0 -5px currentColor;
+}
+
+.theme-toggle__icon--moon {
+  border-radius: 999px;
+  box-shadow: inset 5px -4px 0 0 currentColor;
+}
+
+html[data-theme="light"] .theme-toggle__icon--sun,
+html:not([data-theme]) .theme-toggle__icon--sun,
+html[data-theme="dark"] .theme-toggle__icon--moon {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
 }
 
 .site-shell {
@@ -437,7 +563,7 @@ a:hover {
 }
 
 .page-meta dt {
-  color: #4d5662;
+  color: var(--meta-text);
   font-weight: 700;
 }
 
@@ -547,7 +673,7 @@ a:hover {
   padding: 0.12em 0.28em;
   border-radius: 4px;
   background: var(--surface-muted);
-  color: #28313a;
+  color: var(--inline-code-text);
   font-family: var(--mono);
   font-size: 0.92em;
 }
@@ -562,10 +688,10 @@ a:hover {
   margin: 0;
   padding: 22px;
   overflow: hidden;
-  border: 1px solid #cfd6df;
+  border: 1px solid var(--code-border);
   border-radius: var(--radius);
   background: var(--code-bg);
-  box-shadow: 0 18px 44px rgba(31, 36, 43, 0.08);
+  box-shadow: 0 18px 44px var(--code-shadow);
   color: var(--code-text);
   font-family: var(--mono);
   font-size: 0.92rem;
@@ -624,7 +750,7 @@ a:hover {
 }
 
 .page-content [data-hover] {
-  border-bottom: 1px dotted rgba(237, 242, 247, 0.52);
+  border-bottom: 1px dotted var(--hover-underline);
   cursor: help;
 }
 
@@ -637,7 +763,7 @@ a:hover {
   z-index: 50;
   max-width: min(420px, calc(100vw - 32px));
   padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--tooltip-border);
   border-radius: 6px;
   background: var(--tooltip-bg);
   box-shadow: 0 16px 38px rgba(9, 13, 18, 0.28);
@@ -675,6 +801,11 @@ a:hover {
     align-items: flex-start;
     flex-direction: column;
     padding-block: 12px;
+  }
+
+  .site-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .site-nav {
@@ -722,6 +853,70 @@ a:hover {
   .page-content [data-hover] {
     transition: border-color 140ms ease, color 140ms ease;
   }
+}
+`
+}
+
+func astroThemeJS() string {
+	return `const storageKey = "gocire-theme";
+const validThemes = new Set(["light", "dark"]);
+const root = document.documentElement;
+const buttons = Array.from(document.querySelectorAll("[data-theme-toggle]"));
+
+const readStoredTheme = () => {
+  try {
+    return localStorage.getItem(storageKey);
+  } catch {
+    return null;
+  }
+};
+
+const writeStoredTheme = (theme) => {
+  try {
+    localStorage.setItem(storageKey, theme);
+  } catch {
+    // Theme persistence is optional; the current page still updates.
+  }
+};
+
+const systemTheme = () => {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+};
+
+const currentTheme = () => {
+  const theme = root.getAttribute("data-theme");
+  if (validThemes.has(theme)) {
+    return theme;
+  }
+  const storedTheme = readStoredTheme();
+  return validThemes.has(storedTheme) ? storedTheme : systemTheme();
+};
+
+const updateToggleLabels = (theme) => {
+  const nextTheme = theme === "dark" ? "light" : "dark";
+  const label = nextTheme === "dark" ? "Switch to dark theme" : "Switch to light theme";
+  for (const button of buttons) {
+    button.setAttribute("aria-label", label);
+    button.setAttribute("title", label);
+  }
+};
+
+const applyTheme = (theme, options = {}) => {
+  const nextTheme = validThemes.has(theme) ? theme : systemTheme();
+  root.setAttribute("data-theme", nextTheme);
+  updateToggleLabels(nextTheme);
+
+  if (options.persist) {
+    writeStoredTheme(nextTheme);
+  }
+};
+
+applyTheme(currentTheme());
+
+for (const button of buttons) {
+  button.addEventListener("click", () => {
+    applyTheme(currentTheme() === "dark" ? "light" : "dark", { persist: true });
+  });
 }
 `
 }
