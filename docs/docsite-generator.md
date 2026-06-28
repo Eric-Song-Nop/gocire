@@ -61,18 +61,51 @@ Jump-to-definition should always go to the source definition. It should not be
 rewritten to a documentation explanation page. Documentation navigation and
 language navigation are separate concepts.
 
+The default source exploration page should act as a stable source location, not
+as a primary browsing experience. It should show the complete source file, file
+path context, line anchors, syntax highlighting, hover information, inlay hints,
+definition navigation, references, and a lightweight outline when available.
+
+It should not expose a top-level source browser by default. A full repository
+file tree can be a configurable feature later, but it should not define the
+default product experience.
+
 ## Docusaurus Reference
 
 Docusaurus is a reference for product structure and user expectations, not a hard
 implementation requirement. We can borrow ideas such as docs, blogs, sidebars,
 navbar, footer, themes, and generated routes when they fit.
 
+The default theme can be Docusaurus-like.
+
+## Output Model
+
+Markdown, MDX, and the future docsite output should be treated like different
+compiler backends. They should share the same intermediate representation of the
+source content and language information, then render that shared representation
+into different output formats.
+
+The docsite output is an additional bundled site output, not a replacement for
+the existing Markdown or MDX outputs.
+
 ## Configuration
 
-The generator needs project configuration. A config file may be enough for many
-projects, but advanced projects may need code-based configuration.
+The generator needs project configuration. The long-term model should support
+both declarative configuration and code-based extension, but the first version
+should not require much configuration.
 
-Possible configuration areas:
+The first version should prefer conventions and defaults:
+
+- `docs` is the default documentation directory.
+- `blogs` is the default blog directory.
+- other supported source files become source exploration pages.
+- navigation, sidebars, routes, theme, language features, and LSP settings can
+  use defaults at first.
+
+A root-level `.gocire.yml` file can be introduced as the first declarative
+configuration entry point when defaults are not enough.
+
+Future configuration areas:
 
 - site title and metadata,
 - theme,
@@ -84,17 +117,25 @@ Possible configuration areas:
 - feature flags for hover, inlay hints, definitions, references, and other
   language features.
 
+Code-based configuration can be considered later for advanced customization.
+
+## Generation Behavior
+
+The generator should have default skip rules for files and directories that
+should not become generated pages. The API should be designed so these rules can
+later be configured through `.gocire.yml`.
+
+When a file cannot be analyzed or some language information is unavailable, the
+generator should prefer warnings and continue generating the rest of the site.
+
+Search is not part of the initial plan.
+
 ## Discussion Focus
 
 - The current renderer is designed around one source file. The docsite should
   think about the whole site and the relationships between generated pages.
-- Jump-to-definition should work across generated pages, not only inside one
-  page.
-- Existing Markdown and MDX output should remain part of the product direction.
-  New site output should not make the older outputs second-class.
-- We may need a clearer shared content model so different outputs can preserve
-  the same source comments, code blocks, and language information. The exact
-  shape is undecided.
+- Cross-file LSP information is not fully implemented yet. The docsite needs to
+  support language information and jump-to-definition across generated pages.
 - Source exploration pages should keep comments inside the code while still
   preserving language information.
 - Configuration needs more discussion, especially theme options, feature flags,
