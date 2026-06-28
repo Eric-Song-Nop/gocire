@@ -109,6 +109,8 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		`[data-theme="dark"]`,
 	})
 	assertAstroAssetContains(t, globalCSS, ".theme-toggle")
+	assertAstroAssetNotContains(t, globalCSS, "min-height: 240px")
+	assertAstroAssetNotContains(t, globalCSS, "min-height: 180px")
 	for _, want := range []string{
 		"--code-keyword",
 		"--code-string",

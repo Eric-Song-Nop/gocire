@@ -895,7 +895,6 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
 
 .cire-code,
 .source-code {
-  min-height: 240px;
   margin: 0;
   padding: 22px;
   overflow: hidden;
@@ -1339,7 +1338,6 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
 
   .cire-code,
   .source-code {
-    min-height: 180px;
     padding: 16px;
     font-size: 0.86rem;
   }
