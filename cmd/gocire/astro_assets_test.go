@@ -287,6 +287,86 @@ func TestAstroGlobalCSSIncludesSidebarNavigationClasses(t *testing.T) {
 	})
 }
 
+func TestAstroGlobalCSSIncludesThemeAwareCodeHighlighting(t *testing.T) {
+	outputDir := writeAstroAssetsForTest(t, "Code Theme Docs")
+
+	globalCSS := readAstroAssetFile(t, outputDir, "src/styles/global.css")
+	lightThemeBlock := extractAstroCSSRuleBlock(t, globalCSS, `html[data-theme="light"]`)
+	darkThemeBlock := extractAstroCSSRuleBlock(t, globalCSS, `html[data-theme="dark"]`)
+
+	codeVariables := []string{
+		"--code-bg",
+		"--code-text",
+		"--code-muted",
+		"--code-border",
+		"--code-shadow",
+		"--code-keyword",
+		"--code-string",
+		"--code-function",
+		"--code-type",
+		"--code-comment",
+		"--code-definition",
+		"--code-variable",
+		"--code-constant",
+		"--code-number",
+		"--code-operator",
+		"--code-punctuation",
+		"--code-reference-border",
+	}
+	for _, variable := range codeVariables {
+		extractAstroCSSVariableValue(t, lightThemeBlock, variable)
+		extractAstroCSSVariableValue(t, darkThemeBlock, variable)
+	}
+
+	lightCodeBG := extractAstroCSSVariableValue(t, lightThemeBlock, "--code-bg")
+	darkCodeBG := extractAstroCSSVariableValue(t, darkThemeBlock, "--code-bg")
+	if lightCodeBG == darkCodeBG {
+		t.Fatalf("expected light and dark --code-bg values to differ, both were %q", lightCodeBG)
+	}
+
+	for _, want := range []string{
+		"var(--code-variable)",
+		"var(--code-constant)",
+		"var(--code-number)",
+		"var(--code-operator)",
+		"var(--code-punctuation)",
+	} {
+		assertAstroAssetContains(t, globalCSS, want)
+	}
+
+	for _, mapping := range []struct {
+		selector string
+		variable string
+	}{
+		{`.cire .function\.method`, "--code-function"},
+		{`.cire .type\.builtin`, "--code-type"},
+		{`.cire .variable\.parameter`, "--code-variable"},
+		{`.cire .constant\.builtin`, "--code-constant"},
+		{`.cire .punctuation\.delimiter`, "--code-punctuation"},
+	} {
+		assertAstroCSSSelectorUsesVariable(t, globalCSS, mapping.selector, mapping.variable)
+	}
+
+	for _, mapping := range []struct {
+		selector string
+		variable string
+	}{
+		{".gocire-tooltip .chroma .m", "--code-number"},
+		{".gocire-tooltip .chroma .mi", "--code-number"},
+		{".gocire-tooltip .chroma .mf", "--code-number"},
+		{".gocire-tooltip .chroma .nv", "--code-variable"},
+		{".gocire-tooltip .chroma .n", "--code-variable"},
+		{".gocire-tooltip .chroma .o", "--code-operator"},
+		{".gocire-tooltip .chroma .p", "--code-punctuation"},
+		{".gocire-tooltip .chroma .k", "--code-keyword"},
+		{".gocire-tooltip .chroma .s", "--code-string"},
+		{".gocire-tooltip .chroma .nf", "--code-function"},
+		{".gocire-tooltip .chroma .c", "--code-comment"},
+	} {
+		assertAstroCSSSelectorUsesVariable(t, globalCSS, mapping.selector, mapping.variable)
+	}
+}
+
 func TestWriteAstroSiteAssetsRepeatedCallOverwritesStable(t *testing.T) {
 	outputDir := t.TempDir()
 
@@ -368,6 +448,61 @@ func assertAstroAssetContainsAny(t *testing.T, contents string, wants []string) 
 		}
 	}
 	t.Fatalf("asset does not contain any of %q", wants)
+}
+
+func assertAstroCSSSelectorUsesVariable(t *testing.T, contents, selector, variable string) {
+	t.Helper()
+
+	ruleBlock := extractAstroCSSRuleBlock(t, contents, selector)
+	want := "var(" + variable + ")"
+	if !strings.Contains(ruleBlock, want) {
+		t.Fatalf("CSS selector %q does not use %q", selector, want)
+	}
+}
+
+func extractAstroCSSRuleBlock(t *testing.T, contents, selector string) string {
+	t.Helper()
+
+	offset := 0
+	for offset < len(contents) {
+		openIndex := strings.Index(contents[offset:], "{")
+		if openIndex == -1 {
+			break
+		}
+		ruleStart := offset
+		ruleOpen := offset + openIndex
+		closeIndex := strings.Index(contents[ruleOpen+1:], "}")
+		if closeIndex == -1 {
+			t.Fatalf("CSS selector list %q is missing a closing rule block", strings.TrimSpace(contents[ruleStart:ruleOpen]))
+		}
+		ruleClose := ruleOpen + 1 + closeIndex
+		for _, candidate := range strings.Split(contents[ruleStart:ruleOpen], ",") {
+			if strings.TrimSpace(candidate) == selector {
+				return contents[ruleOpen+1 : ruleClose]
+			}
+		}
+		offset = ruleClose + 1
+	}
+	t.Fatalf("CSS asset does not contain selector %q", selector)
+	return ""
+}
+
+func extractAstroCSSVariableValue(t *testing.T, contents, variable string) string {
+	t.Helper()
+
+	prefix := variable + ":"
+	for _, line := range strings.Split(contents, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, prefix) {
+			value := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(line, prefix), ";"))
+			if value == "" {
+				t.Fatalf("CSS variable %q has an empty value", variable)
+			}
+			return value
+		}
+	}
+	t.Fatalf("CSS block does not define variable %q", variable)
+	return ""
 }
 
 func assertAstroAssetSnapshotsEqual(t *testing.T, got, want map[string]string) {

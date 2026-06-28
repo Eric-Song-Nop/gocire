@@ -437,26 +437,39 @@ html[data-theme="light"] {
   --body-gradient-start: rgba(255, 255, 255, 0.92);
   --body-gradient-end: rgba(247, 248, 250, 0.98);
   --header-bg: rgba(255, 255, 255, 0.86);
-  --code-bg: #151a21;
-  --code-text: #edf2f7;
-  --code-muted: #aeb8c6;
+  --code-bg: #f4f6f9;
+  --code-text: #202833;
+  --code-muted: #6a7380;
   --code-border: #cfd6df;
   --code-shadow: rgba(31, 36, 43, 0.08);
-  --code-keyword: #f3c969;
-  --code-string: #9ed6a3;
-  --code-function: #8ecae6;
-  --code-type: #c4b5fd;
+  --code-keyword: #7a4e00;
+  --code-string: #2f6f4f;
+  --code-function: #0f6680;
+  --code-type: #6f4e99;
+  --code-variable: #27313d;
+  --code-constant: #8a4b73;
+  --code-number: #9a5a1f;
+  --code-operator: #5f6874;
+  --code-punctuation: #788290;
+  --code-attribute: #8a5b00;
+  --code-module: #526d2a;
+  --code-constructor: #7a4f7d;
+  --code-label: #8a5b2e;
+  --code-escape: #b25a16;
   --code-comment: var(--code-muted);
-  --code-definition: #f5d28c;
-  --code-reference-border: rgba(142, 202, 230, 0.45);
+  --code-definition: #8a5b2e;
+  --code-error: #b42318;
+  --code-deleted: #b42318;
+  --code-inserted: #1f7a4d;
+  --code-reference-border: rgba(15, 102, 128, 0.38);
   --hover-underline: rgba(47, 111, 143, 0.58);
-  --tooltip-bg: #20262e;
-  --tooltip-text: #f7fafc;
-  --tooltip-border: rgba(255, 255, 255, 0.14);
-  --tooltip-link: #a7dff4;
-  --tooltip-inline-code-bg: rgba(255, 255, 255, 0.1);
-  --tooltip-code-bg: rgba(0, 0, 0, 0.2);
-  --tooltip-code-border: var(--tooltip-border);
+  --tooltip-bg: #ffffff;
+  --tooltip-text: #202833;
+  --tooltip-border: rgba(31, 36, 43, 0.16);
+  --tooltip-link: #245b78;
+  --tooltip-inline-code-bg: #edf1f5;
+  --tooltip-code-bg: var(--code-bg);
+  --tooltip-code-border: var(--code-border);
   --radius: 8px;
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -488,8 +501,21 @@ html[data-theme="dark"] {
   --code-string: #9ed6a3;
   --code-function: #8ecae6;
   --code-type: #c4b5fd;
+  --code-variable: #e7edf5;
+  --code-constant: #f6b6c8;
+  --code-number: #f2b47d;
+  --code-operator: #b8c0ca;
+  --code-punctuation: #858e9c;
+  --code-attribute: #f0c674;
+  --code-module: #b9d781;
+  --code-constructor: #e5b3f2;
+  --code-label: #dfb16d;
+  --code-escape: #f2a66f;
   --code-comment: var(--code-muted);
   --code-definition: #f5d28c;
+  --code-error: #ff7b72;
+  --code-deleted: #ff9b9b;
+  --code-inserted: #9ed6a3;
   --code-reference-border: rgba(142, 202, 230, 0.45);
   --hover-underline: rgba(127, 200, 234, 0.66);
   --tooltip-bg: #1d232c;
@@ -903,23 +929,101 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   text-decoration: none;
 }
 
-.cire .keyword {
+.cire .keyword,
+.cire .keyword\.conditional,
+.cire .keyword\.debug,
+.cire .keyword\.directive,
+.cire .keyword\.exception,
+.cire .keyword\.import,
+.cire .keyword\.repeat {
   color: var(--code-keyword);
 }
 
-.cire .string {
+.cire .string,
+.cire .character,
+.cire .string\.special,
+.cire .string\.special\.regex,
+.cire .string\.special\.symbol {
   color: var(--code-string);
 }
 
 .cire .function,
+.cire .function\.builtin,
+.cire .function\.call,
+.cire .function\.macro,
 .cire .function\.method,
-.cire .function\.builtin {
+.cire .function\.method\.builtin,
+.cire .function\.special {
   color: var(--code-function);
 }
 
 .cire .type,
+.cire .type\.builtin,
+.cire .identifier\.constant,
+.cire .property\.definition,
 .cire .property {
   color: var(--code-type);
+}
+
+.cire .variable,
+.cire .variable\.builtin,
+.cire .variable\.member,
+.cire .variable\.parameter,
+.cire .identifier,
+.cire .identifier\.parameter,
+.cire ._name {
+  color: var(--code-variable);
+}
+
+.cire .constant,
+.cire .constant\.builtin,
+.cire .constant\.null,
+.cire .boolean,
+.cire .builtin {
+  color: var(--code-constant);
+}
+
+.cire .number,
+.cire .number\.float {
+  color: var(--code-number);
+}
+
+.cire .operator,
+.cire ._op {
+  color: var(--code-operator);
+}
+
+.cire .punctuation,
+.cire .punctuation\.bracket,
+.cire .punctuation\.delimiter,
+.cire .punctuation\.special,
+.cire .delimiter {
+  color: var(--code-punctuation);
+}
+
+.cire .attribute {
+  color: var(--code-attribute);
+}
+
+.cire .module,
+.cire .module\.builtin,
+.cire .tag {
+  color: var(--code-module);
+}
+
+.cire .constructor,
+.cire ._type {
+  color: var(--code-constructor);
+}
+
+.cire .label {
+  color: var(--code-label);
+}
+
+.cire .escape,
+.cire .string\.escape,
+.cire .embedded {
+  color: var(--code-escape);
 }
 
 .cire .comment {
@@ -1012,6 +1116,7 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   border: 1px solid var(--tooltip-code-border);
   border-radius: 6px;
   background: var(--tooltip-code-bg);
+  color: var(--code-text);
   padding: 0.75rem;
 }
 
@@ -1020,6 +1125,7 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   display: block;
   overflow-x: auto;
   background: transparent;
+  color: var(--code-text);
   padding: 0;
 }
 
@@ -1040,7 +1146,7 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
 .gocire-tooltip .chroma {
   overflow-x: auto;
   background: transparent;
-  color: var(--tooltip-text);
+  color: var(--code-text);
 }
 
 .gocire-tooltip .chroma .k,
@@ -1048,34 +1154,133 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
 .gocire-tooltip .chroma .kd,
 .gocire-tooltip .chroma .kn,
 .gocire-tooltip .chroma .kp,
-.gocire-tooltip .chroma .kr {
+.gocire-tooltip .chroma .kr,
+.gocire-tooltip .chroma .ow {
   color: var(--code-keyword);
 }
 
-.gocire-tooltip .chroma .kt {
+.gocire-tooltip .chroma .kt,
+.gocire-tooltip .chroma .nc,
+.gocire-tooltip .chroma .nt {
   color: var(--code-type);
 }
 
 .gocire-tooltip .chroma .s,
+.gocire-tooltip .chroma .sa,
+.gocire-tooltip .chroma .sb,
+.gocire-tooltip .chroma .sc,
+.gocire-tooltip .chroma .dl,
+.gocire-tooltip .chroma .sd,
 .gocire-tooltip .chroma .s1,
 .gocire-tooltip .chroma .s2,
-.gocire-tooltip .chroma .se,
 .gocire-tooltip .chroma .sh,
 .gocire-tooltip .chroma .si,
-.gocire-tooltip .chroma .sx {
+.gocire-tooltip .chroma .sx,
+.gocire-tooltip .chroma .sr,
+.gocire-tooltip .chroma .ss {
   color: var(--code-string);
 }
 
+.gocire-tooltip .chroma .se {
+  color: var(--code-escape);
+}
+
+.gocire-tooltip .chroma .m,
+.gocire-tooltip .chroma .mb,
+.gocire-tooltip .chroma .mf,
+.gocire-tooltip .chroma .mh,
+.gocire-tooltip .chroma .mi,
+.gocire-tooltip .chroma .il,
+.gocire-tooltip .chroma .mo {
+  color: var(--code-number);
+}
+
 .gocire-tooltip .chroma .nf,
-.gocire-tooltip .chroma .nx,
-.gocire-tooltip .chroma .na {
+.gocire-tooltip .chroma .fm,
+.gocire-tooltip .chroma .nb {
   color: var(--code-function);
 }
 
+.gocire-tooltip .chroma .n,
+.gocire-tooltip .chroma .nx,
+.gocire-tooltip .chroma .nv,
+.gocire-tooltip .chroma .vc,
+.gocire-tooltip .chroma .vg,
+.gocire-tooltip .chroma .vi,
+.gocire-tooltip .chroma .vm,
+.gocire-tooltip .chroma .py,
+.gocire-tooltip .chroma .bp {
+  color: var(--code-variable);
+}
+
+.gocire-tooltip .chroma .no,
+.gocire-tooltip .chroma .l,
+.gocire-tooltip .chroma .ld {
+  color: var(--code-constant);
+}
+
+.gocire-tooltip .chroma .na,
+.gocire-tooltip .chroma .nd,
+.gocire-tooltip .chroma .ni {
+  color: var(--code-attribute);
+}
+
+.gocire-tooltip .chroma .nn {
+  color: var(--code-module);
+}
+
+.gocire-tooltip .chroma .ne {
+  color: var(--code-constructor);
+}
+
+.gocire-tooltip .chroma .nl {
+  color: var(--code-label);
+}
+
+.gocire-tooltip .chroma .o {
+  color: var(--code-operator);
+}
+
+.gocire-tooltip .chroma .p {
+  color: var(--code-punctuation);
+}
+
 .gocire-tooltip .chroma .c,
+.gocire-tooltip .chroma .ch,
 .gocire-tooltip .chroma .c1,
-.gocire-tooltip .chroma .cm {
+.gocire-tooltip .chroma .cm,
+.gocire-tooltip .chroma .cpf,
+.gocire-tooltip .chroma .cs {
   color: var(--code-comment);
+}
+
+.gocire-tooltip .chroma .err,
+.gocire-tooltip .chroma .gr,
+.gocire-tooltip .chroma .gt {
+  color: var(--code-error);
+}
+
+.gocire-tooltip .chroma .gd {
+  color: var(--code-deleted);
+}
+
+.gocire-tooltip .chroma .gi {
+  color: var(--code-inserted);
+}
+
+.gocire-tooltip .chroma .gh,
+.gocire-tooltip .chroma .go,
+.gocire-tooltip .chroma .gp,
+.gocire-tooltip .chroma .gu {
+  color: var(--code-muted);
+}
+
+.gocire-tooltip .chroma .ge {
+  font-style: italic;
+}
+
+.gocire-tooltip .chroma .gs {
+  font-weight: 600;
 }
 
 .site-footer {
