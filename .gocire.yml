@@ -1,0 +1,11 @@
+site:
+  title: gocire
+project:
+  root: .
+content:
+  docs: docs
+  blogs: blogs
+source:
+  routePrefix: /_source
+output:
+  dir: .gocire/site
