@@ -23,8 +23,17 @@ type DocumentGenerator interface {
 	Generate(tokens []internal.TokenInfo, comments []internal.CommentInfo) string
 }
 
+type PipelineLSPRequest struct {
+	SourcePath    string
+	Language      string
+	WorkspaceRoot string
+}
+
+type LSPAnalyzerFactory func(ctx context.Context, req PipelineLSPRequest) (TokenAnalyzer, error)
+
 type PipelineOptions struct {
-	LSPAnalyzerFactory func(sourcePath string) (TokenAnalyzer, error)
+	Context            context.Context
+	LSPAnalyzerFactory LSPAnalyzerFactory
 }
 
 // Pipeline orchestrates the analysis and generation process.
@@ -55,7 +64,15 @@ func NewPipelineWithOptions(cfg *Config, options PipelineOptions) (*Pipeline, er
 		}
 		fmt.Printf("Starting LSP analysis for %s...\n", cfg.Lang)
 		if options.LSPAnalyzerFactory != nil {
-			analyzer, err := options.LSPAnalyzerFactory(cfg.AbsSrcPath)
+			optionsCtx := options.Context
+			if optionsCtx == nil {
+				optionsCtx = context.Background()
+			}
+			analyzer, err := options.LSPAnalyzerFactory(optionsCtx, PipelineLSPRequest{
+				SourcePath:    cfg.AbsSrcPath,
+				Language:      cfg.Lang,
+				WorkspaceRoot: cfg.LSPRoot,
+			})
 			if err != nil {
 				return nil, err
 			}
