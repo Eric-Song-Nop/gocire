@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Eric-Song-Nop/gocire/internal"
+	projectconfig "github.com/Eric-Song-Nop/gocire/internal/config"
 	"github.com/Eric-Song-Nop/gocire/internal/project"
 )
 
@@ -318,6 +319,108 @@ output:
 		if !strings.Contains(string(navigation), want) {
 			t.Fatalf("Astro navigation missing %q\nGot:\n%s", want, string(navigation))
 		}
+	}
+}
+
+func TestProjectExportRunnerWritesMixedLanguageAstroProject(t *testing.T) {
+	root := t.TempDir()
+	writeProjectTestFile(t, filepath.Join(root, "repo", "main.go"), "package main\n\nfunc main() {}\n")
+	writeProjectTestFile(t, filepath.Join(root, "repo", "web", "app.ts"), "export function render(): string {\n  return 'ok';\n}\n")
+
+	configPath := filepath.Join(root, ".gocire.yml")
+	writeProjectTestFile(t, configPath, `
+project:
+  root: repo
+source:
+  include:
+    - "**/*.go"
+    - "**/*.ts"
+output:
+  dir: site
+`)
+
+	runner, err := NewProjectExportRunner(&Config{
+		Project:    true,
+		ConfigPath: configPath,
+		Jobs:       2,
+		Format:     "astro",
+	})
+	if err != nil {
+		t.Fatalf("NewProjectExportRunner returned error: %v", err)
+	}
+	if err := runner.Run(context.Background()); err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+
+	assertGeneratedPageLanguage(t, filepath.Join(root, "site", "src", "generated", "pages", "_source", "main.go.html.astro"), "go")
+	assertGeneratedPageLanguage(t, filepath.Join(root, "site", "src", "generated", "pages", "_source", "web", "app.ts.html.astro"), "typescript")
+}
+
+func TestPipelineConfigForProjectFileUsesDetectedLanguage(t *testing.T) {
+	root := t.TempDir()
+	runner := &ProjectExportRunner{
+		cfg: &Config{
+			Lang:   "go",
+			UseLSP: true,
+			Format: "astro",
+		},
+		plan: &ProjectExportPlan{
+			Config: &projectconfig.ProjectConfig{
+				Project: projectconfig.ProjectSection{
+					Root: root,
+				},
+			},
+		},
+	}
+
+	tsFile := project.SourceFile{
+		AbsPath:  filepath.Join(root, "web", "app.ts"),
+		RelPath:  "web/app.ts",
+		Language: "typescript",
+		Kind:     project.PageKindSource,
+	}
+	tsCfg := runner.pipelineConfigForProjectFile(tsFile, "out")
+	if tsCfg.Lang != "typescript" {
+		t.Fatalf("Lang = %q, want detected file language typescript", tsCfg.Lang)
+	}
+	if tsCfg.UseLSP {
+		t.Fatal("UseLSP = true for non-selected project language, want false")
+	}
+	if tsCfg.LSPRoot != root {
+		t.Fatalf("LSPRoot = %q, want project root %q", tsCfg.LSPRoot, root)
+	}
+
+	goFile := project.SourceFile{
+		AbsPath:  filepath.Join(root, "main.go"),
+		RelPath:  "main.go",
+		Language: "go",
+		Kind:     project.PageKindSource,
+	}
+	goCfg := runner.pipelineConfigForProjectFile(goFile, "")
+	if goCfg.Lang != "go" {
+		t.Fatalf("Lang = %q, want go", goCfg.Lang)
+	}
+	if !goCfg.UseLSP {
+		t.Fatal("UseLSP = false for selected project language, want true")
+	}
+
+	runner.cfg.Lang = "ts"
+	tsAliasCfg := runner.pipelineConfigForProjectFile(tsFile, "")
+	if !tsAliasCfg.UseLSP {
+		t.Fatal("UseLSP = false for aliased selected project language, want true")
+	}
+}
+
+func assertGeneratedPageLanguage(t *testing.T, pagePath string, language string) {
+	t.Helper()
+
+	page, err := os.ReadFile(pagePath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", pagePath, err)
+	}
+	want := `language="` + language + `"`
+	if !strings.Contains(string(page), want) {
+		t.Fatalf("generated page %s missing %q\nGot:\n%s", pagePath, want, string(page))
 	}
 }
 

@@ -8,9 +8,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/Eric-Song-Nop/gocire/internal"
 	projectconfig "github.com/Eric-Song-Nop/gocire/internal/config"
+	"github.com/Eric-Song-Nop/gocire/internal/languages"
 	"github.com/Eric-Song-Nop/gocire/internal/project"
 	"golang.org/x/sync/errgroup"
 )
@@ -24,6 +26,17 @@ type ProjectExportPlan struct {
 type ProjectExportRunner struct {
 	cfg  *Config
 	plan *ProjectExportPlan
+}
+
+type projectLSPSessionKey struct {
+	language      string
+	workspaceRoot string
+}
+
+type projectLSPAnalyzerProvider struct {
+	workspaceRoot string
+	sessions      map[projectLSPSessionKey]*internal.LSPSession
+	mu            sync.Mutex
 }
 
 func NewProjectExportRunner(cfg *Config) (*ProjectExportRunner, error) {
@@ -117,7 +130,7 @@ func (r *ProjectExportRunner) Run(ctx context.Context) error {
 		return backend.Finish(ctx)
 	}
 
-	lspFactory, closeLSP, err := r.projectLSPAnalyzerFactory(ctx)
+	lspFactory, closeLSP, err := r.projectLSPAnalyzerFactory()
 	if err != nil {
 		return err
 	}
@@ -149,14 +162,15 @@ func (r *ProjectExportRunner) Run(ctx context.Context) error {
 	return nil
 }
 
-func (r *ProjectExportRunner) exportFile(ctx context.Context, file project.SourceFile, lspFactory func(sourcePath string) (TokenAnalyzer, error), backend ProjectBackend) error {
+func (r *ProjectExportRunner) exportFile(ctx context.Context, file project.SourceFile, lspFactory LSPAnalyzerFactory, backend ProjectBackend) error {
 	page, ok := r.plan.Site.PageForFile(file)
 	if !ok {
 		return fmt.Errorf("%s: site page not found", file.RelPath)
 	}
 
-	fileCfg := r.pipelineConfigForFile(file, "", lspFactory)
+	fileCfg := r.pipelineConfigForProjectFile(file, "")
 	pipeline, err := NewPipelineWithOptions(fileCfg, PipelineOptions{
+		Context:            ctx,
 		LSPAnalyzerFactory: lspFactory,
 	})
 	if err != nil {
@@ -173,49 +187,110 @@ func (r *ProjectExportRunner) exportFile(ctx context.Context, file project.Sourc
 	return nil
 }
 
-func (r *ProjectExportRunner) pipelineConfigForFile(file project.SourceFile, outPath string, lspFactory func(sourcePath string) (TokenAnalyzer, error)) *Config {
+func (r *ProjectExportRunner) pipelineConfigForProjectFile(file project.SourceFile, outPath string) *Config {
 	fileCfg := *r.cfg
 	fileCfg.SrcPath = file.AbsPath
 	fileCfg.AbsSrcPath = file.AbsPath
 	fileCfg.OutPath = outPath
-	if fileCfg.Lang == "" {
-		fileCfg.Lang = file.Language
-	}
+	fileCfg.Lang = file.Language
+	fileCfg.UseLSP = r.useLSPForProjectFile(file)
 	if fileCfg.LSPRoot == "" {
 		fileCfg.LSPRoot = r.plan.Config.Project.Root
 	}
 	return &fileCfg
 }
 
-func (r *ProjectExportRunner) projectLSPAnalyzerFactory(ctx context.Context) (func(sourcePath string) (TokenAnalyzer, error), func() error, error) {
+func (r *ProjectExportRunner) useLSPForProjectFile(file project.SourceFile) bool {
+	if !r.cfg.UseLSP {
+		return false
+	}
+	if r.cfg.Lang == "" {
+		return true
+	}
+	selectedLanguage, err := languages.CanonicalName(r.cfg.Lang)
+	if err != nil {
+		return false
+	}
+	return selectedLanguage == file.Language
+}
+
+func (r *ProjectExportRunner) projectLSPAnalyzerFactory() (LSPAnalyzerFactory, func() error, error) {
 	if !r.cfg.UseLSP {
 		return nil, nil, nil
 	}
-
-	language, err := projectLanguage(r.cfg.Lang, r.plan.Files)
-	if err != nil {
-		return nil, nil, err
+	if r.cfg.Lang != "" {
+		if _, err := languages.CanonicalName(r.cfg.Lang); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	workspaceRoot := r.plan.Config.Project.Root
 	if r.cfg.LSPRoot != "" {
-		workspaceRoot, err = filepath.Abs(r.cfg.LSPRoot)
+		absWorkspaceRoot, err := filepath.Abs(r.cfg.LSPRoot)
 		if err != nil {
 			return nil, nil, fmt.Errorf("resolve lsp root: %w", err)
 		}
+		workspaceRoot = absWorkspaceRoot
+	}
+
+	provider := &projectLSPAnalyzerProvider{
+		workspaceRoot: workspaceRoot,
+		sessions:      make(map[projectLSPSessionKey]*internal.LSPSession),
+	}
+	return provider.AnalyzerFor, provider.Close, nil
+}
+
+func (p *projectLSPAnalyzerProvider) AnalyzerFor(ctx context.Context, req PipelineLSPRequest) (TokenAnalyzer, error) {
+	workspaceRoot := req.WorkspaceRoot
+	if workspaceRoot == "" {
+		workspaceRoot = p.workspaceRoot
+	}
+	session, err := p.session(ctx, req.Language, workspaceRoot)
+	if err != nil {
+		return nil, err
+	}
+	return &ProjectLSPAnalyzer{
+		session:    session,
+		sourcePath: req.SourcePath,
+	}, nil
+}
+
+func (p *projectLSPAnalyzerProvider) session(ctx context.Context, language, workspaceRoot string) (*internal.LSPSession, error) {
+	key := projectLSPSessionKey{
+		language:      language,
+		workspaceRoot: workspaceRoot,
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if session, ok := p.sessions[key]; ok {
+		return session, nil
 	}
 
 	session, err := internal.NewLSPSession(ctx, language, workspaceRoot)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
+	p.sessions[key] = session
+	return session, nil
+}
 
-	return func(sourcePath string) (TokenAnalyzer, error) {
-		return &ProjectLSPAnalyzer{
-			session:    session,
-			sourcePath: sourcePath,
-		}, nil
-	}, session.Close, nil
+func (p *projectLSPAnalyzerProvider) Close() error {
+	p.mu.Lock()
+	sessions := make([]*internal.LSPSession, 0, len(p.sessions))
+	for _, session := range p.sessions {
+		sessions = append(sessions, session)
+	}
+	p.mu.Unlock()
+
+	var firstErr error
+	for _, session := range sessions {
+		if err := session.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
 }
 
 type ProjectLSPAnalyzer struct {
@@ -230,23 +305,6 @@ func (a *ProjectLSPAnalyzer) Analyze(ctx context.Context, content []byte) ([]int
 	default:
 	}
 	return a.session.AnalyzeFile(a.sourcePath, content)
-}
-
-func projectLanguage(cliLang string, files []project.SourceFile) (string, error) {
-	if cliLang != "" {
-		return cliLang, nil
-	}
-	if len(files) == 0 {
-		return "", fmt.Errorf("project contains no source files")
-	}
-
-	language := files[0].Language
-	for _, file := range files[1:] {
-		if file.Language != language {
-			return "", fmt.Errorf("project contains multiple languages (%s and %s); pass -lang to choose one LSP language", language, file.Language)
-		}
-	}
-	return language, nil
 }
 
 func ProjectOutputPath(outputDir string, manifest internal.SourceRouteManifest, file project.SourceFile, format string) (string, error) {

@@ -143,16 +143,26 @@ var aliases = map[string]string{
 }
 
 func GetConfig(language string) (*LanguageConfig, error) {
-	lang := strings.ToLower(language)
-	if canonical, ok := aliases[lang]; ok {
-		lang = canonical
+	lang, err := CanonicalName(language)
+	if err != nil {
+		return nil, err
 	}
-
 	cfg, ok := registry[lang]
 	if !ok {
 		return nil, errors.Newf("unsupported language: %s", language)
 	}
 	return &cfg, nil
+}
+
+func CanonicalName(language string) (string, error) {
+	lang := strings.ToLower(language)
+	if canonical, ok := aliases[lang]; ok {
+		lang = canonical
+	}
+	if _, ok := registry[lang]; !ok {
+		return "", errors.Newf("unsupported language: %s", language)
+	}
+	return lang, nil
 }
 
 // DetectLanguage attempts to determine the language from the file extension.
