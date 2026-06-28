@@ -104,8 +104,17 @@ func (r *ProjectExportRunner) Run(ctx context.Context) error {
 
 	fmt.Printf("Project root: %s\n", r.plan.Config.Project.Root)
 	fmt.Printf("Project files: %d\n", len(r.plan.Files))
+
+	backend, err := NewProjectBackend(r.cfg.Format, r.plan)
+	if err != nil {
+		return err
+	}
+	if err := backend.Prepare(ctx, r.plan); err != nil {
+		return fmt.Errorf("prepare project backend: %w", err)
+	}
+
 	if len(r.plan.Files) == 0 {
-		return nil
+		return backend.Finish(ctx)
 	}
 
 	lspFactory, closeLSP, err := r.projectLSPAnalyzerFactory(ctx)
@@ -119,7 +128,7 @@ func (r *ProjectExportRunner) Run(ctx context.Context) error {
 	for _, file := range r.plan.Files {
 		file := file
 		g.Go(func() error {
-			return r.exportFile(ctx, file, lspFactory)
+			return r.exportFile(ctx, file, lspFactory, backend)
 		})
 	}
 
@@ -132,18 +141,16 @@ func (r *ProjectExportRunner) Run(ctx context.Context) error {
 	if runErr != nil {
 		return runErr
 	}
+	if err := backend.Finish(ctx); err != nil {
+		return err
+	}
 
 	fmt.Printf("Project export completed: %d files, output dir: %s\n", len(r.plan.Files), r.plan.Config.Output.Dir)
 	return nil
 }
 
-func (r *ProjectExportRunner) exportFile(ctx context.Context, file project.SourceFile, lspFactory func(sourcePath string) (TokenAnalyzer, error)) error {
-	outPath, err := ProjectOutputPath(r.plan.Config.Output.Dir, r.plan.Manifest, file, r.cfg.Format)
-	if err != nil {
-		return fmt.Errorf("%s: %w", file.RelPath, err)
-	}
-
-	fileCfg := r.pipelineConfigForFile(file, outPath, lspFactory)
+func (r *ProjectExportRunner) exportFile(ctx context.Context, file project.SourceFile, lspFactory func(sourcePath string) (TokenAnalyzer, error), backend ProjectBackend) error {
+	fileCfg := r.pipelineConfigForFile(file, "", lspFactory)
 	pipeline, err := NewPipelineWithOptions(fileCfg, PipelineOptions{
 		LSPAnalyzerFactory: lspFactory,
 	})
@@ -151,10 +158,9 @@ func (r *ProjectExportRunner) exportFile(ctx context.Context, file project.Sourc
 		return fmt.Errorf("%s: %w", file.RelPath, err)
 	}
 
-	if err := pipeline.RunFile(PipelineRunOptions{
-		Context:    ctx,
-		Manifest:   &r.plan.Manifest,
-		OutputPath: outPath,
+	if err := backend.ExportFile(ctx, ProjectFileExport{
+		File:     file,
+		Pipeline: pipeline,
 	}); err != nil {
 		return fmt.Errorf("%s: %w", file.RelPath, err)
 	}

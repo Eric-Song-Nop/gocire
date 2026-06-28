@@ -40,7 +40,7 @@ func ParseConfig() (*Config, error) {
 	flag.BoolVar(&cfg.Site, "site", false, "Alias for -project")
 	flag.StringVar(&cfg.ConfigPath, "config", "", "Project config file path (defaults to .gocire.yml)")
 	flag.IntVar(&cfg.Jobs, "jobs", runtime.NumCPU(), "Project export concurrency")
-	flag.StringVar(&cfg.Format, "format", "mdx", "Output format: markdown or mdx")
+	flag.StringVar(&cfg.Format, "format", "mdx", "Output format: markdown, mdx, or astro")
 	flag.BoolVar(&cfg.PrefixDate, "date", false, "Prefix output file with current date")
 	flag.StringVar(&cfg.CodeWrapperStart, "code-wrapper-start", `<details open="true">
 <summary>Expand to view code</summary>
@@ -50,13 +50,17 @@ func ParseConfig() (*Config, error) {
 
 	flag.Parse()
 
-	if cfg.Format != "markdown" && cfg.Format != "mdx" {
-		flag.Usage()
-		return nil, fmt.Errorf("format must be 'markdown' or 'mdx'")
-	}
-
 	if cfg.Site {
 		cfg.Project = true
+	}
+
+	if cfg.Format != "markdown" && cfg.Format != "mdx" && cfg.Format != "astro" {
+		flag.Usage()
+		return nil, fmt.Errorf("format must be 'markdown', 'mdx', or 'astro'")
+	}
+	if cfg.Format == "astro" && !cfg.ProjectMode() {
+		flag.Usage()
+		return nil, fmt.Errorf("format 'astro' is only supported with -project")
 	}
 
 	if cfg.Jobs < 1 {
@@ -111,6 +115,8 @@ func (c *Config) ResolveOutputPath() string {
 	ext := ".md"
 	if c.Format == "mdx" {
 		ext = ".mdx"
+	} else if c.Format == "astro" {
+		ext = ".astro"
 	}
 
 	return filepath.Join(dir, fmt.Sprintf("%s-%s%s", prefix, base, ext))
