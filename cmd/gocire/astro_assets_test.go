@@ -67,9 +67,22 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 	}
 
 	tooltip := readAstroAssetFile(t, outputDir, "src/scripts/tooltip.js")
-	assertAstroAssetContains(t, tooltip, "@floating-ui/dom")
-	assertAstroAssetContains(t, tooltip, "[data-hover]")
-	assertAstroAssetContains(t, tooltip, "TextDecoder")
+	for _, want := range []string{
+		"@floating-ui/dom",
+		"[data-hover-html], [data-hover]",
+		"data-hover-html",
+		"data-hover",
+		"innerHTML",
+		"textContent",
+		"TextDecoder",
+		`setAttribute("role", "tooltip")`,
+		"aria-describedby",
+		"tabindex",
+		"Escape",
+		"autoUpdate",
+	} {
+		assertAstroAssetContains(t, tooltip, want)
+	}
 
 	theme := readAstroAssetFile(t, outputDir, "src/scripts/theme.js")
 	themeRuntime := layout + "\n" + theme
@@ -89,6 +102,43 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		`[data-theme="dark"]`,
 	})
 	assertAstroAssetContains(t, globalCSS, ".theme-toggle")
+	for _, want := range []string{
+		"--code-keyword",
+		"--code-string",
+		"--code-function",
+		"--code-type",
+		"--code-comment",
+		"--code-definition",
+		"--code-reference-border",
+		"var(--code-keyword)",
+		"var(--code-string)",
+		"var(--code-function)",
+		"var(--code-type)",
+		"var(--code-comment)",
+		"var(--code-definition)",
+		"var(--code-reference-border)",
+		"--tooltip-link",
+		"--tooltip-inline-code-bg",
+		"--tooltip-code-bg",
+		"--tooltip-code-border",
+	} {
+		assertAstroAssetContains(t, globalCSS, want)
+	}
+	for _, want := range []string{
+		".gocire-tooltip__content",
+		".gocire-tooltip p",
+		".gocire-tooltip ul",
+		".gocire-tooltip ol",
+		".gocire-tooltip a",
+		".gocire-tooltip code",
+		".gocire-tooltip pre",
+		".gocire-tooltip table",
+		".gocire-tooltip .chroma",
+		"max-height",
+		"overflow-x: auto",
+	} {
+		assertAstroAssetContains(t, globalCSS, want)
+	}
 }
 
 func TestWriteAstroSiteAssetsRepeatedCallOverwritesStable(t *testing.T) {
