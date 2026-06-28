@@ -99,7 +99,8 @@ func NewPipelineWithOptions(cfg *Config, options PipelineOptions) (*Pipeline, er
 	}
 
 	// 2. Configure Generator
-	if cfg.Format == "mdx" {
+	switch cfg.Format {
+	case "mdx":
 		gen := internal.NewMDXGenerator(sourceLines)
 		if cfg.CodeWrapperStart != "" {
 			gen.CodeWrapperStart = cfg.CodeWrapperStart
@@ -108,7 +109,7 @@ func NewPipelineWithOptions(cfg *Config, options PipelineOptions) (*Pipeline, er
 			gen.CodeWrapperEnd = cfg.CodeWrapperEnd
 		}
 		p.generator = &MDXWrapper{inner: gen}
-	} else {
+	case "markdown":
 		gen := internal.NewMarkdownGenerator(sourceLines)
 		if cfg.CodeWrapperStart != "" {
 			gen.CodeWrapperStart = cfg.CodeWrapperStart
@@ -117,6 +118,11 @@ func NewPipelineWithOptions(cfg *Config, options PipelineOptions) (*Pipeline, er
 			gen.CodeWrapperEnd = cfg.CodeWrapperEnd
 		}
 		p.generator = &MarkdownWrapper{inner: gen}
+	case "astro":
+		// Project backends reuse Pipeline.AnalyzeFile and generate Astro pages outside
+		// the single-file pipeline.
+	default:
+		return nil, fmt.Errorf("unsupported format %q", cfg.Format)
 	}
 
 	return p, nil
@@ -126,6 +132,12 @@ type PipelineRunOptions struct {
 	Context    context.Context
 	Manifest   *internal.SourceRouteManifest
 	OutputPath string
+}
+
+type PipelineAnalysis struct {
+	SourceLines []string
+	Tokens      []internal.TokenInfo
+	Comments    []internal.CommentInfo
 }
 
 func (p *Pipeline) Run() error {
@@ -145,33 +157,16 @@ func (p *Pipeline) Run() error {
 }
 
 func (p *Pipeline) RunFile(opts PipelineRunOptions) error {
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	fmt.Printf("Source path: %s\n", p.cfg.AbsSrcPath)
-
-	content, err := os.ReadFile(p.cfg.AbsSrcPath)
-	if err != nil {
-		return fmt.Errorf("failed to read source file: %w", err)
-	}
-
-	allTokens, comments, err := p.analyze(ctx, content)
+	analysis, err := p.AnalyzeFile(opts)
 	if err != nil {
 		return err
 	}
 
-	allTokens, err = p.mergeSortSplit(allTokens, comments)
-	if err != nil {
-		return err
+	if p.generator == nil {
+		return fmt.Errorf("format %q does not support single-file pipeline generation", p.cfg.Format)
 	}
 
-	if opts.Manifest != nil {
-		p.resolveTokenLinksWithManifest(allTokens, *opts.Manifest)
-	}
-
-	output := p.generator.Generate(allTokens, comments)
+	output := p.generator.Generate(analysis.Tokens, analysis.Comments)
 
 	outPath := opts.OutputPath
 	if outPath == "" {
@@ -183,6 +178,40 @@ func (p *Pipeline) RunFile(opts PipelineRunOptions) error {
 
 	fmt.Printf("%s generated at: %s\n", p.cfg.Format, outPath)
 	return nil
+}
+
+func (p *Pipeline) AnalyzeFile(opts PipelineRunOptions) (*PipelineAnalysis, error) {
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	fmt.Printf("Source path: %s\n", p.cfg.AbsSrcPath)
+
+	content, err := os.ReadFile(p.cfg.AbsSrcPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read source file: %w", err)
+	}
+
+	allTokens, comments, err := p.analyze(ctx, content)
+	if err != nil {
+		return nil, err
+	}
+
+	allTokens, err = p.mergeSortSplit(allTokens, comments)
+	if err != nil {
+		return nil, err
+	}
+
+	if opts.Manifest != nil {
+		p.resolveTokenLinksWithManifest(allTokens, *opts.Manifest)
+	}
+
+	return &PipelineAnalysis{
+		SourceLines: strings.Split(string(content), "\n"),
+		Tokens:      allTokens,
+		Comments:    comments,
+	}, nil
 }
 
 func (p *Pipeline) analyze(ctx context.Context, content []byte) ([]internal.TokenInfo, []internal.CommentInfo, error) {

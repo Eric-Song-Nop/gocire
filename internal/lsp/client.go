@@ -87,17 +87,13 @@ func NewClient(ctx context.Context, cmdName string, args []string) (*Client, err
 	c.workDoneCond = sync.NewCond(&c.mu)
 
 	handler := jsonrpc2.HandlerWithError(func(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
-		println("RX Method:", req.Method) // Log every method received
 		if req.Method == MethodWindowWorkDoneProgressCreate {
-			println("RX Progress Create")
-			return nil, nil // Accept the request to create progress
+			return nil, nil
 		}
 		if req.Method == MethodProgress {
 			var params ProgressParams
 			if err := json.Unmarshal(*req.Params, &params); err == nil {
 				c.handleProgress(params)
-			} else {
-				println("Failed to unmarshal progress params:", err.Error())
 			}
 		}
 		return nil, nil
@@ -121,8 +117,7 @@ func (c *Client) handleProgress(params ProgressParams) {
 	case float64: // JSON numbers are float64
 		tokenStr = strconv.Itoa(int(t))
 	default:
-		println("Unknown token type:", t)
-		return // Unknown token type
+		return
 	}
 
 	// Parse value
@@ -131,8 +126,6 @@ func (c *Client) handleProgress(params ProgressParams) {
 	valBytes, _ := json.Marshal(params.Value)
 	var workVal WorkDoneProgressValue
 	json.Unmarshal(valBytes, &workVal)
-
-	println("Progress Update:", tokenStr, workVal.Kind, workVal.Message, workVal.Title)
 
 	switch workVal.Kind {
 	case "begin":
@@ -144,23 +137,15 @@ func (c *Client) handleProgress(params ProgressParams) {
 		// Check for implicit completion in report messages
 		// e.g. "15/15", "100%"
 		if strings.Contains(workVal.Message, "15/15") || strings.Contains(workVal.Message, "100%") {
-			println("Force completing task due to message:", workVal.Message)
 			delete(c.activeWork, tokenStr)
 			c.workDoneCond.Broadcast()
 		}
 	}
-	println("Active Work Count:", len(c.activeWork))
 }
 
 func (c *Client) WaitForIndexing(timeout time.Duration) error {
-	println("WaitForIndexing: Starting sleep (500ms)")
 	// Give the server a moment to start reporting progress
 	time.Sleep(500 * time.Millisecond)
-
-	c.mu.Lock()
-	initialWork := len(c.activeWork)
-	c.mu.Unlock()
-	println("WaitForIndexing: Sleep done. Active work items:", initialWork)
 
 	// Wait until no active work, or timeout
 	// Simple implementation: wait loop with condition
@@ -177,18 +162,8 @@ func (c *Client) WaitForIndexing(timeout time.Duration) error {
 
 	select {
 	case <-done:
-		println("WaitForIndexing: All work finished.")
 		return nil
 	case <-time.After(timeout):
-		// Log which tasks are stuck
-		c.mu.Lock()
-		keys := make([]string, 0, len(c.activeWork))
-		for k := range c.activeWork {
-			keys = append(keys, k)
-		}
-		c.mu.Unlock()
-		println("WaitForIndexing: Timeout reached. Stuck tasks:", strings.Join(keys, ", "))
-
 		// It's okay if we timeout, we just proceed.
 		// Some servers might never send "end" or start something else.
 		// We just want to give it a chance to finish initial indexing.
@@ -275,19 +250,14 @@ func (c *Client) Hover(filePath string, line, char int) (*Hover, error) {
 	}
 
 	var raw json.RawMessage
-	println("Called Hover")
 	if err := c.conn.Call(c.ctx, MethodTextDocumentHover, params, &raw); err != nil {
-		println("Called Hover Failed")
 		return nil, errors.Wrap(err, "hover request failed")
 	}
-	// Print raw response for debugging
-	println("Hover Raw Response:", string(raw))
 
 	var result Hover
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal hover result")
 	}
-	println("Called Hover Success with Kind:", result.Contents.Kind)
 
 	return &result, nil
 }
@@ -315,9 +285,6 @@ func (c *Client) Definition(filePath string, line, char int) ([]Location, error)
 		return nil, errors.Wrap(err, "definition request failed")
 	}
 
-	// Print raw response for debugging
-	println("Definition Raw Response:", string(raw))
-
 	var result []Location
 	if err := json.Unmarshal(raw, &result); err == nil {
 		return result, nil
@@ -332,11 +299,40 @@ func (c *Client) Definition(filePath string, line, char int) ([]Location, error)
 }
 
 func (c *Client) Shutdown() error {
-	c.conn.Call(c.ctx, MethodShutdown, nil, nil)
-	c.conn.Notify(c.ctx, MethodExit, nil)
-	c.cancel()
-	c.conn.Close()
-	return c.process.Wait()
+	var firstErr error
+	recordErr := func(err error) {
+		if firstErr == nil && !isExpectedShutdownError(err) {
+			firstErr = err
+		}
+	}
+
+	if c.conn != nil {
+		recordErr(c.conn.Call(c.ctx, MethodShutdown, nil, nil))
+		recordErr(c.conn.Notify(c.ctx, MethodExit, nil))
+	}
+	if c.cancel != nil {
+		c.cancel()
+	}
+	if c.conn != nil {
+		recordErr(c.conn.Close())
+	}
+	if c.process != nil {
+		recordErr(c.process.Wait())
+	}
+	return firstErr
+}
+
+func isExpectedShutdownError(err error) bool {
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, os.ErrProcessDone) || errors.Is(err, io.ErrClosedPipe) {
+		return true
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "broken pipe") ||
+		strings.Contains(msg, "file already closed") ||
+		strings.Contains(msg, "use of closed file")
 }
 
 // status Get status of the language server

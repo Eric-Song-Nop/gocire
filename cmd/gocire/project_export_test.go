@@ -39,6 +39,77 @@ func TestProjectOutputPathUsesManifestRoute(t *testing.T) {
 	}
 }
 
+func TestAstroProjectOutputPathUsesManifestRoute(t *testing.T) {
+	root := t.TempDir()
+	srcPath := filepath.Join(root, "foo.go")
+	writeProjectTestFile(t, srcPath, "package main\n")
+
+	manifest, err := internal.NewSourceRouteManifestWithPrefix(root, "/_source", []string{srcPath})
+	if err != nil {
+		t.Fatalf("NewSourceRouteManifestWithPrefix returned error: %v", err)
+	}
+
+	outDir := filepath.Join(t.TempDir(), "site")
+	got, err := AstroProjectOutputPath(outDir, manifest, project.SourceFile{
+		AbsPath: srcPath,
+		RelPath: "foo.go",
+	})
+	if err != nil {
+		t.Fatalf("AstroProjectOutputPath returned error: %v", err)
+	}
+
+	want := filepath.Join(outDir, "src", "generated", "pages", "_source", "foo.go.html.astro")
+	if got != want {
+		t.Fatalf("output path = %q, want %q", got, want)
+	}
+}
+
+func TestAstroLinkManifestUsesTrailingSlashRoutes(t *testing.T) {
+	root := t.TempDir()
+	srcPath := filepath.Join(root, "foo.go")
+	writeProjectTestFile(t, srcPath, "package main\n")
+
+	manifest, err := internal.NewSourceRouteManifestWithPrefix(root, "/_source", []string{srcPath})
+	if err != nil {
+		t.Fatalf("NewSourceRouteManifestWithPrefix returned error: %v", err)
+	}
+
+	astroManifest := astroLinkManifest(manifest)
+	route, ok := astroManifest.RouteForRelPath("foo.go")
+	if !ok {
+		t.Fatal("RouteForRelPath returned ok=false")
+	}
+	if route != "/_source/foo.go.html/" {
+		t.Fatalf("Astro route = %q, want trailing slash route", route)
+	}
+
+	originalRoute, ok := manifest.RouteForRelPath("foo.go")
+	if !ok {
+		t.Fatal("original RouteForRelPath returned ok=false")
+	}
+	if originalRoute != "/_source/foo.go.html" {
+		t.Fatalf("original route = %q, want unchanged route", originalRoute)
+	}
+}
+
+func TestAstroRenderModeForPageKind(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		kind project.PageKind
+		want internal.AstroRenderMode
+	}{
+		{name: "docs", kind: project.PageKindDocs, want: internal.AstroRenderModeNarrative},
+		{name: "blog", kind: project.PageKindBlog, want: internal.AstroRenderModeNarrative},
+		{name: "source", kind: project.PageKindSource, want: internal.AstroRenderModeSource},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := astroRenderModeForKind(tt.kind); got != tt.want {
+				t.Fatalf("render mode = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestProjectOutputPathFallsBackToRelPath(t *testing.T) {
 	manifestRoot := t.TempDir()
 	sourceRoot := t.TempDir()
@@ -152,6 +223,94 @@ output:
 		outPath := filepath.Join(root, "site", relPath)
 		if _, err := os.Stat(outPath); err != nil {
 			t.Fatalf("expected output file %q: %v", outPath, err)
+		}
+	}
+}
+
+func TestProjectExportRunnerWritesAstroProject(t *testing.T) {
+	root := t.TempDir()
+	writeProjectTestFile(t, filepath.Join(root, "repo", "main.go"), "package main\n\nfunc main() {}\n")
+
+	configPath := filepath.Join(root, ".gocire.yml")
+	writeProjectTestFile(t, configPath, `
+site:
+  title: Test Site
+project:
+  root: repo
+source:
+  include:
+    - "**/*.go"
+output:
+  dir: site
+`)
+
+	runner, err := NewProjectExportRunner(&Config{
+		Project:    true,
+		ConfigPath: configPath,
+		Jobs:       1,
+		Format:     "astro",
+	})
+	if err != nil {
+		t.Fatalf("NewProjectExportRunner returned error: %v", err)
+	}
+	if err := runner.Run(context.Background()); err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+
+	for _, relPath := range []string{
+		"package.json",
+		filepath.Join("src", "pages", "index.astro"),
+		filepath.Join("src", "generated", "pages", "_source", "main.go.html.astro"),
+		filepath.Join("src", "pages", "[...gocire].astro"),
+	} {
+		outPath := filepath.Join(root, "site", relPath)
+		if _, err := os.Stat(outPath); err != nil {
+			t.Fatalf("expected output file %q: %v", outPath, err)
+		}
+	}
+
+	homePath := filepath.Join(root, "site", "src", "pages", "index.astro")
+	home, err := os.ReadFile(homePath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", homePath, err)
+	}
+	for _, want := range []string{
+		`Generated docsite`,
+		`const sourceCount = 1;`,
+		`No generated docs pages yet.`,
+	} {
+		if !strings.Contains(string(home), want) {
+			t.Fatalf("Astro home page missing %q\nGot:\n%s", want, string(home))
+		}
+	}
+
+	pagePath := filepath.Join(root, "site", "src", "generated", "pages", "_source", "main.go.html.astro")
+	page, err := os.ReadFile(pagePath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", pagePath, err)
+	}
+	for _, want := range []string{
+		`import CodePage from "../../../components/CodePage.astro";`,
+		`renderMode="source"`,
+		`sourcePath="main.go"`,
+	} {
+		if !strings.Contains(string(page), want) {
+			t.Fatalf("Astro page missing %q\nGot:\n%s", want, string(page))
+		}
+	}
+
+	routeIndexPath := filepath.Join(root, "site", "src", "pages", "[...gocire].astro")
+	routeIndex, err := os.ReadFile(routeIndexPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", routeIndexPath, err)
+	}
+	for _, want := range []string{
+		`route: "_source/main.go.html"`,
+		`module: "../generated/pages/_source/main.go.html.astro"`,
+		`getStaticPaths`,
+	} {
+		if !strings.Contains(string(routeIndex), want) {
+			t.Fatalf("Astro route index missing %q\nGot:\n%s", want, string(routeIndex))
 		}
 	}
 }
