@@ -23,6 +23,10 @@ type DocumentGenerator interface {
 	Generate(tokens []internal.TokenInfo, comments []internal.CommentInfo) string
 }
 
+type PipelineOptions struct {
+	LSPAnalyzerFactory func(sourcePath string) (TokenAnalyzer, error)
+}
+
 // Pipeline orchestrates the analysis and generation process.
 type Pipeline struct {
 	cfg       *Config
@@ -33,6 +37,10 @@ type Pipeline struct {
 
 // NewPipeline assembles the pipeline based on configuration.
 func NewPipeline(cfg *Config) (*Pipeline, error) {
+	return NewPipelineWithOptions(cfg, PipelineOptions{})
+}
+
+func NewPipelineWithOptions(cfg *Config, options PipelineOptions) (*Pipeline, error) {
 	p := &Pipeline{
 		cfg: cfg,
 	}
@@ -46,9 +54,20 @@ func NewPipeline(cfg *Config) (*Pipeline, error) {
 			return nil, fmt.Errorf("language (--lang) is required for LSP analysis")
 		}
 		fmt.Printf("Starting LSP analysis for %s...\n", cfg.Lang)
-		p.analyzers = append(p.analyzers, &LSPWrapper{
-			inner: internal.NewLSPAnalyzer(cfg.Lang, cfg.AbsSrcPath, cfg.LSPRoot),
-		})
+		if options.LSPAnalyzerFactory != nil {
+			analyzer, err := options.LSPAnalyzerFactory(cfg.AbsSrcPath)
+			if err != nil {
+				return nil, err
+			}
+			if analyzer == nil {
+				return nil, fmt.Errorf("lsp analyzer factory returned nil")
+			}
+			p.analyzers = append(p.analyzers, analyzer)
+		} else {
+			p.analyzers = append(p.analyzers, &LSPWrapper{
+				inner: internal.NewLSPAnalyzer(cfg.Lang, cfg.AbsSrcPath, cfg.LSPRoot),
+			})
+		}
 		p.analyzers = append(p.analyzers, &HighlightWrapper{
 			inner: internal.NewHighlightAnalyzer(cfg.Lang),
 		})
@@ -103,7 +122,34 @@ func NewPipeline(cfg *Config) (*Pipeline, error) {
 	return p, nil
 }
 
+type PipelineRunOptions struct {
+	Context    context.Context
+	Manifest   *internal.SourceRouteManifest
+	OutputPath string
+}
+
 func (p *Pipeline) Run() error {
+	manifest, err := p.sourceRouteManifest()
+	var manifestPtr *internal.SourceRouteManifest
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: build source route manifest failed: %v\n", err)
+	} else {
+		manifestPtr = &manifest
+	}
+
+	return p.RunFile(PipelineRunOptions{
+		Context:    context.Background(),
+		Manifest:   manifestPtr,
+		OutputPath: p.cfg.ResolveOutputPath(),
+	})
+}
+
+func (p *Pipeline) RunFile(opts PipelineRunOptions) error {
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	fmt.Printf("Source path: %s\n", p.cfg.AbsSrcPath)
 
 	content, err := os.ReadFile(p.cfg.AbsSrcPath)
@@ -111,7 +157,36 @@ func (p *Pipeline) Run() error {
 		return fmt.Errorf("failed to read source file: %w", err)
 	}
 
-	g, ctx := errgroup.WithContext(context.Background())
+	allTokens, comments, err := p.analyze(ctx, content)
+	if err != nil {
+		return err
+	}
+
+	allTokens, err = p.mergeSortSplit(allTokens, comments)
+	if err != nil {
+		return err
+	}
+
+	if opts.Manifest != nil {
+		p.resolveTokenLinksWithManifest(allTokens, *opts.Manifest)
+	}
+
+	output := p.generator.Generate(allTokens, comments)
+
+	outPath := opts.OutputPath
+	if outPath == "" {
+		outPath = p.cfg.ResolveOutputPath()
+	}
+	if err := writeOutputFile(outPath, output); err != nil {
+		return err
+	}
+
+	fmt.Printf("%s generated at: %s\n", p.cfg.Format, outPath)
+	return nil
+}
+
+func (p *Pipeline) analyze(ctx context.Context, content []byte) ([]internal.TokenInfo, []internal.CommentInfo, error) {
+	g, ctx := errgroup.WithContext(ctx)
 
 	// Run Token Analyzers
 	results := make([][]internal.TokenInfo, len(p.analyzers))
@@ -139,7 +214,7 @@ func (p *Pipeline) Run() error {
 	}
 
 	if err := g.Wait(); err != nil {
-		return fmt.Errorf("analysis failed: %w", err)
+		return nil, nil, fmt.Errorf("analysis failed: %w", err)
 	}
 
 	// Merge Results
@@ -148,49 +223,39 @@ func (p *Pipeline) Run() error {
 		allTokens = append(allTokens, res...)
 	}
 
-	// Post-Processing
+	return allTokens, comments, nil
+}
+
+func (p *Pipeline) mergeSortSplit(allTokens []internal.TokenInfo, comments []internal.CommentInfo) ([]internal.TokenInfo, error) {
 	internal.SortBySpan(allTokens)
 	internal.SortBySpan(comments)
 
+	var err error
 	allTokens, err = internal.MergeSplitTokens(allTokens)
 	if err != nil {
-		return fmt.Errorf("merge split tokens failed: %w", err)
+		return nil, fmt.Errorf("merge split tokens failed: %w", err)
 	}
 
-	if err := p.resolveTokenLinks(allTokens); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: resolve token links failed: %v\n", err)
-	}
-
-	// Generate Output
-	output := p.generator.Generate(allTokens, comments)
-
-	// Write File
-	outPath := p.cfg.ResolveOutputPath()
-	if err := os.WriteFile(outPath, []byte(output), 0o644); err != nil {
-		return fmt.Errorf("failed to write output file: %w", err)
-	}
-
-	fmt.Printf("%s generated at: %s\n", p.cfg.Format, outPath)
-	return nil
+	return allTokens, nil
 }
 
-func (p *Pipeline) resolveTokenLinks(tokens []internal.TokenInfo) error {
+func (p *Pipeline) sourceRouteManifest() (internal.SourceRouteManifest, error) {
 	cfg, err := projectconfig.Load("")
 	if err != nil {
-		return err
+		return internal.SourceRouteManifest{}, err
 	}
 
 	if p.cfg.LSPRoot != "" {
 		root, err := filepath.Abs(p.cfg.LSPRoot)
 		if err != nil {
-			return err
+			return internal.SourceRouteManifest{}, err
 		}
 		cfg.Project.Root = root
 	}
 
 	files, err := project.Scan(*cfg)
 	if err != nil {
-		return err
+		return internal.SourceRouteManifest{}, err
 	}
 
 	sourcePaths := make([]string, 0, len(files))
@@ -198,15 +263,22 @@ func (p *Pipeline) resolveTokenLinks(tokens []internal.TokenInfo) error {
 		sourcePaths = append(sourcePaths, file.AbsPath)
 	}
 
-	manifest, err := internal.NewSourceRouteManifestWithPrefix(cfg.Project.Root, cfg.Source.RoutePrefix, sourcePaths)
-	if err != nil {
-		return err
-	}
+	return internal.NewSourceRouteManifestWithPrefix(cfg.Project.Root, cfg.Source.RoutePrefix, sourcePaths)
+}
 
+func (p *Pipeline) resolveTokenLinksWithManifest(tokens []internal.TokenInfo, manifest internal.SourceRouteManifest) {
 	for _, warning := range internal.ResolveTokenLinks(p.cfg.AbsSrcPath, tokens, manifest) {
 		fmt.Fprintf(os.Stderr, "Warning: definition link not resolved: %s\n", warning.String())
 	}
+}
 
+func writeOutputFile(outPath string, output string) error {
+	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+	if err := os.WriteFile(outPath, []byte(output), 0o644); err != nil {
+		return fmt.Errorf("failed to write output file: %w", err)
+	}
 	return nil
 }
 
