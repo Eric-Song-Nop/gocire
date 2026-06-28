@@ -49,13 +49,15 @@ func (a AstroSiteAssets) files() (map[string]string, error) {
 
 	siteTitle := normalizedAstroSiteTitle(a.SiteTitle)
 	return map[string]string{
-		"package.json":                  packageJSON,
-		"astro.config.mjs":              astroConfigMJS(),
-		"src/layouts/SiteLayout.astro":  astroSiteLayout(siteTitle),
-		"src/components/CodePage.astro": astroCodePage(),
-		"src/styles/global.css":         astroGlobalCSS(),
-		"src/scripts/theme.js":          astroThemeJS(),
-		"src/scripts/tooltip.js":        astroTooltipJS(),
+		"package.json":                      packageJSON,
+		"astro.config.mjs":                  astroConfigMJS(),
+		"src/layouts/SiteLayout.astro":      astroSiteLayout(siteTitle),
+		"src/components/CodePage.astro":     astroCodePage(),
+		"src/components/Sidebar.astro":      astroSidebar(),
+		"src/components/SidebarItems.astro": astroSidebarItems(),
+		"src/styles/global.css":             astroGlobalCSS(),
+		"src/scripts/theme.js":              astroThemeJS(),
+		"src/scripts/tooltip.js":            astroTooltipJS(),
 	}, nil
 }
 
@@ -98,6 +100,7 @@ func astroPackageJSON() (string, error) {
 		Dependencies: map[string]string{
 			"@floating-ui/dom": "latest",
 			"astro":            "latest",
+			"lucide-astro":     "latest",
 		},
 	}, "", "  ")
 	if err != nil {
@@ -115,6 +118,9 @@ export default defineConfig({});
 
 func astroSiteLayout(siteTitle string) string {
 	return fmt.Sprintf(`---
+import Moon from "lucide-astro/Moon";
+import Sun from "lucide-astro/Sun";
+import { navigation } from "../generated/navigation";
 import "../styles/global.css";
 
 interface Props {
@@ -130,6 +136,9 @@ const {
   description = "Generated source documentation.",
 } = Astro.props;
 const pageTitle = title === siteTitle ? siteTitle : title + " | " + siteTitle;
+const docsHref = navigation.docs.firstHref || "/";
+const blogHref = navigation.blog.firstHref || "/";
+const primaryHref = navigation.docs.firstHref || navigation.blog.firstHref || "/";
 ---
 
 <!doctype html>
@@ -161,16 +170,15 @@ const pageTitle = title === siteTitle ? siteTitle : title + " | " + siteTitle;
   <body>
     <header class="site-header">
       <div class="site-header__inner">
-        <a class="site-brand" href="/">{siteTitle}</a>
+        <a class="site-brand" href={primaryHref}>{siteTitle}</a>
         <div class="site-actions">
           <nav class="site-nav" aria-label="Main navigation">
-            <a href="/">Home</a>
-            <a href="/#docs">Docs</a>
-            <a href="/#blog">Blog</a>
+            <a href={docsHref}>Docs</a>
+            <a href={blogHref}>Blog</a>
           </nav>
           <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle color theme" title="Toggle color theme">
-            <span class="theme-toggle__icon theme-toggle__icon--sun" aria-hidden="true"></span>
-            <span class="theme-toggle__icon theme-toggle__icon--moon" aria-hidden="true"></span>
+            <Sun class="theme-toggle__icon theme-toggle__icon--sun" size={18} aria-hidden="true" />
+            <Moon class="theme-toggle__icon theme-toggle__icon--moon" size={18} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -191,6 +199,7 @@ const pageTitle = title === siteTitle ? siteTitle : title + " | " + siteTitle;
 func astroCodePage() string {
 	return `---
 import SiteLayout from "../layouts/SiteLayout.astro";
+import Sidebar from "./Sidebar.astro";
 
 interface Props {
   title: string;
@@ -209,29 +218,12 @@ const {
 } = Astro.props;
 const pageClass = "site-shell code-page code-page--" + renderMode;
 const kindLabel = String(kind || "Source");
+const currentPath = Astro.url.pathname;
 ---
 
 <SiteLayout title={title}>
   <main class={pageClass}>
-    <aside class="page-sidebar" aria-label="Page context">
-      <a class="sidebar-home" href="/">Home</a>
-      <div class="sidebar-section">
-        <p class="sidebar-label">Kind</p>
-        <p class="sidebar-value">{kindLabel}</p>
-      </div>
-      {sourcePath && (
-        <div class="sidebar-section">
-          <p class="sidebar-label">Path</p>
-          <p class="sidebar-value sidebar-path">{sourcePath}</p>
-        </div>
-      )}
-      {language && (
-        <div class="sidebar-section">
-          <p class="sidebar-label">Language</p>
-          <p class="sidebar-value">{language}</p>
-        </div>
-      )}
-    </aside>
+    <Sidebar kind={kind} sourcePath={sourcePath} language={language} currentPath={currentPath} />
 
     <div class="page-main">
       <header class="page-header">
@@ -261,6 +253,168 @@ const kindLabel = String(kind || "Source");
     </div>
   </main>
 </SiteLayout>
+`
+}
+
+func astroSidebar() string {
+	return `---
+import { navigation } from "../generated/navigation";
+import SidebarItems from "./SidebarItems.astro";
+
+interface NavigationItem {
+  type?: string;
+  title?: string;
+  href?: string;
+  sourcePath?: string;
+  date?: string;
+  items?: NavigationItem[];
+}
+
+interface Props {
+  kind?: string;
+  sourcePath?: string;
+  language?: string;
+  currentPath?: string;
+}
+
+const {
+  kind = "source",
+  sourcePath,
+  language,
+  currentPath = "/",
+} = Astro.props;
+
+const normalizedKind = String(kind || "source").toLowerCase();
+const normalizedCurrentPath = normalizePath(currentPath);
+const docsItems = (navigation.docs.items ?? []) as NavigationItem[];
+const blogItems = (navigation.blog.items ?? []) as NavigationItem[];
+const showDocs = normalizedKind === "docs";
+const showBlog = normalizedKind === "blog";
+const showSource = !showDocs && !showBlog;
+const sidebarLabel = showDocs ? "Docs navigation" : showBlog ? "Blog navigation" : "Source context";
+
+function normalizePath(value?: string) {
+  const pathname = String(value || "/").split(/[?#]/)[0] || "/";
+  if (pathname === "/") {
+    return "/";
+  }
+  return pathname.endsWith("/") ? pathname : pathname + "/";
+}
+
+function isActive(href?: string) {
+  return href ? normalizePath(href) === normalizedCurrentPath : false;
+}
+---
+
+<aside class="page-sidebar" aria-label={sidebarLabel}>
+  {showDocs && (
+    <nav class="sidebar-nav" aria-label="Docs">
+      <p class="sidebar-heading">Docs</p>
+      {docsItems.length > 0 ? (
+        <SidebarItems items={docsItems} currentPath={normalizedCurrentPath} />
+      ) : (
+        <p class="sidebar-empty">No docs pages yet.</p>
+      )}
+    </nav>
+  )}
+
+  {showBlog && (
+    <nav class="sidebar-nav" aria-label="Blog">
+      <p class="sidebar-heading">Blog</p>
+      {blogItems.length > 0 ? (
+        <ul class="sidebar-blog-list">
+          {blogItems.map((item) => (
+            <li class:list={["sidebar-blog-item", { "is-active": isActive(item.href) }]}>
+              <a class="sidebar-blog-link" href={item.href || "#"} aria-current={isActive(item.href) ? "page" : undefined}>
+                <span class="sidebar-blog-title">{item.title || item.sourcePath || item.href}</span>
+                {item.date && <time class="sidebar-blog-date sidebar-date" datetime={item.date}>{item.date}</time>}
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p class="sidebar-empty">No blog posts yet.</p>
+      )}
+    </nav>
+  )}
+
+  {showSource && (
+    <div class="sidebar-context">
+      <p class="sidebar-heading">Source context</p>
+      {sourcePath && (
+        <div class="sidebar-section">
+          <p class="sidebar-label">Path</p>
+          <p class="sidebar-value sidebar-path">{sourcePath}</p>
+        </div>
+      )}
+      {language && (
+        <div class="sidebar-section">
+          <p class="sidebar-label">Language</p>
+          <p class="sidebar-value">{language}</p>
+        </div>
+      )}
+    </div>
+  )}
+</aside>
+`
+}
+
+func astroSidebarItems() string {
+	return `---
+interface NavigationItem {
+  type?: string;
+  title?: string;
+  href?: string;
+  sourcePath?: string;
+  items?: NavigationItem[];
+}
+
+interface Props {
+  items: NavigationItem[];
+  currentPath?: string;
+  depth?: number;
+}
+
+const {
+  items = [],
+  currentPath = "/",
+  depth = 0,
+} = Astro.props;
+
+const normalizedCurrentPath = normalizePath(currentPath);
+const listClass = depth === 0 ? "sidebar-items" : "sidebar-items sidebar-items--nested";
+
+function normalizePath(value?: string) {
+  const pathname = String(value || "/").split(/[?#]/)[0] || "/";
+  if (pathname === "/") {
+    return "/";
+  }
+  return pathname.endsWith("/") ? pathname : pathname + "/";
+}
+
+function isActive(href?: string) {
+  return href ? normalizePath(href) === normalizedCurrentPath : false;
+}
+---
+
+<ul class={listClass}>
+  {items.map((item) => (
+    <li class:list={["sidebar-item", { "sidebar-item--category": item.type === "category" }]}>
+      {item.type === "category" ? (
+        <>
+        <span class="sidebar-category">{item.title}</span>
+        {(item.items?.length ?? 0) > 0 && (
+          <Astro.self items={item.items} currentPath={normalizedCurrentPath} depth={depth + 1} />
+        )}
+        </>
+      ) : (
+        <a class:list={["sidebar-link", { "is-active": isActive(item.href) }]} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>
+          <span class="sidebar-link__title">{item.title || item.sourcePath || item.href}</span>
+        </a>
+      )}
+    </li>
+  ))}
+</ul>
 `
 }
 
@@ -457,35 +611,21 @@ a:hover {
 .theme-toggle__icon {
   position: absolute;
   display: block;
-  width: 15px;
-  height: 15px;
+  width: 18px;
+  height: 18px;
+  fill: none;
   opacity: 0;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
   transform: scale(0.72) rotate(-18deg);
   transition: opacity 140ms ease, transform 140ms ease;
 }
 
-.theme-toggle__icon--sun {
-  border: 2px solid currentColor;
-  border-radius: 999px;
-  box-shadow:
-    0 -8px 0 -5px currentColor,
-    0 8px 0 -5px currentColor,
-    8px 0 0 -5px currentColor,
-    -8px 0 0 -5px currentColor,
-    5.7px 5.7px 0 -5px currentColor,
-    -5.7px 5.7px 0 -5px currentColor,
-    5.7px -5.7px 0 -5px currentColor,
-    -5.7px -5.7px 0 -5px currentColor;
-}
-
-.theme-toggle__icon--moon {
-  border-radius: 999px;
-  box-shadow: inset 5px -4px 0 0 currentColor;
-}
-
-html[data-theme="light"] .theme-toggle__icon--sun,
-html:not([data-theme]) .theme-toggle__icon--sun,
-html[data-theme="dark"] .theme-toggle__icon--moon {
+html[data-theme="light"] .theme-toggle__icon--moon,
+html:not([data-theme]) .theme-toggle__icon--moon,
+html[data-theme="dark"] .theme-toggle__icon--sun {
   opacity: 1;
   transform: scale(1) rotate(0deg);
 }
@@ -505,24 +645,109 @@ html[data-theme="dark"] .theme-toggle__icon--moon {
   position: sticky;
   top: 82px;
   display: grid;
-  gap: 18px;
+  gap: 16px;
   min-width: 0;
+  max-width: 100%;
   padding: 18px 0 18px 16px;
   border-left: 2px solid var(--line);
   color: var(--muted);
+  overflow: hidden;
 }
 
-.sidebar-home {
-  width: fit-content;
-  color: var(--text);
-  font-size: 0.92rem;
+.sidebar-nav,
+.sidebar-context {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sidebar-heading {
+  margin: 0;
+  color: var(--accent-warm);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.sidebar-items,
+.sidebar-blog-list {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sidebar-items--nested {
+  margin-top: 4px;
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+}
+
+.sidebar-item,
+.sidebar-blog-item {
+  min-width: 0;
+}
+
+.sidebar-category {
+  display: block;
+  padding: 7px 0 4px;
+  color: var(--meta-text);
+  font-size: 0.78rem;
   font-weight: 750;
+}
+
+.sidebar-link,
+.sidebar-blog-link {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.35;
   text-decoration: none;
+}
+
+.sidebar-link:hover,
+.sidebar-blog-link:hover {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.sidebar-link.is-active,
+.sidebar-blog-link[aria-current="page"] {
+  background: color-mix(in srgb, var(--accent), transparent 88%);
+  color: var(--text);
+  font-weight: 720;
+}
+
+.sidebar-link__title,
+.sidebar-blog-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sidebar-blog-date,
+.sidebar-date {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.76rem;
+}
+
+.sidebar-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
 }
 
 .sidebar-section {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .sidebar-label,
@@ -603,68 +828,6 @@ html[data-theme="dark"] .theme-toggle__icon--moon {
 
 .page-content {
   margin-top: 28px;
-}
-
-.home-page {
-  display: grid;
-  gap: 46px;
-}
-
-.home-hero {
-  display: grid;
-  gap: 16px;
-  max-width: 880px;
-  padding-bottom: 28px;
-  border-bottom: 1px solid var(--line);
-}
-
-.home-hero h1 {
-  margin: 0;
-  font-size: 3.2rem;
-  line-height: 1.06;
-}
-
-.home-hero p {
-  max-width: 680px;
-  margin: 0;
-  color: var(--muted);
-  font-size: 1.04rem;
-}
-
-.home-section {
-  display: grid;
-  gap: 14px;
-}
-
-.home-section h2 {
-  margin: 0;
-  font-size: 1.1rem;
-}
-
-.home-list {
-  display: grid;
-  gap: 8px;
-  max-width: 760px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.home-list a {
-  display: block;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--line);
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 0.92rem;
-  text-decoration: none;
-  overflow-wrap: anywhere;
-}
-
-.home-empty {
-  max-width: 680px;
-  margin: 0;
-  color: var(--muted);
 }
 
 .cire-page {
@@ -980,9 +1143,6 @@ html[data-theme="dark"] .theme-toggle__icon--moon {
     font-size: 2rem;
   }
 
-  .home-hero h1 {
-    font-size: 2.15rem;
-  }
 }
 
 @media (prefers-reduced-motion: no-preference) {

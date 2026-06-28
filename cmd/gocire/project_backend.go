@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -141,7 +142,7 @@ func (b *astroProjectBackend) Finish(ctx context.Context) error {
 	if err := writeAstroNavigation(b.plan.Config.Output.Dir, b.plan.Site.Navigation); err != nil {
 		return err
 	}
-	return writeAstroHomePage(b.plan.Config.Output.Dir, b.plan.Config.Site.Title, pages)
+	return removeAstroHomePage(b.plan.Config.Output.Dir)
 }
 
 func AstroProjectRoute(manifest internal.SourceRouteManifest, file project.SourceFile) (string, error) {
@@ -264,69 +265,12 @@ const { default: Page } = await loadPage();
 	return writeOutputFile(filepath.Join(outputDir, "src", "pages", "[...gocire].astro"), sb.String())
 }
 
-func writeAstroHomePage(outputDir string, siteTitle string, pages []astroGeneratedPage) error {
-	sort.Slice(pages, func(i, j int) bool {
-		return pages[i].SourcePath < pages[j].SourcePath
-	})
-
-	title := normalizedAstroSiteTitle(siteTitle)
-	docs := filterAstroPagesByKind(pages, project.PageKindDocs)
-	blogs := filterAstroPagesByKind(pages, project.PageKindBlog)
-	sourceCount := 0
-	for _, page := range pages {
-		if page.Kind == project.PageKindSource {
-			sourceCount++
-		}
+func removeAstroHomePage(outputDir string) error {
+	indexPath := filepath.Join(outputDir, "src", "pages", "index.astro")
+	if err := os.Remove(indexPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove Astro home page %s: %w", indexPath, err)
 	}
-
-	var sb strings.Builder
-	sb.WriteString("---\n")
-	sb.WriteString(`import SiteLayout from "../layouts/SiteLayout.astro";
-`)
-	fmt.Fprintf(&sb, "const siteTitle = %s;\n", strconv.Quote(title))
-	fmt.Fprintf(&sb, "const docs = %s;\n", astroPageListLiteral(docs))
-	fmt.Fprintf(&sb, "const blogs = %s;\n", astroPageListLiteral(blogs))
-	fmt.Fprintf(&sb, "const sourceCount = %d;\n", sourceCount)
-	sb.WriteString(`---
-
-<SiteLayout title={siteTitle}>
-  <main class="site-shell home-page">
-    <section class="home-hero">
-      <p class="page-kicker">Generated docsite</p>
-      <h1>{siteTitle}</h1>
-      <p>{sourceCount} source pages were generated for semantic navigation and stable code locations.</p>
-    </section>
-
-    <section id="docs" class="home-section" aria-labelledby="docs-title">
-      <h2 id="docs-title">Docs</h2>
-      {docs.length > 0 ? (
-        <ul class="home-list">
-          {docs.map((page) => (
-            <li><a href={page.href}>{page.title}</a></li>
-          ))}
-        </ul>
-      ) : (
-        <p class="home-empty">No generated docs pages yet.</p>
-      )}
-    </section>
-
-    <section id="blog" class="home-section" aria-labelledby="blog-title">
-      <h2 id="blog-title">Blog</h2>
-      {blogs.length > 0 ? (
-        <ul class="home-list">
-          {blogs.map((page) => (
-            <li><a href={page.href}>{page.title}</a></li>
-          ))}
-        </ul>
-      ) : (
-        <p class="home-empty">No generated blog posts yet.</p>
-      )}
-    </section>
-  </main>
-</SiteLayout>
-`)
-
-	return writeOutputFile(filepath.Join(outputDir, "src", "pages", "index.astro"), sb.String())
+	return nil
 }
 
 func writeAstroNavigation(outputDir string, navigation SiteNavigation) error {
@@ -388,33 +332,5 @@ func astroNavigationItemLiteral(item SiteNavigationItem) string {
 		fmt.Fprintf(&sb, ", items: %s", astroNavigationItemsLiteral(item.Items))
 	}
 	sb.WriteString(" }")
-	return sb.String()
-}
-
-func filterAstroPagesByKind(pages []astroGeneratedPage, kind project.PageKind) []astroGeneratedPage {
-	filtered := make([]astroGeneratedPage, 0)
-	for _, page := range pages {
-		if page.Kind == kind {
-			filtered = append(filtered, page)
-		}
-	}
-	return filtered
-}
-
-func astroPageListLiteral(pages []astroGeneratedPage) string {
-	var sb strings.Builder
-	sb.WriteString("[")
-	for i, page := range pages {
-		if i > 0 {
-			sb.WriteString(", ")
-		}
-		fmt.Fprintf(
-			&sb,
-			"{ title: %s, href: %s }",
-			strconv.Quote(page.Title),
-			strconv.Quote("/"+page.Route+"/"),
-		)
-	}
-	sb.WriteString("]")
 	return sb.String()
 }

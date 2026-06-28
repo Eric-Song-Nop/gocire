@@ -265,7 +265,6 @@ output:
 
 	for _, relPath := range []string{
 		"package.json",
-		filepath.Join("src", "pages", "index.astro"),
 		filepath.Join("src", "generated", "navigation.ts"),
 		filepath.Join("src", "generated", "pages", "_source", "main.go.html.astro"),
 		filepath.Join("src", "pages", "[...gocire].astro"),
@@ -273,21 +272,6 @@ output:
 		outPath := filepath.Join(root, "site", relPath)
 		if _, err := os.Stat(outPath); err != nil {
 			t.Fatalf("expected output file %q: %v", outPath, err)
-		}
-	}
-
-	homePath := filepath.Join(root, "site", "src", "pages", "index.astro")
-	home, err := os.ReadFile(homePath)
-	if err != nil {
-		t.Fatalf("ReadFile(%q): %v", homePath, err)
-	}
-	for _, want := range []string{
-		`Generated docsite`,
-		`const sourceCount = 1;`,
-		`No generated docs pages yet.`,
-	} {
-		if !strings.Contains(string(home), want) {
-			t.Fatalf("Astro home page missing %q\nGot:\n%s", want, string(home))
 		}
 	}
 

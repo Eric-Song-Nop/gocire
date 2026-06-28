@@ -13,6 +13,8 @@ var expectedAstroAssetFiles = []string{
 	"astro.config.mjs",
 	"src/layouts/SiteLayout.astro",
 	"src/components/CodePage.astro",
+	"src/components/Sidebar.astro",
+	"src/components/SidebarItems.astro",
 	"src/styles/global.css",
 	"src/scripts/tooltip.js",
 	"src/scripts/theme.js",
@@ -44,10 +46,15 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 	if pkg.Dependencies["@floating-ui/dom"] == "" {
 		t.Fatal("package.json dependencies missing @floating-ui/dom")
 	}
+	if pkg.Dependencies["lucide-astro"] == "" {
+		t.Fatal("package.json dependencies missing lucide-astro")
+	}
 
 	layout := readAstroAssetFile(t, outputDir, "src/layouts/SiteLayout.astro")
 	assertAstroAssetContains(t, layout, "Example Docs")
 	for _, want := range []string{
+		`import Moon from "lucide-astro/Moon";`,
+		`import Sun from "lucide-astro/Sun";`,
 		"theme-toggle",
 		"data-theme",
 		"../scripts/theme.js",
@@ -141,6 +148,145 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 	}
 }
 
+func TestAstroSiteLayoutUsesGeneratedNavigation(t *testing.T) {
+	outputDir := writeAstroAssetsForTest(t, "Navigation Docs")
+
+	layout := readAstroAssetFile(t, outputDir, "src/layouts/SiteLayout.astro")
+	for _, want := range []string{
+		`import { navigation } from "../generated/navigation";`,
+	} {
+		assertAstroAssetContains(t, layout, want)
+	}
+	assertAstroAssetContainsAny(t, layout, []string{
+		`navigation.docs?.firstHref || "/"`,
+		`navigation.docs.firstHref || "/"`,
+		`navigation.docs?.firstHref ?? "/"`,
+		`navigation.docs.firstHref ?? "/"`,
+		`navigation.docs?.firstHref ? navigation.docs?.firstHref : "/"`,
+		`navigation.docs.firstHref ? navigation.docs.firstHref : "/"`,
+	})
+	assertAstroAssetContainsAny(t, layout, []string{
+		`navigation.blog?.firstHref || "/"`,
+		`navigation.blog.firstHref || "/"`,
+		`navigation.blog?.firstHref ?? "/"`,
+		`navigation.blog.firstHref ?? "/"`,
+		`navigation.blog?.firstHref ? navigation.blog?.firstHref : "/"`,
+		`navigation.blog.firstHref ? navigation.blog.firstHref : "/"`,
+	})
+	for _, unwanted := range []string{
+		`/#docs`,
+		`/#blog`,
+	} {
+		assertAstroAssetNotContains(t, layout, unwanted)
+	}
+}
+
+func TestAstroCodePageUsesSidebarComponent(t *testing.T) {
+	outputDir := writeAstroAssetsForTest(t, "Sidebar Docs")
+
+	codePage := readAstroAssetFile(t, outputDir, "src/components/CodePage.astro")
+	for _, want := range []string{
+		`import Sidebar from "./Sidebar.astro";`,
+		"<Sidebar",
+		"currentPath={currentPath}",
+		"sourcePath={sourcePath}",
+		"language={language}",
+	} {
+		assertAstroAssetContains(t, codePage, want)
+	}
+	assertAstroAssetContainsAny(t, codePage, []string{
+		"kind={kind}",
+		"kind={kindLabel}",
+	})
+	for _, unwanted := range []string{
+		`<aside class="page-sidebar" aria-label="Page context">`,
+		`<p class="sidebar-label">Kind</p>`,
+		`<p class="sidebar-label">Path</p>`,
+		`<p class="sidebar-label">Language</p>`,
+	} {
+		assertAstroAssetNotContains(t, codePage, unwanted)
+	}
+}
+
+func TestAstroSidebarUsesNavigationSectionsAndSourceMetadata(t *testing.T) {
+	outputDir := writeAstroAssetsForTest(t, "Sidebar Docs")
+
+	sidebar := readAstroAssetFile(t, outputDir, "src/components/Sidebar.astro")
+	for _, want := range []string{
+		`import { navigation } from "../generated/navigation";`,
+		`import SidebarItems from "./SidebarItems.astro";`,
+		"currentPath?: string",
+		"sourcePath?: string",
+		"language?: string",
+		"kind?: string",
+		"Docs",
+		"Blog",
+		"item.date",
+		"sidebar-blog-date",
+		"Source",
+		"sourcePath",
+		"language",
+		"Path",
+		"Language",
+	} {
+		assertAstroAssetContains(t, sidebar, want)
+	}
+	assertAstroAssetContainsAny(t, sidebar, []string{
+		"navigation.docs.items",
+		"navigation.docs?.items",
+	})
+	assertAstroAssetContainsAny(t, sidebar, []string{
+		"navigation.blog.items",
+		"navigation.blog?.items",
+	})
+}
+
+func TestAstroSidebarItemsRendersRecursiveNavigation(t *testing.T) {
+	outputDir := writeAstroAssetsForTest(t, "Sidebar Docs")
+
+	sidebarItems := readAstroAssetFile(t, outputDir, "src/components/SidebarItems.astro")
+	for _, want := range []string{
+		"currentPath",
+		`item.type === "category"`,
+		"href={item.href}",
+		"aria-current",
+		`"page"`,
+		"sidebar-link",
+		"sidebar-category",
+	} {
+		assertAstroAssetContains(t, sidebarItems, want)
+	}
+	assertAstroAssetContainsAny(t, sidebarItems, []string{
+		"items:",
+		"items?:",
+	})
+	assertAstroAssetContainsAny(t, sidebarItems, []string{
+		"<SidebarItems",
+		"<Astro.self",
+	})
+}
+
+func TestAstroGlobalCSSIncludesSidebarNavigationClasses(t *testing.T) {
+	outputDir := writeAstroAssetsForTest(t, "Sidebar Docs")
+
+	globalCSS := readAstroAssetFile(t, outputDir, "src/styles/global.css")
+	for _, want := range []string{
+		".page-sidebar",
+		".sidebar-link",
+		".sidebar-category",
+		".sidebar-blog-date",
+		".sidebar-context",
+	} {
+		assertAstroAssetContains(t, globalCSS, want)
+	}
+	assertAstroAssetContainsAny(t, globalCSS, []string{
+		`.sidebar-link[aria-current="page"]`,
+		".sidebar-link.is-active",
+		".sidebar-link--active",
+		".sidebar-active",
+	})
+}
+
 func TestWriteAstroSiteAssetsRepeatedCallOverwritesStable(t *testing.T) {
 	outputDir := t.TempDir()
 
@@ -165,6 +311,16 @@ func TestWriteAstroSiteAssetsRepeatedCallOverwritesStable(t *testing.T) {
 	}
 	thirdSnapshot := readAstroAssetSnapshot(t, outputDir)
 	assertAstroAssetSnapshotsEqual(t, thirdSnapshot, firstSnapshot)
+}
+
+func writeAstroAssetsForTest(t *testing.T, siteTitle string) string {
+	t.Helper()
+
+	outputDir := t.TempDir()
+	if err := WriteAstroSiteAssets(outputDir, siteTitle); err != nil {
+		t.Fatalf("WriteAstroSiteAssets returned error: %v", err)
+	}
+	return outputDir
 }
 
 func readAstroAssetSnapshot(t *testing.T, outputDir string) map[string]string {
@@ -192,6 +348,14 @@ func assertAstroAssetContains(t *testing.T, contents, want string) {
 
 	if !strings.Contains(contents, want) {
 		t.Fatalf("asset does not contain %q", want)
+	}
+}
+
+func assertAstroAssetNotContains(t *testing.T, contents, unwanted string) {
+	t.Helper()
+
+	if strings.Contains(contents, unwanted) {
+		t.Fatalf("asset unexpectedly contains %q", unwanted)
 	}
 }
 
