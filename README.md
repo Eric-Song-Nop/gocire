@@ -1,14 +1,33 @@
 # gocire
 
-`gocire` is a CLI tool designed to generate MDX or Markdown documentation from your source code, specifically optimized for use with [Docusaurus](https://docusaurus.io/). It leverages [SCIP](https://github.com/sourcegraph/scip) for precise code navigation and Tree-sitter for syntax highlighting and comment extraction.
+[中文文档](README.zh.md)
 
-## Features
+`gocire` is a CLI tool that turns one source file into MDX or Markdown from the
+source code itself. It is designed for code-oriented documentation, especially
+when the generated MDX is used inside a [Docusaurus](https://docusaurus.io/)
+site.
 
-- **MDX & Markdown Generation:** Generates documentation that can be directly used in Docusaurus projects.
-- **Code Navigation:** Uses SCIP data to link identifiers to their definitions.
-- **Syntax Highlighting:** Supports syntax highlighting for multiple languages.
-- **Comment Extraction:** Extracts comments and interleaves them with the code.
-- **Custom Code Wrappers:** Allows customization of the HTML/JSX wrapping the code blocks (e.g., for collapsible details).
+The current implementation is single-file oriented: it analyzes one source file,
+extracts language information, and renders one output file.
+
+## What It Does
+
+- Generates MDX or Markdown from a source file.
+- Uses Tree-sitter for syntax highlighting and comment extraction.
+- Turns standalone source comments into prose in MDX output.
+- Interleaves prose and semantic code blocks in source order.
+- Optionally reads a SCIP index for symbol roles and hover documentation.
+- Optionally starts an LSP server for hover and definition information.
+- Supports custom code block wrappers for Docusaurus or other renderers.
+
+## Current Scope
+
+`gocire` currently generates documentation for one source file at a time.
+
+It does not yet generate a complete static website, route map, sidebar, or
+site-aware cross-file navigation. SCIP and LSP can provide semantic information,
+but the current renderers produce links for the generated file rather than a
+full repository-wide documentation site.
 
 ## Installation
 
@@ -18,104 +37,182 @@ go install github.com/Eric-Song-Nop/gocire/cmd/gocire@latest
 
 ## Usage
 
-The basic usage requires specifying the source file and the language.
+Generate MDX for a source file:
 
 ```bash
-gocire -src <path/to/source/file> -lang <language>
+gocire -src cmd/gocire/main.go
 ```
 
-### Arguments
+Specify the language explicitly:
 
-| Flag                  | Description                                                                                | Default                                   | Required                   |
-| :-------------------- | :----------------------------------------------------------------------------------------- | :---------------------------------------- | :------------------------- |
-| `-src`                | Path to the source code file to analyze.                                                   | -                                         | **Yes**                    |
-| `-lang`               | Programming language of the source file (see [Supported Languages](#supported-languages)). | -                                         | **Yes** (for highlighting) |
-| `-index`              | Path to the SCIP index file.                                                               | `./index.scip`                            | No                         |
-| `-output`             | Path for the generated output file.                                                        | `<src_path>.mdx` or `<src_path>.md`       | No                         |
-| `-format`             | Output format: `mdx` or `markdown`.                                                        | `mdx`                                     | No                         |
-| `-code-wrapper-start` | Custom opening HTML/JSX for code blocks.                                                   | `<details><summary>...</summary><pre...>` | No                         |
-| `-code-wrapper-end`   | Custom closing HTML/JSX for code blocks.                                                   | `</code></pre></details>`                 | No                         |
+```bash
+gocire -src internal/LSPAnalyzer.go -lang go
+```
 
-### Supported Languages
+Generate Markdown instead of MDX:
 
-`gocire` supports the following languages. You can use the language ID or any of its aliases for the `-lang` flag.
+```bash
+gocire -src internal/TokenInfo.go -format markdown -output TokenInfo.md
+```
 
-| Language   | Aliases              |
-| :--------- | :------------------- |
-| C          | `c`                  |
-| C++        | `cpp`, `c++`         |
-| C#         | `csharp`, `c#`, `cs` |
-| Dart       | `dart`               |
-| Go         | `go`, `golang`       |
-| Haskell    | `haskell`            |
-| Java       | `java`               |
-| JavaScript | `javascript`, `js`   |
-| PHP        | `php`                |
-| Python     | `python`, `py`       |
-| Ruby       | `ruby`               |
-| Rust       | `rust`               |
-| TypeScript | `typescript`, `ts`   |
+Use an LSP server:
 
-## Styling Code Blocks in Docusaurus
+```bash
+gocire -src internal/LSPAnalyzer.go -lang go -lsp -lsp-root .
+```
 
-`gocire` generates code blocks with the CSS class `.cire`: `<pre className="cire"><code>`. To apply a consistent theme to these blocks within your Docusaurus site, you can include the provided `gruvbox.css` example.
+Use a SCIP index:
 
-1. **Locate your Docusaurus `custom.css`:**
-   In a typical Docusaurus project, this file is located at `src/css/custom.css`. If it doesn't exist, create it.
+```bash
+scip-go
+gocire -src internal/LSPAnalyzer.go -lang go -index index.scip
+```
 
-2. **Copy the styles:**
-   Copy the entire content of `examples/gruvbox.css` into your Docusaurus project's `src/css/custom.css` file.
+## How Source Becomes Documentation
 
-   The `gruvbox.css` file provides a Gruvbox theme (light and dark modes) for the `.cire` code blocks, ensuring they blend seamlessly with your Docusaurus site's aesthetics. It includes styles for syntax highlighting and ensures responsiveness.
+For MDX output, `gocire` follows the current source-order rendering model:
 
----
+- Standalone comments become prose.
+- Inline comments remain inside code.
+- Source code between standalone comments becomes semantic code blocks.
+- Code blocks keep syntax highlighting and available symbol information.
 
-## Docusaurus Integration Example
+Example source:
 
-To generate an MDX file for a Go source file to be used in Docusaurus:
+```go
+// This paragraph becomes prose.
+func main() {
+    println("hello") // this comment stays in code
+}
+```
 
-1. **Generate SCIP Index (Optional but Recommended):**
-   For precise navigation, generate a SCIP index for your project using a SCIP indexer (e.g., `scip-go`).
+The generated MDX contains prose followed by a rendered code block.
 
-   ```bash
-   scip-go
-   ```
+Markdown output currently renders a code block with syntax and symbol markup. It
+does not interleave extracted comments as prose.
 
-2. **Run `gocire`:**
+## Analysis Modes
 
-   ```bash
-   gocire -src internal/MyComponent.go -lang go -index index.scip -output docs/MyComponent.mdx
-   ```
+### Tree-sitter
 
-3. **Use in Docusaurus:**
-   Place the generated `docs/MyComponent.mdx` file in your Docusaurus `docs` directory. It will be rendered as a page with your source code, comments, and navigation links.
+Tree-sitter is used for:
 
-   The default output wraps the code in a `<details><pre><code>` tag, making it collapsible. You can customize this using the `-code-wrapper-start` and `-code-wrapper-end` flags if you have custom React components in Docusaurus, but make sure code is still in `<pre><code>` tags.
+- language parsing,
+- syntax highlighting,
+- comment extraction,
+- finding candidate tokens for LSP queries.
 
-   **Example with custom component:**
+### SCIP Mode
 
-   ```bash
-   gocire -src internal/MyComponent.go -lang go \
-     -code-wrapper-start "<MyCodeBlock>" \
-     -code-wrapper-end "</MyCodeBlock>"
-   ```
+By default, `gocire` tries to load the SCIP index at `./index.scip`.
 
-   To make hover available in Docusaurus, install:\
+If the index loads successfully, SCIP occurrences are used to add:
 
-   ```bash
-   pnpm i @rc-component/tooltip
-   ```
+- symbol IDs,
+- definition/reference roles,
+- hover documentation from SCIP symbol information.
 
-   Then import in `MDXComponents.ts`:
+If the index cannot be loaded, `gocire` prints a warning and continues with the
+other available analyzers.
 
-   ```ts
-   import Tooltip from "@rc-component/tooltip";
-   import MDXComponents from "@theme-original/MDXComponents";
+### LSP Mode
 
-   export default {
-     ...MDXComponents,
-     Tooltip,
-   };
-   ```
+When `-lsp` is set, `gocire` starts the configured language server for the
+selected language.
 
-   To support math, make sure you followed Docusaurus' instructions to [install KaTeX](https://docusaurus.io/docs/markdown-features/math-equations).
+LSP mode currently uses:
+
+- `textDocument/hover`,
+- `textDocument/definition`.
+
+The LSP server is started during generation only. The generated output is still
+static.
+
+## CLI Flags
+
+| Flag | Description | Default |
+| :--- | :--- | :--- |
+| `-src` | Source file to analyze. | Required |
+| `-lang` | Language ID. If omitted, `gocire` tries to detect it from the file extension. | Auto-detected when possible |
+| `-index` | SCIP index path. Used when not running with `-lsp`. | `./index.scip` |
+| `-output` | Output file path. | Generated next to the source file |
+| `-format` | Output format: `mdx` or `markdown`. | `mdx` |
+| `-lsp` | Use the configured language server instead of SCIP mode. | `false` |
+| `-lsp-root` | Workspace root passed to the language server. | Source file directory |
+| `-date` | Prefix generated output with the current date. | `false` |
+| `-code-wrapper-start` | Opening HTML/JSX wrapper for generated code blocks. | `<details ...><pre className="cire"><code>` |
+| `-code-wrapper-end` | Closing HTML/JSX wrapper for generated code blocks. | `</code></pre></details>` |
+
+When `-output` is omitted, the current implementation writes a generated file
+next to the source file. Use `-output` when you need a specific path.
+
+## Supported Languages
+
+`gocire` supports these language IDs and aliases:
+
+| Language | IDs / aliases | Extensions | LSP command when configured |
+| :--- | :--- | :--- | :--- |
+| C | `c` | `.c`, `.h` | `clangd` |
+| C++ | `cpp`, `c++` | `.cpp`, `.cxx`, `.cc`, `.hpp` | `clangd` |
+| C# | `csharp`, `c#`, `cs` | `.cs` | - |
+| Dart | `dart` | `.dart` | - |
+| Go | `go`, `golang` | `.go` | `gopls` |
+| Haskell | `haskell`, `hs` | `.hs` | `haskell-language-server-wrapper --lsp` |
+| Java | `java` | `.java` | - |
+| JavaScript | `javascript`, `js` | `.js`, `.jsx` | `typescript-language-server --stdio` |
+| PHP | `php` | `.php` | - |
+| Python | `python`, `py` | `.py` | `pylsp` |
+| Ruby | `ruby` | `.rb` | - |
+| Rust | `rust` | `.rs` | `rust-analyzer` |
+| TypeScript | `typescript`, `ts` | `.ts`, `.tsx` | `typescript-language-server --stdio` |
+
+Languages without a configured LSP command can still use Tree-sitter syntax
+highlighting and comment extraction.
+
+## Docusaurus Integration
+
+MDX output can be placed inside a Docusaurus docs directory.
+
+```bash
+gocire -src internal/LSPAnalyzer.go -lang go -output docs/LSPAnalyzer.mdx
+```
+
+The default CLI wrapper emits code blocks with the `.cire` class:
+
+```html
+<pre className="cire"><code>
+```
+
+You can use `examples/gruvbox.css` as a starting point for styling generated
+code blocks in Docusaurus.
+
+For hover cards in generated MDX, install `@rc-component/tooltip` and expose it
+as an MDX component:
+
+```bash
+pnpm i @rc-component/tooltip
+```
+
+```ts
+import Tooltip from "@rc-component/tooltip";
+import MDXComponents from "@theme-original/MDXComponents";
+
+export default {
+  ...MDXComponents,
+  Tooltip,
+};
+```
+
+Hover documentation is rendered from Markdown to HTML. If your hover content
+uses math, configure KaTeX in Docusaurus as usual.
+
+## Current Limitations
+
+- The CLI is single-file oriented.
+- Generated links are not yet aware of a full static site route map.
+- Markdown output does not currently turn comments into prose.
+- LSP mode requires the relevant language server to be installed.
+- LSP mode currently uses hover and definition requests; inlay hints are not
+  implemented.
+- Cross-file definition locations returned by LSP are not yet rendered as
+  complete site-aware links.
