@@ -169,6 +169,11 @@ func (m *MDXGenerator) GenerateMDX(tokens []TokenInfo, comments []CommentInfo) s
 }
 
 func (m *MDXGenerator) outputTokenJSX(token TokenInfo, sb *strings.Builder) {
+	if token.InlayHintLabel != "" {
+		fmt.Fprintf(sb, `<span className="inlay-hint">{`+"`%s`"+`}</span>`, escapeMDXForTemplateLiteral(token.InlayHintLabel))
+		return
+	}
+
 	content := getSourceFromSpan(m.sourceLines, token.Span)
 	escapedContent := escapeMDXForTemplateLiteral(content) // Use template literal escaping
 
@@ -224,15 +229,6 @@ func (m *MDXGenerator) outputTokenJSX(token TokenInfo, sb *strings.Builder) {
 			escapedHTML, finalOutput)
 	} else {
 		sb.WriteString(finalOutput)
-	}
-
-	// Inlay hints are currently disabled to reduce output noise
-	// To enable: change 'false' to 'true'
-	if len(token.Document) > 0 && false {
-		sb.WriteString(" ")
-		for _, hint := range token.Document {
-			sb.WriteString(escapeMDXForTemplateLiteral(hint))
-		}
 	}
 }
 

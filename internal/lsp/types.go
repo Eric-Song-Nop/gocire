@@ -12,6 +12,7 @@ const (
 	MethodTextDocumentDidOpen          = "textDocument/didOpen"
 	MethodTextDocumentHover            = "textDocument/hover"
 	MethodTextDocumentDefinition       = "textDocument/definition"
+	MethodTextDocumentInlayHint        = "textDocument/inlayHint"
 	MethodStatus                       = "status"
 	MethodShutdown                     = "shutdown"
 	MethodExit                         = "exit"
@@ -85,6 +86,7 @@ type WindowClientCapabilities struct {
 type TextDocumentClientCapabilities struct {
 	Hover      *HoverTextDocumentClientCapabilities      `json:"hover,omitempty"`
 	Definition *DefinitionTextDocumentClientCapabilities `json:"definition,omitempty"`
+	InlayHint  *InlayHintTextDocumentClientCapabilities  `json:"inlayHint,omitempty"`
 }
 
 type HoverTextDocumentClientCapabilities struct {
@@ -93,6 +95,15 @@ type HoverTextDocumentClientCapabilities struct {
 
 type DefinitionTextDocumentClientCapabilities struct {
 	// Empty in original
+}
+
+type InlayHintTextDocumentClientCapabilities struct {
+	DynamicRegistration bool                     `json:"dynamicRegistration,omitempty"`
+	ResolveSupport      *InlayHintResolveSupport `json:"resolveSupport,omitempty"`
+}
+
+type InlayHintResolveSupport struct {
+	Properties []string `json:"properties"`
 }
 
 type InitializeResult struct {
@@ -137,6 +148,28 @@ type Hover struct {
 type DefinitionParams struct {
 	TextDocumentPositionParams
 }
+
+type InlayHintParams struct {
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	Range        Range                  `json:"range"`
+}
+
+type InlayHint struct {
+	Position     Position    `json:"position"`
+	Label        interface{} `json:"label"`
+	Kind         int         `json:"kind,omitempty"`
+	PaddingLeft  bool        `json:"paddingLeft,omitempty"`
+	PaddingRight bool        `json:"paddingRight,omitempty"`
+}
+
+type InlayHintLabelPart struct {
+	Value string `json:"value"`
+}
+
+const (
+	InlayHintKindType      = 1
+	InlayHintKindParameter = 2
+)
 
 // Progress Types
 type ProgressParams struct {

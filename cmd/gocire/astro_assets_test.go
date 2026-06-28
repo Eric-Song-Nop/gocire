@@ -119,6 +119,9 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"--code-comment",
 		"--code-definition",
 		"--code-reference-border",
+		"--code-inlay-hint-text",
+		"--code-inlay-hint-bg",
+		"--code-inlay-hint-border",
 		"var(--code-keyword)",
 		"var(--code-string)",
 		"var(--code-function)",
@@ -126,6 +129,9 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"var(--code-comment)",
 		"var(--code-definition)",
 		"var(--code-reference-border)",
+		"var(--code-inlay-hint-text)",
+		"var(--code-inlay-hint-bg)",
+		"var(--code-inlay-hint-border)",
 		"--tooltip-link",
 		"--tooltip-inline-code-bg",
 		"--tooltip-code-bg",
@@ -314,6 +320,9 @@ func TestAstroGlobalCSSIncludesThemeAwareCodeHighlighting(t *testing.T) {
 		"--code-operator",
 		"--code-punctuation",
 		"--code-reference-border",
+		"--code-inlay-hint-text",
+		"--code-inlay-hint-bg",
+		"--code-inlay-hint-border",
 	}
 	for _, variable := range codeVariables {
 		extractAstroCSSVariableValue(t, lightThemeBlock, variable)
@@ -366,6 +375,31 @@ func TestAstroGlobalCSSIncludesThemeAwareCodeHighlighting(t *testing.T) {
 		{".gocire-tooltip .chroma .c", "--code-comment"},
 	} {
 		assertAstroCSSSelectorUsesVariable(t, globalCSS, mapping.selector, mapping.variable)
+	}
+}
+
+func TestAstroGlobalCSSIncludesInlayHintStyles(t *testing.T) {
+	outputDir := writeAstroAssetsForTest(t, "Inlay Docs")
+
+	globalCSS := readAstroAssetFile(t, outputDir, "src/styles/global.css")
+	ruleBlock := extractAstroCSSRuleBlock(t, globalCSS, ".cire .inlay-hint")
+	for _, want := range []string{
+		"var(--code-inlay-hint-text)",
+		"var(--code-inlay-hint-bg)",
+		"var(--code-inlay-hint-border)",
+		"user-select: none",
+		"white-space: pre",
+	} {
+		if !strings.Contains(ruleBlock, want) {
+			t.Fatalf("inlay hint CSS rule missing %q\nGot:\n%s", want, ruleBlock)
+		}
+	}
+
+	lightThemeBlock := extractAstroCSSRuleBlock(t, globalCSS, `html[data-theme="light"]`)
+	darkThemeBlock := extractAstroCSSRuleBlock(t, globalCSS, `html[data-theme="dark"]`)
+	if extractAstroCSSVariableValue(t, lightThemeBlock, "--code-inlay-hint-bg") ==
+		extractAstroCSSVariableValue(t, darkThemeBlock, "--code-inlay-hint-bg") {
+		t.Fatal("expected light and dark inlay hint backgrounds to differ")
 	}
 }
 

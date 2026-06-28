@@ -245,6 +245,13 @@ func (g *AstroGenerator) outputAstroRemaining(startPos scip.Position, sb *string
 }
 
 func (g *AstroGenerator) outputAstroToken(token TokenInfo, sb *strings.Builder) {
+	if token.InlayHintLabel != "" {
+		sb.WriteString(`<span class="inlay-hint" data-inlay-hint aria-hidden="true">`)
+		sb.WriteString(escapeAstroText(token.InlayHintLabel))
+		sb.WriteString("</span>")
+		return
+	}
+
 	content := getSourceFromSpan(g.sourceLines, token.Span)
 	escapedContent := escapeAstroText(content)
 
