@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"encoding/base64"
 	"strings"
 	"testing"
 
@@ -126,7 +127,8 @@ func TestGenerateAstroEscapesLinkAnchorAndHoverAttributes(t *testing.T) {
 	})
 
 	expectedParts := []string{
-		`<a id="def&lt;foo&gt;&amp;&quot;" href="/docs?a=1&amp;b=&quot;two&quot;" class="identifier reference" data-hover="SG92ZXIgPGRvYz4gJiAicXVvdGVzIgpsaW5lIHt0d299">foo</a>`,
+		`<a id="def&lt;foo&gt;&amp;&quot;" href="/docs?a=1&amp;b=&quot;two&quot;" class="identifier reference"`,
+		`>foo</a>`,
 		`&lt;bar&gt;`,
 	}
 	for _, part := range expectedParts {
@@ -135,10 +137,94 @@ func TestGenerateAstroEscapesLinkAnchorAndHoverAttributes(t *testing.T) {
 		}
 	}
 
+	decodedHover := decodeAstroAttributeBase64(t, extractAstroAttribute(t, output, "data-hover"))
+	if decodedHover != "Hover <doc> & \"quotes\"\nline {two}" {
+		t.Fatalf("data-hover should preserve raw hover markdown\nGot:\n%s", decodedHover)
+	}
+
+	decodedHoverHTML := decodeAstroAttributeBase64(t, extractAstroAttribute(t, output, "data-hover-html"))
+	if strings.Contains(decodedHoverHTML, "&#123;") || strings.Contains(decodedHoverHTML, "&lt;bar&gt;") {
+		t.Fatalf("data-hover-html should contain rendered markdown before Astro text escaping\nGot:\n%s", decodedHoverHTML)
+	}
+
 	disallowed := []string{"className=", "<Tooltip", "dangerouslySetInnerHTML"}
 	for _, part := range disallowed {
 		if strings.Contains(output, part) {
 			t.Fatalf("Astro output should not contain React syntax %q\nGot:\n%s", part, output)
 		}
 	}
+}
+
+func TestGenerateAstroOutputsRenderedHoverHTMLAttribute(t *testing.T) {
+	sourceLines := []string{`main`}
+	gen := NewAstroGenerator(sourceLines)
+
+	hoverMarkdown := strings.Join([]string{
+		"**Function** docs",
+		"",
+		"```go",
+		"func main() {}",
+		"```",
+	}, "\n")
+
+	output := gen.GenerateAstro([]TokenInfo{
+		{
+			HighlightClass: "function",
+			Document:       []string{hoverMarkdown},
+			Span: scip.Range{
+				Start: scip.Position{Line: 0, Character: 0},
+				End:   scip.Position{Line: 0, Character: 4},
+			},
+		},
+	}, nil, AstroPageOptions{
+		RenderMode: AstroRenderModeSource,
+		Language:   "go",
+	})
+
+	rawHover := decodeAstroAttributeBase64(t, extractAstroAttribute(t, output, "data-hover"))
+	if rawHover != hoverMarkdown {
+		t.Fatalf("data-hover should preserve raw hover markdown\nGot:\n%s", rawHover)
+	}
+
+	renderedHover := decodeAstroAttributeBase64(t, extractAstroAttribute(t, output, "data-hover-html"))
+	expectedParts := []string{
+		"<strong>Function</strong>",
+		`class="chroma"`,
+		"func",
+		"main",
+	}
+	for _, part := range expectedParts {
+		if !strings.Contains(renderedHover, part) {
+			t.Fatalf("rendered hover HTML missing %q\nGot:\n%s", part, renderedHover)
+		}
+	}
+	if strings.Contains(renderedHover, "```") {
+		t.Fatalf("rendered hover HTML should not contain raw code fence\nGot:\n%s", renderedHover)
+	}
+}
+
+func extractAstroAttribute(t *testing.T, output string, attr string) string {
+	t.Helper()
+
+	marker := attr + `="`
+	start := strings.Index(output, marker)
+	if start < 0 {
+		t.Fatalf("output missing attribute %s\nGot:\n%s", attr, output)
+	}
+	start += len(marker)
+	end := strings.Index(output[start:], `"`)
+	if end < 0 {
+		t.Fatalf("unterminated attribute %s\nGot:\n%s", attr, output)
+	}
+	return output[start : start+end]
+}
+
+func decodeAstroAttributeBase64(t *testing.T, value string) string {
+	t.Helper()
+
+	decoded, err := base64.StdEncoding.DecodeString(value)
+	if err != nil {
+		t.Fatalf("attribute is not valid base64: %v\nValue:\n%s", err, value)
+	}
+	return string(decoded)
 }

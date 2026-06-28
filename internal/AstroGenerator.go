@@ -251,12 +251,7 @@ func (g *AstroGenerator) outputAstroToken(token TokenInfo, sb *strings.Builder) 
 	cssClass := token.HighlightClass
 	id := token.Anchor
 	href := token.Href
-	hover := strings.Join(token.Document, "\n")
-	hasHover := hover != ""
-	encodedHover := ""
-	if hasHover {
-		encodedHover = base64.StdEncoding.EncodeToString([]byte(hover))
-	}
+	encodedHover, encodedHoverHTML, hasHover := encodeAstroHover(token.Document)
 
 	switch {
 	case href != "":
@@ -270,7 +265,7 @@ func (g *AstroGenerator) outputAstroToken(token TokenInfo, sb *strings.Builder) 
 			writeAstroAttribute(sb, "class", referenceClass)
 		}
 		if hasHover {
-			writeAstroAttribute(sb, "data-hover", encodedHover)
+			writeAstroHoverAttributes(sb, encodedHover, encodedHoverHTML)
 		}
 		sb.WriteString(">")
 		sb.WriteString(escapedContent)
@@ -283,7 +278,7 @@ func (g *AstroGenerator) outputAstroToken(token TokenInfo, sb *strings.Builder) 
 			writeAstroAttribute(sb, "class", definitionClass)
 		}
 		if hasHover {
-			writeAstroAttribute(sb, "data-hover", encodedHover)
+			writeAstroHoverAttributes(sb, encodedHover, encodedHoverHTML)
 		}
 		sb.WriteString(">")
 		sb.WriteString(escapedContent)
@@ -294,7 +289,7 @@ func (g *AstroGenerator) outputAstroToken(token TokenInfo, sb *strings.Builder) 
 			writeAstroAttribute(sb, "class", cssClass)
 		}
 		if hasHover {
-			writeAstroAttribute(sb, "data-hover", encodedHover)
+			writeAstroHoverAttributes(sb, encodedHover, encodedHoverHTML)
 		}
 		sb.WriteString(">")
 		sb.WriteString(escapedContent)
@@ -302,6 +297,23 @@ func (g *AstroGenerator) outputAstroToken(token TokenInfo, sb *strings.Builder) 
 	default:
 		sb.WriteString(escapedContent)
 	}
+}
+
+func encodeAstroHover(document []string) (encodedRaw string, encodedHTML string, ok bool) {
+	hover := strings.Join(document, "\n")
+	if hover == "" {
+		return "", "", false
+	}
+
+	renderedHover := RenderMarkdown(hover)
+	return base64.StdEncoding.EncodeToString([]byte(hover)),
+		base64.StdEncoding.EncodeToString([]byte(renderedHover)),
+		true
+}
+
+func writeAstroHoverAttributes(sb *strings.Builder, encodedHover string, encodedHoverHTML string) {
+	writeAstroAttribute(sb, "data-hover", encodedHover)
+	writeAstroAttribute(sb, "data-hover-html", encodedHoverHTML)
 }
 
 func (g *AstroGenerator) fileEndPosition() scip.Position {
