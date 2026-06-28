@@ -16,9 +16,9 @@ import (
 )
 
 type ProjectExportPlan struct {
-	Config   *projectconfig.ProjectConfig
-	Files    []project.SourceFile
-	Manifest internal.SourceRouteManifest
+	Config *projectconfig.ProjectConfig
+	Files  []project.SourceFile
+	Site   SiteModel
 }
 
 type ProjectExportRunner struct {
@@ -77,15 +77,15 @@ func NewProjectExportPlan(cfg *Config) (*ProjectExportPlan, error) {
 		return nil, err
 	}
 
-	manifest, err := SourceRouteManifestForProject(*projectCfg, files)
+	site, err := BuildSiteModel(*projectCfg, files)
 	if err != nil {
 		return nil, err
 	}
 
 	return &ProjectExportPlan{
-		Config:   projectCfg,
-		Files:    files,
-		Manifest: manifest,
+		Config: projectCfg,
+		Files:  files,
+		Site:   site,
 	}, nil
 }
 
@@ -150,6 +150,11 @@ func (r *ProjectExportRunner) Run(ctx context.Context) error {
 }
 
 func (r *ProjectExportRunner) exportFile(ctx context.Context, file project.SourceFile, lspFactory func(sourcePath string) (TokenAnalyzer, error), backend ProjectBackend) error {
+	page, ok := r.plan.Site.PageForFile(file)
+	if !ok {
+		return fmt.Errorf("%s: site page not found", file.RelPath)
+	}
+
 	fileCfg := r.pipelineConfigForFile(file, "", lspFactory)
 	pipeline, err := NewPipelineWithOptions(fileCfg, PipelineOptions{
 		LSPAnalyzerFactory: lspFactory,
@@ -160,6 +165,7 @@ func (r *ProjectExportRunner) exportFile(ctx context.Context, file project.Sourc
 
 	if err := backend.ExportFile(ctx, ProjectFileExport{
 		File:     file,
+		Page:     page,
 		Pipeline: pipeline,
 	}); err != nil {
 		return fmt.Errorf("%s: %w", file.RelPath, err)

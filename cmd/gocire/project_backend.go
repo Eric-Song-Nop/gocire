@@ -22,6 +22,7 @@ type ProjectBackend interface {
 
 type ProjectFileExport struct {
 	File     project.SourceFile
+	Page     SitePage
 	Pipeline *Pipeline
 }
 
@@ -51,14 +52,14 @@ func (b *documentProjectBackend) Prepare(ctx context.Context, plan *ProjectExpor
 }
 
 func (b *documentProjectBackend) ExportFile(ctx context.Context, req ProjectFileExport) error {
-	outPath, err := ProjectOutputPath(b.plan.Config.Output.Dir, b.plan.Manifest, req.File, b.format)
+	outPath, err := ProjectOutputPath(b.plan.Config.Output.Dir, b.plan.Site.Routes, req.File, b.format)
 	if err != nil {
 		return err
 	}
 
 	return req.Pipeline.RunFile(PipelineRunOptions{
 		Context:    ctx,
-		Manifest:   &b.plan.Manifest,
+		Manifest:   &b.plan.Site.Routes,
 		OutputPath: outPath,
 	})
 }
@@ -86,7 +87,7 @@ func (b *astroProjectBackend) Prepare(ctx context.Context, plan *ProjectExportPl
 }
 
 func (b *astroProjectBackend) ExportFile(ctx context.Context, req ProjectFileExport) error {
-	linkManifest := astroLinkManifest(b.plan.Manifest)
+	linkManifest := astroLinkManifest(b.plan.Site.Routes)
 	analysis, err := req.Pipeline.AnalyzeFile(PipelineRunOptions{
 		Context:  ctx,
 		Manifest: &linkManifest,
@@ -95,10 +96,7 @@ func (b *astroProjectBackend) ExportFile(ctx context.Context, req ProjectFileExp
 		return err
 	}
 
-	route, err := AstroProjectRoute(b.plan.Manifest, req.File)
-	if err != nil {
-		return err
-	}
+	route := req.Page.Route
 
 	outPath, modulePath, err := astroGeneratedPagePathForRoute(b.plan.Config.Output.Dir, route)
 	if err != nil {
@@ -107,11 +105,11 @@ func (b *astroProjectBackend) ExportFile(ctx context.Context, req ProjectFileExp
 
 	gen := internal.NewAstroGenerator(analysis.SourceLines)
 	output := gen.GenerateAstro(analysis.Tokens, analysis.Comments, internal.AstroPageOptions{
-		Title:          astroPageTitle(req.File),
-		Kind:           string(req.File.Kind),
-		Language:       req.File.Language,
-		SourcePath:     req.File.RelPath,
-		RenderMode:     astroRenderModeForKind(req.File.Kind),
+		Title:          req.Page.Title,
+		Kind:           string(req.Page.Kind),
+		Language:       req.Page.Language,
+		SourcePath:     req.Page.SourcePath,
+		RenderMode:     astroRenderModeForKind(req.Page.Kind),
 		CodePageImport: astroCodePageImportForGeneratedRoute(route),
 	})
 
@@ -123,9 +121,9 @@ func (b *astroProjectBackend) ExportFile(ctx context.Context, req ProjectFileExp
 	b.pages = append(b.pages, astroGeneratedPage{
 		Route:      strings.TrimLeft(route, "/"),
 		Module:     modulePath,
-		Kind:       req.File.Kind,
-		Title:      astroPageTitle(req.File),
-		SourcePath: req.File.RelPath,
+		Kind:       req.Page.Kind,
+		Title:      req.Page.Title,
+		SourcePath: req.Page.SourcePath,
 	})
 	b.mu.Unlock()
 
@@ -138,6 +136,9 @@ func (b *astroProjectBackend) Finish(ctx context.Context) error {
 	b.mu.Unlock()
 
 	if err := writeAstroRouteIndex(b.plan.Config.Output.Dir, pages); err != nil {
+		return err
+	}
+	if err := writeAstroNavigation(b.plan.Config.Output.Dir, b.plan.Site.Navigation); err != nil {
 		return err
 	}
 	return writeAstroHomePage(b.plan.Config.Output.Dir, b.plan.Config.Site.Title, pages)
@@ -326,6 +327,68 @@ func writeAstroHomePage(outputDir string, siteTitle string, pages []astroGenerat
 `)
 
 	return writeOutputFile(filepath.Join(outputDir, "src", "pages", "index.astro"), sb.String())
+}
+
+func writeAstroNavigation(outputDir string, navigation SiteNavigation) error {
+	var sb strings.Builder
+	sb.WriteString("export const navigation = ")
+	sb.WriteString(astroNavigationLiteral(navigation))
+	sb.WriteString(";\n")
+	return writeOutputFile(filepath.Join(outputDir, "src", "generated", "navigation.ts"), sb.String())
+}
+
+func astroNavigationLiteral(navigation SiteNavigation) string {
+	var sb strings.Builder
+	sb.WriteString("{")
+	fmt.Fprintf(&sb, " docs: %s,", astroNavigationSectionLiteral(navigation.Docs))
+	fmt.Fprintf(&sb, " blog: %s", astroNavigationSectionLiteral(navigation.Blog))
+	sb.WriteString(" }")
+	return sb.String()
+}
+
+func astroNavigationSectionLiteral(section SiteNavigationSection) string {
+	var sb strings.Builder
+	sb.WriteString("{")
+	fmt.Fprintf(&sb, " firstHref: %s,", strconv.Quote(section.FirstHref))
+	fmt.Fprintf(&sb, " items: %s", astroNavigationItemsLiteral(section.Items))
+	sb.WriteString(" }")
+	return sb.String()
+}
+
+func astroNavigationItemsLiteral(items []SiteNavigationItem) string {
+	var sb strings.Builder
+	sb.WriteString("[")
+	for i, item := range items {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(astroNavigationItemLiteral(item))
+	}
+	sb.WriteString("]")
+	return sb.String()
+}
+
+func astroNavigationItemLiteral(item SiteNavigationItem) string {
+	var sb strings.Builder
+	sb.WriteString("{")
+	fmt.Fprintf(&sb, " type: %s", strconv.Quote(string(item.Type)))
+	if item.Title != "" {
+		fmt.Fprintf(&sb, ", title: %s", strconv.Quote(item.Title))
+	}
+	if item.Href != "" {
+		fmt.Fprintf(&sb, ", href: %s", strconv.Quote(item.Href))
+	}
+	if item.SourcePath != "" {
+		fmt.Fprintf(&sb, ", sourcePath: %s", strconv.Quote(item.SourcePath))
+	}
+	if item.Date != "" {
+		fmt.Fprintf(&sb, ", date: %s", strconv.Quote(item.Date))
+	}
+	if len(item.Items) > 0 {
+		fmt.Fprintf(&sb, ", items: %s", astroNavigationItemsLiteral(item.Items))
+	}
+	sb.WriteString(" }")
+	return sb.String()
 }
 
 func filterAstroPagesByKind(pages []astroGeneratedPage, kind project.PageKind) []astroGeneratedPage {

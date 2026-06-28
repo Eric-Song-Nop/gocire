@@ -178,12 +178,18 @@ output:
 		t.Fatalf("output dir = %q, want %q", plan.Config.Output.Dir, filepath.Join(root, "public"))
 	}
 
-	route, ok := plan.Manifest.RouteForRelPath("pkg/app.go")
+	route, ok := plan.Site.Routes.RouteForRelPath("pkg/app.go")
 	if !ok {
 		t.Fatal("RouteForRelPath returned ok=false")
 	}
 	if route != "/code/pkg/app.go.html" {
 		t.Fatalf("route = %q, want /code/pkg/app.go.html", route)
+	}
+	if len(plan.Site.Pages) != 1 {
+		t.Fatalf("len(plan.Site.Pages) = %d, want 1", len(plan.Site.Pages))
+	}
+	if plan.Site.Pages[0].Href != "/code/pkg/app.go.html/" {
+		t.Fatalf("page href = %q, want /code/pkg/app.go.html/", plan.Site.Pages[0].Href)
 	}
 }
 
@@ -260,6 +266,7 @@ output:
 	for _, relPath := range []string{
 		"package.json",
 		filepath.Join("src", "pages", "index.astro"),
+		filepath.Join("src", "generated", "navigation.ts"),
 		filepath.Join("src", "generated", "pages", "_source", "main.go.html.astro"),
 		filepath.Join("src", "pages", "[...gocire].astro"),
 	} {
@@ -311,6 +318,21 @@ output:
 	} {
 		if !strings.Contains(string(routeIndex), want) {
 			t.Fatalf("Astro route index missing %q\nGot:\n%s", want, string(routeIndex))
+		}
+	}
+
+	navigationPath := filepath.Join(root, "site", "src", "generated", "navigation.ts")
+	navigation, err := os.ReadFile(navigationPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", navigationPath, err)
+	}
+	for _, want := range []string{
+		`export const navigation =`,
+		`docs:`,
+		`blog:`,
+	} {
+		if !strings.Contains(string(navigation), want) {
+			t.Fatalf("Astro navigation missing %q\nGot:\n%s", want, string(navigation))
 		}
 	}
 }
