@@ -75,9 +75,15 @@ func NewLSPSession(ctx context.Context, language, workspaceRoot string) (*LSPSes
 		return nil, errors.Wrap(err, "failed to start lsp client")
 	}
 
-	if err := client.Initialize(rootDir); err != nil {
+	var initErr error
+	if cfg.LSPInitializationOptions != nil {
+		initErr = client.Initialize(rootDir, cfg.LSPInitializationOptions)
+	} else {
+		initErr = client.Initialize(rootDir)
+	}
+	if initErr != nil {
 		_ = client.Shutdown()
-		return nil, errors.Wrap(err, "lsp initialize failed")
+		return nil, errors.Wrap(initErr, "lsp initialize failed")
 	}
 
 	// Wait for server to finish indexing (up to 10 seconds)

@@ -173,13 +173,33 @@ func (c *Client) WaitForIndexing(timeout time.Duration) error {
 	}
 }
 
-func (c *Client) Initialize(rootPath string) error {
+func (c *Client) Initialize(rootPath string, initializationOptions ...interface{}) error {
 	absPath, err := filepath.Abs(rootPath)
 	if err != nil {
 		return err
 	}
 
-	params := &InitializeParams{
+	var options interface{}
+	if len(initializationOptions) > 0 {
+		options = initializationOptions[0]
+	}
+
+	params := newInitializeParams(absPath, options)
+
+	var result InitializeResult
+	if err := c.conn.Call(c.ctx, MethodInitialize, params, &result); err != nil {
+		return errors.Wrap(err, "initialize request failed")
+	}
+
+	if err := c.conn.Notify(c.ctx, MethodInitialized, &InitializedParams{}); err != nil {
+		return errors.Wrap(err, "initialized notification failed")
+	}
+
+	return nil
+}
+
+func newInitializeParams(absPath string, initializationOptions interface{}) *InitializeParams {
+	return &InitializeParams{
 		RootURI: ToURI(absPath),
 		WorkspaceFolders: []WorkspaceFolder{
 			{
@@ -199,18 +219,8 @@ func (c *Client) Initialize(rootPath string) error {
 				InlayHint:  &InlayHintTextDocumentClientCapabilities{},
 			},
 		},
+		InitializationOptions: initializationOptions,
 	}
-
-	var result InitializeResult
-	if err := c.conn.Call(c.ctx, MethodInitialize, params, &result); err != nil {
-		return errors.Wrap(err, "initialize request failed")
-	}
-
-	if err := c.conn.Notify(c.ctx, MethodInitialized, &InitializedParams{}); err != nil {
-		return errors.Wrap(err, "initialized notification failed")
-	}
-
-	return nil
 }
 
 func (c *Client) DidOpen(filePath string, languageID string, content string) error {
