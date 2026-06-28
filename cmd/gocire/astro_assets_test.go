@@ -15,6 +15,7 @@ var expectedAstroAssetFiles = []string{
 	"src/components/CodePage.astro",
 	"src/styles/global.css",
 	"src/scripts/tooltip.js",
+	"src/scripts/theme.js",
 }
 
 func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
@@ -46,6 +47,13 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 
 	layout := readAstroAssetFile(t, outputDir, "src/layouts/SiteLayout.astro")
 	assertAstroAssetContains(t, layout, "Example Docs")
+	for _, want := range []string{
+		"theme-toggle",
+		"data-theme",
+		"../scripts/theme.js",
+	} {
+		assertAstroAssetContains(t, layout, want)
+	}
 
 	codePage := readAstroAssetFile(t, outputDir, "src/components/CodePage.astro")
 	for _, want := range []string{
@@ -62,6 +70,25 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 	assertAstroAssetContains(t, tooltip, "@floating-ui/dom")
 	assertAstroAssetContains(t, tooltip, "[data-hover]")
 	assertAstroAssetContains(t, tooltip, "TextDecoder")
+
+	theme := readAstroAssetFile(t, outputDir, "src/scripts/theme.js")
+	themeRuntime := layout + "\n" + theme
+	for _, want := range []string{
+		"localStorage",
+		"prefers-color-scheme",
+		"data-theme",
+		"theme-toggle",
+	} {
+		assertAstroAssetContains(t, themeRuntime, want)
+	}
+
+	globalCSS := readAstroAssetFile(t, outputDir, "src/styles/global.css")
+	assertAstroAssetContainsAny(t, globalCSS, []string{
+		`html[data-theme="dark"]`,
+		`:root[data-theme="dark"]`,
+		`[data-theme="dark"]`,
+	})
+	assertAstroAssetContains(t, globalCSS, ".theme-toggle")
 }
 
 func TestWriteAstroSiteAssetsRepeatedCallOverwritesStable(t *testing.T) {
@@ -116,6 +143,17 @@ func assertAstroAssetContains(t *testing.T, contents, want string) {
 	if !strings.Contains(contents, want) {
 		t.Fatalf("asset does not contain %q", want)
 	}
+}
+
+func assertAstroAssetContainsAny(t *testing.T, contents string, wants []string) {
+	t.Helper()
+
+	for _, want := range wants {
+		if strings.Contains(contents, want) {
+			return
+		}
+	}
+	t.Fatalf("asset does not contain any of %q", wants)
 }
 
 func assertAstroAssetSnapshotsEqual(t *testing.T, got, want map[string]string) {
