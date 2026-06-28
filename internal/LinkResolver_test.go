@@ -39,6 +39,22 @@ func TestSourceRouteManifestRouteAndAnchorRules(t *testing.T) {
 	}
 }
 
+func TestSourceRouteManifestUsesConfiguredRoutePrefix(t *testing.T) {
+	root := t.TempDir()
+	manifest, err := NewSourceRouteManifestWithPrefix(root, "/code/", []string{"rel/path.go"})
+	if err != nil {
+		t.Fatalf("NewSourceRouteManifestWithPrefix returned error: %v", err)
+	}
+
+	route, ok := manifest.RouteFor("rel/path.go")
+	if !ok {
+		t.Fatal("RouteFor returned ok=false")
+	}
+	if route != "/code/rel/path.go.html" {
+		t.Fatalf("route = %q, want /code/rel/path.go.html", route)
+	}
+}
+
 func TestResolveDefinitionHrefSameFileAndCrossFile(t *testing.T) {
 	root := t.TempDir()
 	manifest := newTestSourceRouteManifest(t, root, []string{

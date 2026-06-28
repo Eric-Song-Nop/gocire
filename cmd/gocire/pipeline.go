@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/Eric-Song-Nop/gocire/internal"
-	"github.com/Eric-Song-Nop/gocire/internal/languages"
+	projectconfig "github.com/Eric-Song-Nop/gocire/internal/config"
+	"github.com/Eric-Song-Nop/gocire/internal/project"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -175,17 +175,30 @@ func (p *Pipeline) Run() error {
 }
 
 func (p *Pipeline) resolveTokenLinks(tokens []internal.TokenInfo) error {
-	root := p.cfg.LSPRoot
-	if root == "" {
-		root = filepath.Dir(p.cfg.AbsSrcPath)
-	}
-
-	sourcePaths, err := collectSourcePaths(root)
+	cfg, err := projectconfig.Load("")
 	if err != nil {
 		return err
 	}
 
-	manifest, err := internal.NewSourceRouteManifest(root, sourcePaths)
+	if p.cfg.LSPRoot != "" {
+		root, err := filepath.Abs(p.cfg.LSPRoot)
+		if err != nil {
+			return err
+		}
+		cfg.Project.Root = root
+	}
+
+	files, err := project.Scan(*cfg)
+	if err != nil {
+		return err
+	}
+
+	sourcePaths := make([]string, 0, len(files))
+	for _, file := range files {
+		sourcePaths = append(sourcePaths, file.AbsPath)
+	}
+
+	manifest, err := internal.NewSourceRouteManifestWithPrefix(cfg.Project.Root, cfg.Source.RoutePrefix, sourcePaths)
 	if err != nil {
 		return err
 	}
@@ -195,36 +208,6 @@ func (p *Pipeline) resolveTokenLinks(tokens []internal.TokenInfo) error {
 	}
 
 	return nil
-}
-
-func collectSourcePaths(root string) ([]string, error) {
-	var sourcePaths []string
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			if shouldSkipSourceDir(d.Name()) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if _, err := languages.DetectLanguage(path); err == nil {
-			sourcePaths = append(sourcePaths, path)
-		}
-		return nil
-	})
-	return sourcePaths, err
-}
-
-func shouldSkipSourceDir(name string) bool {
-	switch name {
-	case ".git", ".gocire", "node_modules", "vendor", "dist", "build":
-		return true
-	default:
-		return false
-	}
 }
 
 // --- Wrappers ---

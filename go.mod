@@ -5,6 +5,7 @@ go 1.25.4
 require (
 	github.com/FurqanSoftware/goldmark-katex v0.0.0-20250906161933-da324498b7cf
 	github.com/UserNobody14/tree-sitter-dart v0.0.0-20251004150700-d4d8f3e337d8
+	github.com/alecthomas/chroma/v2 v2.21.1
 	github.com/cockroachdb/errors v1.11.1
 	github.com/sourcegraph/jsonrpc2 v0.2.1
 	github.com/sourcegraph/scip v0.6.1
@@ -22,8 +23,10 @@ require (
 	github.com/tree-sitter/tree-sitter-rust v0.24.0
 	github.com/tree-sitter/tree-sitter-typescript v0.23.2
 	github.com/yuin/goldmark v1.7.13
+	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
 	golang.org/x/sync v0.17.0
 	google.golang.org/protobuf v1.31.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -31,7 +34,6 @@ require (
 	github.com/Masterminds/semver v1.4.2 // indirect
 	github.com/Masterminds/sprig v2.15.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
-	github.com/alecthomas/chroma/v2 v2.21.1 // indirect
 	github.com/aokoli/goutils v1.0.1 // indirect
 	github.com/bluele/gcache v0.0.2 // indirect
 	github.com/bufbuild/buf v1.25.0 // indirect
@@ -91,7 +93,6 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tetratelabs/wazero v1.3.0 // indirect
 	github.com/vbatts/tar-split v0.11.3 // indirect
-	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc // indirect
 	go.opentelemetry.io/otel v1.16.0 // indirect
 	go.opentelemetry.io/otel/metric v1.16.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.16.0 // indirect
@@ -108,5 +109,4 @@ require (
 	golang.org/x/text v0.29.0 // indirect
 	golang.org/x/tools v0.37.0 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
