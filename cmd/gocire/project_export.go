@@ -34,6 +34,7 @@ type projectLSPSessionKey struct {
 }
 
 type projectLSPAnalyzerProvider struct {
+	ctx           context.Context
 	workspaceRoot string
 	sessions      map[projectLSPSessionKey]*internal.LSPSession
 	mu            sync.Mutex
@@ -130,18 +131,18 @@ func (r *ProjectExportRunner) Run(ctx context.Context) error {
 		return backend.Finish(ctx)
 	}
 
-	lspFactory, closeLSP, err := r.projectLSPAnalyzerFactory()
+	lspFactory, closeLSP, err := r.projectLSPAnalyzerFactory(ctx)
 	if err != nil {
 		return err
 	}
 
-	g, ctx := errgroup.WithContext(ctx)
+	g, runCtx := errgroup.WithContext(ctx)
 	g.SetLimit(r.cfg.Jobs)
 
 	for _, file := range r.plan.Files {
 		file := file
 		g.Go(func() error {
-			return r.exportFile(ctx, file, lspFactory, backend)
+			return r.exportFile(runCtx, file, lspFactory, backend)
 		})
 	}
 
@@ -214,7 +215,7 @@ func (r *ProjectExportRunner) useLSPForProjectFile(file project.SourceFile) bool
 	return selectedLanguage == file.Language
 }
 
-func (r *ProjectExportRunner) projectLSPAnalyzerFactory() (LSPAnalyzerFactory, func() error, error) {
+func (r *ProjectExportRunner) projectLSPAnalyzerFactory(ctx context.Context) (LSPAnalyzerFactory, func() error, error) {
 	if !r.cfg.UseLSP {
 		return nil, nil, nil
 	}
@@ -234,6 +235,7 @@ func (r *ProjectExportRunner) projectLSPAnalyzerFactory() (LSPAnalyzerFactory, f
 	}
 
 	provider := &projectLSPAnalyzerProvider{
+		ctx:           ctx,
 		workspaceRoot: workspaceRoot,
 		sessions:      make(map[projectLSPSessionKey]*internal.LSPSession),
 	}
@@ -245,7 +247,11 @@ func (p *projectLSPAnalyzerProvider) AnalyzerFor(ctx context.Context, req Pipeli
 	if workspaceRoot == "" {
 		workspaceRoot = p.workspaceRoot
 	}
-	session, err := p.session(ctx, req.Language, workspaceRoot)
+	sessionCtx := p.ctx
+	if sessionCtx == nil {
+		sessionCtx = ctx
+	}
+	session, err := p.session(sessionCtx, req.Language, workspaceRoot)
 	if err != nil {
 		return nil, err
 	}
