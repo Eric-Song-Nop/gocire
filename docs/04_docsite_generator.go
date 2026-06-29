@@ -23,8 +23,8 @@ func IsNarrativePage(kind project.PageKind) bool {
 }
 
 // The Astro backend owns the website shell: navigation, sidebars, theme,
-// tooltip runtime, generated route index, and static assets. It should consume
-// the same source analysis as Markdown and MDX rather than inventing a separate
+// tooltip runtime, generated route index, and static assets. It consumes the
+// same source analysis as Markdown and MDX rather than inventing a separate
 // analysis path.
 func IsFirstClassNavigation(kind project.PageKind) bool {
 	return kind == project.PageKindDocs || kind == project.PageKindBlog
@@ -32,8 +32,9 @@ func IsFirstClassNavigation(kind project.PageKind) bool {
 
 // Configuration starts with defaults. A root `.gocire.yml` can override the
 // site title, project root, docs/blog directories, source route prefix, include
-// rules, exclude rules, and output directory. More advanced theme and feature
-// flags can be added without changing the source-document model.
+// rules, exclude rules, and output directory. The current backend also includes
+// sidebar navigation, theme-aware code highlighting, Markdown-rendered hover
+// tooltips, and LSP inlay hints.
 func DefaultSourceRoutePrefix() string {
 	return "/_source"
 }

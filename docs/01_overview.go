@@ -21,8 +21,8 @@ import (
 //
 // Project export is the main product direction. Files in `docs` and `blogs`
 // become narrative pages. Other supported source files become source context
-// pages that readers reach through language navigation, especially jump to
-// definition.
+// pages that readers reach through language navigation, especially cross-file
+// jump to definition.
 func DefaultDocsiteConfig() *projectconfig.ProjectConfig {
 	return projectconfig.DefaultConfig()
 }
@@ -35,7 +35,8 @@ func ClassifyDocumentationFile(file project.SourceFile) project.PageKind {
 }
 
 // The generated site is static HTML. Hover cards use a small JavaScript runtime
-// for placement, but source navigation itself is ordinary links and anchors.
+// for placement, but source navigation and inlay hints are ordinary markup,
+// links, and anchors.
 func StaticSourceAnchor(line, column int32) string {
 	return cire.LineColumnAnchor(scip.Position{
 		Line:      line,
