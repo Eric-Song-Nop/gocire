@@ -11,16 +11,18 @@ The main product direction is the project docsite:
 - files under `docs` become narrative documentation pages,
 - files under `blogs` become blog posts,
 - other supported source files become source context pages,
-- LSP data powers hover cards and jump-to-definition links.
+- LSP data powers hover cards, inlay hints, and jump-to-definition links,
+- project export reuses one language-server session while processing files
+  concurrently.
 
 ## Generate This Project's Docsite
 
 ```bash
 gocire -project -format astro -lsp -lang go -lsp-root .
 cd .gocire/site
-npm install
-npm run build
-npm run dev -- --host 127.0.0.1
+pnpm install
+pnpm build
+pnpm dev -- --host 127.0.0.1
 ```
 
 The generated Astro project is written to `.gocire/site` by default.
@@ -37,7 +39,7 @@ gocire -src internal/TokenInfo.go -lang go -format markdown
 The real project documentation lives in source files under `docs` and `blogs`.
 Those files are rendered by `gocire` itself, so examples can point at real APIs
 and generated pages can preserve syntax highlighting, hover text, and definition
-navigation.
+navigation across the repository.
 
 Start with:
 
@@ -50,5 +52,5 @@ Start with:
 ## Requirements
 
 - Go
-- Node.js and npm for the generated Astro site
+- Node.js and pnpm for the generated Astro site
 - `gopls` when using `-lsp -lang go`

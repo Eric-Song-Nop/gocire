@@ -11,9 +11,9 @@ import (
 // The implementation is shaped like a compiler pipeline.
 //
 // Source files are scanned into a project model, each file is analyzed into
-// tokens and comments, then a backend renders the shared analysis result into
-// Markdown, MDX, or Astro. Adding a new output format should not require a new
-// analyzer.
+// tokens, comments, hover data, inlay hints, and definition locations. A
+// backend then renders the shared analysis result into Markdown, MDX, or Astro.
+// Adding a new output format should not require a new analyzer.
 //
 // The important boundary is this: analyzers know about source code and language
 // servers, while generators know about output markup. Project-level data such
