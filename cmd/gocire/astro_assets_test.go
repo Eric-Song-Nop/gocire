@@ -1,11 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 var expectedAstroAssetFiles = []string{
@@ -18,6 +24,11 @@ var expectedAstroAssetFiles = []string{
 	"src/styles/global.css",
 	"src/scripts/tooltip.js",
 	"src/scripts/theme.js",
+}
+
+func TestAstroTemplateOutputFilesMatchExpectedAssetContract(t *testing.T) {
+	got := astroTemplateOutputFiles()
+	assertAstroStringSetsEqual(t, got, expectedAstroAssetFiles)
 }
 
 func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
@@ -588,6 +599,10 @@ func TestWriteAstroSiteAssetsRepeatedCallOverwritesStable(t *testing.T) {
 	if err := os.WriteFile(packagePath, []byte("{}\n"), 0o644); err != nil {
 		t.Fatalf("corrupt package.json: %v", err)
 	}
+	layoutPath := filepath.Join(outputDir, "src", "layouts", "SiteLayout.astro")
+	if err := os.WriteFile(layoutPath, []byte("---\nconst broken = true;\n---\n"), 0o644); err != nil {
+		t.Fatalf("corrupt SiteLayout.astro: %v", err)
+	}
 
 	if err := WriteAstroSiteAssets(outputDir, "Stable Docs"); err != nil {
 		t.Fatalf("second WriteAstroSiteAssets returned error: %v", err)
@@ -602,6 +617,50 @@ func TestWriteAstroSiteAssetsRepeatedCallOverwritesStable(t *testing.T) {
 	assertAstroAssetSnapshotsEqual(t, thirdSnapshot, firstSnapshot)
 }
 
+func TestAstroSiteLayoutQuotesFallbackSiteTitleAsStringLiteral(t *testing.T) {
+	siteTitle := "Docs \"Quotes\" <unsafe>\nsecond line and backslash \\"
+	outputDir := writeAstroAssetsForTest(t, siteTitle)
+
+	layout := readAstroAssetFile(t, outputDir, "src/layouts/SiteLayout.astro")
+	fallbackSiteTitle := extractFallbackSiteTitleLiteral(t, layout)
+	unquoted, err := strconv.Unquote(fallbackSiteTitle)
+	if err != nil {
+		t.Fatalf("fallbackSiteTitle is not a valid quoted string literal: %v\nGot: %s", err, fallbackSiteTitle)
+	}
+	if unquoted != siteTitle {
+		t.Fatalf("fallbackSiteTitle = %q, want %q", unquoted, siteTitle)
+	}
+}
+
+func TestAstroSiteAssetsBuildSmoke(t *testing.T) {
+	if os.Getenv("GOCIRE_ASTRO_BUILD_TEST") != "1" {
+		t.Skip("set GOCIRE_ASTRO_BUILD_TEST=1 to run the Astro build smoke test")
+	}
+	if _, err := exec.LookPath("pnpm"); err != nil {
+		t.Skipf("pnpm is not available: %v", err)
+	}
+
+	outputDir := writeAstroAssetsForTest(t, "Smoke Docs")
+	writeAstroBuildSmokeFile(t, outputDir, "src/generated/navigation.ts", `export const navigation = {
+  docs: { firstHref: "/", items: [] },
+  blog: { firstHref: "/", items: [] }
+};
+`)
+	writeAstroBuildSmokeFile(t, outputDir, "src/pages/index.astro", `---
+import SiteLayout from "../layouts/SiteLayout.astro";
+---
+
+<SiteLayout title="Smoke Docs">
+  <main class="page-shell">
+    <h1>Smoke Docs</h1>
+  </main>
+</SiteLayout>
+`)
+
+	runAstroBuildSmokeInstall(t, outputDir)
+	runAstroBuildSmokeCommand(t, outputDir, "pnpm", "build")
+}
+
 func writeAstroAssetsForTest(t *testing.T, siteTitle string) string {
 	t.Helper()
 
@@ -610,6 +669,73 @@ func writeAstroAssetsForTest(t *testing.T, siteTitle string) string {
 		t.Fatalf("WriteAstroSiteAssets returned error: %v", err)
 	}
 	return outputDir
+}
+
+func extractFallbackSiteTitleLiteral(t *testing.T, layout string) string {
+	t.Helper()
+
+	re := regexp.MustCompile(`(?m)^\s*const\s+fallbackSiteTitle\s*=\s*(.+);\s*$`)
+	matches := re.FindStringSubmatch(layout)
+	if matches == nil {
+		t.Fatal("SiteLayout.astro does not define const fallbackSiteTitle")
+	}
+	return strings.TrimSpace(matches[1])
+}
+
+func writeAstroBuildSmokeFile(t *testing.T, outputDir, slashRelPath, contents string) {
+	t.Helper()
+
+	outPath := filepath.Join(outputDir, filepath.FromSlash(slashRelPath))
+	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q): %v", filepath.Dir(outPath), err)
+	}
+	if err := os.WriteFile(outPath, []byte(contents), 0o644); err != nil {
+		t.Fatalf("WriteFile(%q): %v", slashRelPath, err)
+	}
+}
+
+func runAstroBuildSmokeCommand(t *testing.T, workDir, name string, args ...string) {
+	t.Helper()
+
+	output := runAstroBuildSmokeCommandOutput(t, workDir, name, args...)
+	if output.err != nil {
+		t.Fatalf("%s %s failed: %v\n%s", name, strings.Join(args, " "), output.err, output.contents)
+	}
+}
+
+func runAstroBuildSmokeInstall(t *testing.T, workDir string) {
+	t.Helper()
+
+	output := runAstroBuildSmokeCommandOutput(t, workDir, "pnpm", "install")
+	if output.err == nil {
+		return
+	}
+	if !strings.Contains(string(output.contents), "ERR_PNPM_IGNORED_BUILDS") {
+		t.Fatalf("pnpm install failed: %v\n%s", output.err, output.contents)
+	}
+
+	runAstroBuildSmokeCommand(t, workDir, "pnpm", "approve-builds", "--all")
+	runAstroBuildSmokeCommand(t, workDir, "pnpm", "install")
+}
+
+type astroBuildSmokeCommandOutput struct {
+	contents []byte
+	err      error
+}
+
+func runAstroBuildSmokeCommandOutput(t *testing.T, workDir, name string, args ...string) astroBuildSmokeCommandOutput {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = workDir
+	output, err := cmd.CombinedOutput()
+	if ctx.Err() != nil {
+		t.Fatalf("%s %s timed out after 2 minutes\n%s", name, strings.Join(args, " "), output)
+	}
+	return astroBuildSmokeCommandOutput{contents: output, err: err}
 }
 
 func readAstroAssetSnapshot(t *testing.T, outputDir string) map[string]string {
@@ -712,6 +838,24 @@ func extractAstroCSSVariableValue(t *testing.T, contents, variable string) strin
 	}
 	t.Fatalf("CSS block does not define variable %q", variable)
 	return ""
+}
+
+func assertAstroStringSetsEqual(t *testing.T, got, want []string) {
+	t.Helper()
+
+	gotSorted := append([]string(nil), got...)
+	wantSorted := append([]string(nil), want...)
+	sort.Strings(gotSorted)
+	sort.Strings(wantSorted)
+
+	if len(gotSorted) != len(wantSorted) {
+		t.Fatalf("len(got) = %d, want %d\ngot:  %q\nwant: %q", len(gotSorted), len(wantSorted), gotSorted, wantSorted)
+	}
+	for i := range wantSorted {
+		if gotSorted[i] != wantSorted[i] {
+			t.Fatalf("got[%d] = %q, want %q\ngot:  %q\nwant: %q", i, gotSorted[i], wantSorted[i], gotSorted, wantSorted)
+		}
+	}
 }
 
 func assertAstroAssetSnapshotsEqual(t *testing.T, got, want map[string]string) {
