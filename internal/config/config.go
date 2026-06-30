@@ -447,8 +447,10 @@ func validateMetadataKey(key string) error {
 	if path.IsAbs(key) || filepath.IsAbs(filepath.FromSlash(key)) || isWindowsAbsPath(key) {
 		return fmt.Errorf("content.metadata key %q must be project-relative", key)
 	}
-	if strings.Contains(key, "..") {
-		return fmt.Errorf("content.metadata key %q must not contain ..", key)
+	for _, component := range strings.Split(key, "/") {
+		if component == ".." {
+			return fmt.Errorf("content.metadata key %q must not contain parent directory components", key)
+		}
 	}
 	if path.Clean(key) == "." {
 		return fmt.Errorf("content.metadata key %q must reference a file", key)
