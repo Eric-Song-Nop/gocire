@@ -632,6 +632,75 @@ func TestAstroSiteLayoutQuotesFallbackSiteTitleAsStringLiteral(t *testing.T) {
 	}
 }
 
+func TestAstroSiteAssetsUseTemplateDirOverrides(t *testing.T) {
+	outputDir := t.TempDir()
+	templateDir := t.TempDir()
+	writeAstroTemplateOverrideFile(t, templateDir, "src/styles/global.css", "/* custom global css */\nbody { color: rebeccapurple; }\n")
+
+	if err := (AstroSiteAssets{
+		OutputDir:   outputDir,
+		SiteTitle:   "Custom Docs",
+		TemplateDir: templateDir,
+	}).Write(); err != nil {
+		t.Fatalf("Write returned error: %v", err)
+	}
+
+	globalCSS := readAstroAssetFile(t, outputDir, "src/styles/global.css")
+	if globalCSS != "/* custom global css */\nbody { color: rebeccapurple; }\n" {
+		t.Fatalf("global.css = %q, want custom override", globalCSS)
+	}
+
+	themeJS := readAstroAssetFile(t, outputDir, "src/scripts/theme.js")
+	assertAstroAssetContains(t, themeJS, "gocire-theme")
+}
+
+func TestAstroSiteAssetsRenderTemplateDirLayoutOverride(t *testing.T) {
+	outputDir := t.TempDir()
+	templateDir := t.TempDir()
+	writeAstroTemplateOverrideFile(t, templateDir, "src/layouts/SiteLayout.astro.tmpl", `---
+const fallbackSiteTitle = {{ .FallbackSiteTitle }};
+---
+
+<main>{fallbackSiteTitle}</main>
+`)
+
+	siteTitle := "Custom \"Layout\""
+	if err := (AstroSiteAssets{
+		OutputDir:   outputDir,
+		SiteTitle:   siteTitle,
+		TemplateDir: templateDir,
+	}).Write(); err != nil {
+		t.Fatalf("Write returned error: %v", err)
+	}
+
+	layout := readAstroAssetFile(t, outputDir, "src/layouts/SiteLayout.astro")
+	fallbackSiteTitle := extractFallbackSiteTitleLiteral(t, layout)
+	unquoted, err := strconv.Unquote(fallbackSiteTitle)
+	if err != nil {
+		t.Fatalf("fallbackSiteTitle is not a valid quoted string literal: %v\nGot: %s", err, fallbackSiteTitle)
+	}
+	if unquoted != siteTitle {
+		t.Fatalf("fallbackSiteTitle = %q, want %q", unquoted, siteTitle)
+	}
+	if _, err := os.Stat(filepath.Join(outputDir, "src", "layouts", "SiteLayout.astro.tmpl")); !os.IsNotExist(err) {
+		t.Fatalf("SiteLayout.astro.tmpl output err = %v, want not exist", err)
+	}
+}
+
+func TestAstroSiteAssetsRejectMissingTemplateDir(t *testing.T) {
+	err := (AstroSiteAssets{
+		OutputDir:   t.TempDir(),
+		SiteTitle:   "Docs",
+		TemplateDir: filepath.Join(t.TempDir(), "missing"),
+	}).Write()
+	if err == nil {
+		t.Fatal("Write returned nil error for missing templateDir")
+	}
+	if !strings.Contains(err.Error(), "Astro template directory") {
+		t.Fatalf("error = %q, want template directory context", err.Error())
+	}
+}
+
 func TestAstroSiteAssetsBuildSmoke(t *testing.T) {
 	if os.Getenv("GOCIRE_ASTRO_BUILD_TEST") != "1" {
 		t.Skip("set GOCIRE_ASTRO_BUILD_TEST=1 to run the Astro build smoke test")
@@ -669,6 +738,18 @@ func writeAstroAssetsForTest(t *testing.T, siteTitle string) string {
 		t.Fatalf("WriteAstroSiteAssets returned error: %v", err)
 	}
 	return outputDir
+}
+
+func writeAstroTemplateOverrideFile(t *testing.T, templateDir, slashRelPath, contents string) {
+	t.Helper()
+
+	outPath := filepath.Join(templateDir, filepath.FromSlash(slashRelPath))
+	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q): %v", filepath.Dir(outPath), err)
+	}
+	if err := os.WriteFile(outPath, []byte(contents), 0o644); err != nil {
+		t.Fatalf("WriteFile(%q): %v", slashRelPath, err)
+	}
 }
 
 func extractFallbackSiteTitleLiteral(t *testing.T, layout string) string {

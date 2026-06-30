@@ -65,8 +65,7 @@ func PromoteTemplateToScaffold() string {
 	return "phase-2"
 }
 
-// Phase 3 can add user-controlled template overrides. The safe version is a
-// deterministic overlay:
+// User-controlled template overrides should use a deterministic overlay:
 //
 // - built-in embedded files are always available,
 // - a configured theme directory may replace files by the same relative path,

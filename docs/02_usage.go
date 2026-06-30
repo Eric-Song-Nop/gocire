@@ -18,6 +18,23 @@ package docs
 // pnpm dev -- --host 127.0.0.1
 // ```
 //
+// A project can customize the generated Astro shell with `.gocire.yml`. The
+// built-in template remains the base, and `site.templateDir` overlays files by
+// the same relative path:
+//
+// ```yaml
+// site:
+//
+//	title: My Docs
+//	templateDir: .gocire/template
+//
+// ```
+//
+// For example, `.gocire/template/src/styles/global.css` replaces the built-in
+// `src/styles/global.css`. Missing files fall back to the embedded template.
+// Template files such as `src/layouts/SiteLayout.astro.tmpl` are still rendered
+// by `gocire`, so values like the site title remain available.
+//
 // Single-file export still exists for Markdown and MDX:
 //
 // ```bash
