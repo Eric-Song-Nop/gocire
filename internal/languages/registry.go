@@ -23,13 +23,14 @@ import (
 )
 
 type LanguageConfig struct {
-	SitterLanguage           *sitter.Language
-	QueryFileName            string
-	LSPCommand               string
-	LSPArgs                  []string
-	LSPInitializationOptions map[string]interface{}
-	IgnoredCaptures          []string
-	Extensions               []string
+	SitterLanguage            *sitter.Language
+	QueryFileName             string
+	LSPCommand                string
+	LSPArgs                   []string
+	LSPInitializationOptions  map[string]interface{}
+	LSPWorkspaceConfiguration map[string]interface{}
+	IgnoredCaptures           []string
+	Extensions                []string
 }
 
 var defaultIgnoredCaptures = []string{"punctuation", "keyword", "operator", "comment", "string"}
@@ -47,15 +48,84 @@ var goplsInitializationOptions = map[string]interface{}{
 	},
 }
 
+var typescriptInitializationOptions = map[string]interface{}{
+	"preferences": map[string]interface{}{
+		"includeInlayEnumMemberValueHints":                      true,
+		"includeInlayFunctionLikeReturnTypeHints":               true,
+		"includeInlayFunctionParameterTypeHints":                true,
+		"includeInlayParameterNameHints":                        "all",
+		"includeInlayParameterNameHintsWhenArgumentMatchesName": true,
+		"includeInlayPropertyDeclarationTypeHints":              true,
+		"includeInlayVariableTypeHints":                         true,
+		"includeInlayVariableTypeHintsWhenTypeMatchesName":      true,
+	},
+}
+
+var typescriptWorkspaceConfiguration = map[string]interface{}{
+	"typescript": map[string]interface{}{
+		"inlayHints": typescriptInitializationOptions["preferences"],
+	},
+	"javascript": map[string]interface{}{
+		"inlayHints": typescriptInitializationOptions["preferences"],
+	},
+}
+
+var rustAnalyzerInitializationOptions = map[string]interface{}{
+	"files": map[string]interface{}{
+		"excludeDirs": []string{".gocire"},
+	},
+	"inlayHints": map[string]interface{}{
+		"bindingModeHints": map[string]bool{
+			"enable": true,
+		},
+		"chainingHints": map[string]bool{
+			"enable": true,
+		},
+		"closureReturnTypeHints": map[string]interface{}{
+			"enable": "always",
+		},
+		"genericParameterHints": map[string]interface{}{
+			"const": map[string]bool{
+				"enable": true,
+			},
+			"lifetime": map[string]bool{
+				"enable": true,
+			},
+			"type": map[string]bool{
+				"enable": true,
+			},
+		},
+		"lifetimeElisionHints": map[string]interface{}{
+			"enable":            "always",
+			"useParameterNames": true,
+		},
+		"parameterHints": map[string]interface{}{
+			"enable": true,
+		},
+		"typeHints": map[string]interface{}{
+			"enable": true,
+		},
+	},
+}
+
+var goplsWorkspaceConfiguration = map[string]interface{}{
+	"gopls": goplsInitializationOptions,
+}
+
+var rustAnalyzerWorkspaceConfiguration = map[string]interface{}{
+	"rust-analyzer": rustAnalyzerInitializationOptions,
+}
+
 var registry = map[string]LanguageConfig{
 	"go": {
-		SitterLanguage:           sitter.NewLanguage(golangsitter.Language()),
-		QueryFileName:            "go.scm",
-		LSPCommand:               "gopls",
-		LSPArgs:                  []string{},
-		LSPInitializationOptions: goplsInitializationOptions,
-		IgnoredCaptures:          defaultIgnoredCaptures,
-		Extensions:               []string{".go"},
+		SitterLanguage:            sitter.NewLanguage(golangsitter.Language()),
+		QueryFileName:             "go.scm",
+		LSPCommand:                "gopls",
+		LSPArgs:                   []string{},
+		LSPInitializationOptions:  goplsInitializationOptions,
+		LSPWorkspaceConfiguration: goplsWorkspaceConfiguration,
+		IgnoredCaptures:           defaultIgnoredCaptures,
+		Extensions:                []string{".go"},
 	},
 	"python": {
 		SitterLanguage:  sitter.NewLanguage(pythonsitter.Language()),
@@ -66,28 +136,34 @@ var registry = map[string]LanguageConfig{
 		Extensions:      []string{".py"},
 	},
 	"typescript": {
-		SitterLanguage:  sitter.NewLanguage(typescript.LanguageTypescript()),
-		QueryFileName:   "typescript.scm",
-		LSPCommand:      "typescript-language-server",
-		LSPArgs:         []string{"--stdio"},
-		IgnoredCaptures: defaultIgnoredCaptures,
-		Extensions:      []string{".ts", ".tsx"},
+		SitterLanguage:            sitter.NewLanguage(typescript.LanguageTypescript()),
+		QueryFileName:             "typescript.scm",
+		LSPCommand:                "typescript-language-server",
+		LSPArgs:                   []string{"--stdio"},
+		LSPInitializationOptions:  typescriptInitializationOptions,
+		LSPWorkspaceConfiguration: typescriptWorkspaceConfiguration,
+		IgnoredCaptures:           defaultIgnoredCaptures,
+		Extensions:                []string{".ts", ".tsx"},
 	},
 	"javascript": {
-		SitterLanguage:  sitter.NewLanguage(javascript.Language()),
-		QueryFileName:   "javascript.scm",
-		LSPCommand:      "typescript-language-server",
-		LSPArgs:         []string{"--stdio"},
-		IgnoredCaptures: defaultIgnoredCaptures,
-		Extensions:      []string{".js", ".jsx"},
+		SitterLanguage:            sitter.NewLanguage(javascript.Language()),
+		QueryFileName:             "javascript.scm",
+		LSPCommand:                "typescript-language-server",
+		LSPArgs:                   []string{"--stdio"},
+		LSPInitializationOptions:  typescriptInitializationOptions,
+		LSPWorkspaceConfiguration: typescriptWorkspaceConfiguration,
+		IgnoredCaptures:           defaultIgnoredCaptures,
+		Extensions:                []string{".js", ".jsx"},
 	},
 	"rust": {
-		SitterLanguage:  sitter.NewLanguage(rustsitter.Language()),
-		QueryFileName:   "rust.scm",
-		LSPCommand:      "rust-analyzer",
-		LSPArgs:         []string{},
-		IgnoredCaptures: defaultIgnoredCaptures,
-		Extensions:      []string{".rs"},
+		SitterLanguage:            sitter.NewLanguage(rustsitter.Language()),
+		QueryFileName:             "rust.scm",
+		LSPCommand:                "rust-analyzer",
+		LSPArgs:                   []string{},
+		LSPInitializationOptions:  rustAnalyzerInitializationOptions,
+		LSPWorkspaceConfiguration: rustAnalyzerWorkspaceConfiguration,
+		IgnoredCaptures:           defaultIgnoredCaptures,
+		Extensions:                []string{".rs"},
 	},
 	"cpp": {
 		SitterLanguage:  sitter.NewLanguage(cppsitter.Language()),

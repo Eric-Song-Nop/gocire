@@ -3,10 +3,12 @@ package lsp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,10 +19,12 @@ import (
 )
 
 type Client struct {
-	process *exec.Cmd
-	conn    *jsonrpc2.Conn
-	ctx     context.Context
-	cancel  context.CancelFunc
+	process         *exec.Cmd
+	conn            *jsonrpc2.Conn
+	ctx             context.Context
+	cancel          context.CancelFunc
+	configMu        sync.RWMutex
+	workspaceConfig interface{}
 
 	// Synchronization for work done progress
 	mu           sync.Mutex
@@ -52,6 +56,7 @@ func (c *readWriteCloser) Close() error {
 
 func NewClient(ctx context.Context, cmdName string, args []string) (*Client, error) {
 	cmd := exec.Command(cmdName, args...)
+	lspDebugf("start command=%s args=%v", cmdName, args)
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -87,8 +92,12 @@ func NewClient(ctx context.Context, cmdName string, args []string) (*Client, err
 	c.workDoneCond = sync.NewCond(&c.mu)
 
 	handler := jsonrpc2.HandlerWithError(func(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) (interface{}, error) {
+		lspDebugf("server request method=%s", req.Method)
 		if req.Method == MethodWindowWorkDoneProgressCreate {
 			return nil, nil
+		}
+		if req.Method == MethodWorkspaceConfiguration {
+			return c.workspaceConfiguration(req.Params)
 		}
 		if req.Method == MethodProgress {
 			var params ProgressParams
@@ -174,28 +183,130 @@ func (c *Client) WaitForIndexing(timeout time.Duration) error {
 }
 
 func (c *Client) Initialize(rootPath string, initializationOptions ...interface{}) error {
+	var options interface{}
+	if len(initializationOptions) > 0 {
+		options = initializationOptions[0]
+	}
+	return c.InitializeWithOptions(rootPath, options, nil)
+}
+
+func (c *Client) InitializeWithOptions(rootPath string, initializationOptions, workspaceConfiguration interface{}) error {
 	absPath, err := filepath.Abs(rootPath)
 	if err != nil {
 		return err
 	}
 
-	var options interface{}
-	if len(initializationOptions) > 0 {
-		options = initializationOptions[0]
-	}
+	c.configMu.Lock()
+	c.workspaceConfig = workspaceConfiguration
+	c.configMu.Unlock()
 
-	params := newInitializeParams(absPath, options)
+	params := newInitializeParams(absPath, initializationOptions)
+	lspDebugf("initialize root=%s initOptions=%#v workspaceConfig=%#v", absPath, initializationOptions, workspaceConfiguration)
 
 	var result InitializeResult
 	if err := c.conn.Call(c.ctx, MethodInitialize, params, &result); err != nil {
 		return errors.Wrap(err, "initialize request failed")
 	}
+	lspDebugf("initialize result capabilities=%#v", result.Capabilities)
 
 	if err := c.conn.Notify(c.ctx, MethodInitialized, &InitializedParams{}); err != nil {
 		return errors.Wrap(err, "initialized notification failed")
 	}
 
 	return nil
+}
+
+func (c *Client) workspaceConfiguration(raw *json.RawMessage) ([]interface{}, error) {
+	var params WorkspaceConfigurationParams
+	if raw == nil {
+		return nil, &jsonrpc2.Error{
+			Code:    jsonrpc2.CodeInvalidParams,
+			Message: "workspace/configuration params are required",
+		}
+	}
+	if err := json.Unmarshal(*raw, &params); err != nil {
+		return nil, &jsonrpc2.Error{
+			Code:    jsonrpc2.CodeInvalidParams,
+			Message: fmt.Sprintf("invalid workspace/configuration params: %v", err),
+		}
+	}
+
+	if len(params.Items) == 0 {
+		return []interface{}{}, nil
+	}
+
+	result := make([]interface{}, len(params.Items))
+	config := c.currentWorkspaceConfiguration()
+	for i, item := range params.Items {
+		result[i] = configurationForSection(config, item.Section)
+		lspDebugf("workspace/configuration item=%d section=%q scope=%q result=%#v", i, item.Section, item.ScopeURI, result[i])
+	}
+	return result, nil
+}
+
+func (c *Client) currentWorkspaceConfiguration() interface{} {
+	c.configMu.RLock()
+	defer c.configMu.RUnlock()
+	return c.workspaceConfig
+}
+
+func configurationForSection(config interface{}, section string) interface{} {
+	if section == "" {
+		return config
+	}
+
+	if value, ok := mapValue(config, section); ok {
+		return value
+	}
+	if value, ok := nestedConfigurationValue(config, section); ok {
+		return value
+	}
+
+	return nil
+}
+
+func nestedConfigurationValue(root interface{}, path string) (interface{}, bool) {
+	if path == "" {
+		return root, true
+	}
+
+	var current interface{} = root
+	for _, key := range strings.Split(path, ".") {
+		value, ok := mapValue(current, key)
+		if !ok {
+			return nil, false
+		}
+		current = value
+	}
+	return current, true
+}
+
+func mapValue(value interface{}, key string) (interface{}, bool) {
+	switch typed := value.(type) {
+	case map[string]interface{}:
+		v, ok := typed[key]
+		return v, ok
+	case map[string]bool:
+		v, ok := typed[key]
+		if !ok {
+			return nil, false
+		}
+		return v, true
+	}
+
+	rv := reflect.ValueOf(value)
+	if !rv.IsValid() || rv.Kind() != reflect.Map || rv.Type().Key().Kind() != reflect.String {
+		return nil, false
+	}
+	keyValue := reflect.ValueOf(key)
+	if !keyValue.Type().AssignableTo(rv.Type().Key()) {
+		keyValue = keyValue.Convert(rv.Type().Key())
+	}
+	found := rv.MapIndex(keyValue)
+	if !found.IsValid() {
+		return nil, false
+	}
+	return found.Interface(), true
 }
 
 func newInitializeParams(absPath string, initializationOptions interface{}) *InitializeParams {
@@ -208,6 +319,9 @@ func newInitializeParams(absPath string, initializationOptions interface{}) *Ini
 			},
 		},
 		Capabilities: ClientCapabilities{
+			Workspace: &WorkspaceClientCapabilities{
+				Configuration: true,
+			},
 			Window: &WindowClientCapabilities{
 				WorkDoneProgress: true,
 			},
@@ -264,10 +378,17 @@ func (c *Client) Hover(filePath string, line, char int) (*Hover, error) {
 	if err := c.conn.Call(c.ctx, MethodTextDocumentHover, params, &raw); err != nil {
 		return nil, errors.Wrap(err, "hover request failed")
 	}
+	if isJSONNull(raw) {
+		lspDebugf("hover null file=%s line=%d char=%d", absPath, line, char)
+		return nil, nil
+	}
 
 	var result Hover
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal hover result")
+	}
+	if result.Contents.Value == "" {
+		lspDebugf("hover empty file=%s line=%d char=%d raw=%s", absPath, line, char, string(raw))
 	}
 
 	return &result, nil
@@ -295,9 +416,16 @@ func (c *Client) Definition(filePath string, line, char int) ([]Location, error)
 	if err := c.conn.Call(c.ctx, MethodTextDocumentDefinition, params, &raw); err != nil {
 		return nil, errors.Wrap(err, "definition request failed")
 	}
+	if isJSONNull(raw) {
+		lspDebugf("definition null file=%s line=%d char=%d", absPath, line, char)
+		return nil, nil
+	}
 
 	var result []Location
 	if err := json.Unmarshal(raw, &result); err == nil {
+		if len(result) == 0 {
+			lspDebugf("definition empty file=%s line=%d char=%d raw=%s", absPath, line, char, string(raw))
+		}
 		return result, nil
 	}
 
@@ -326,11 +454,24 @@ func (c *Client) InlayHint(filePath string, startLine, startChar, endLine, endCh
 	}
 
 	var result []InlayHint
-	if err := c.conn.Call(c.ctx, MethodTextDocumentInlayHint, params, &result); err != nil {
+	var raw json.RawMessage
+	if err := c.conn.Call(c.ctx, MethodTextDocumentInlayHint, params, &raw); err != nil {
 		return nil, errors.Wrap(err, "inlayHint request failed")
 	}
+	if isJSONNull(raw) {
+		lspDebugf("inlayHint null file=%s range=%d:%d-%d:%d", absPath, startLine, startChar, endLine, endChar)
+		return nil, nil
+	}
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal inlayHint result")
+	}
+	lspDebugf("inlayHint result file=%s range=%d:%d-%d:%d count=%d", absPath, startLine, startChar, endLine, endChar, len(result))
 
 	return result, nil
+}
+
+func isJSONNull(raw json.RawMessage) bool {
+	return strings.TrimSpace(string(raw)) == "null"
 }
 
 func (c *Client) Shutdown() error {
@@ -373,4 +514,11 @@ func isExpectedShutdownError(err error) bool {
 // status Get status of the language server
 func (c *Client) status() error {
 	return nil
+}
+
+func lspDebugf(format string, args ...interface{}) {
+	if os.Getenv("GOCIRE_LSP_DEBUG") == "" {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "[gocire:lsp-client] "+format+"\n", args...)
 }
