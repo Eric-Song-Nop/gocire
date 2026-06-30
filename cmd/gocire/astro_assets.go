@@ -230,7 +230,7 @@ const currentPath = Astro.url.pathname;
 const pageDate = String(date || "").trim();
 const pageAuthor = String(author || "").trim();
 const pageTags = compactTags(tags);
-const hasPageMeta = Boolean(language || sourcePath || pageDate || pageAuthor || pageTags.length > 0);
+const hasPageMeta = Boolean(pageDate || pageAuthor || pageTags.length > 0);
 
 function compactTags(values?: string[]) {
   return (values ?? []).map((value) => String(value).trim()).filter(Boolean);
@@ -267,18 +267,6 @@ function compactTags(values?: string[]) {
                     {pageTags.map((tag) => <li class="metadata-tag">{tag}</li>)}
                   </ul>
                 </dd>
-              </>
-            )}
-            {language && (
-              <>
-                <dt>Language</dt>
-                <dd>{language}</dd>
-              </>
-            )}
-            {sourcePath && (
-              <>
-                <dt>Path</dt>
-                <dd><code>{sourcePath}</code></dd>
               </>
             )}
           </dl>
@@ -944,13 +932,6 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
 .page-meta dd {
   min-width: 0;
   margin: 0;
-}
-
-.page-meta code {
-  overflow-wrap: anywhere;
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 0.9em;
 }
 
 .metadata-tags {
