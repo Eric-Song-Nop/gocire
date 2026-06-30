@@ -1687,6 +1687,14 @@ const tokens = Array.from(document.querySelectorAll(hoverSelector));
 if (tokens.length > 0) {
   const hideDelayMs = 120;
   const tapMoveThreshold = 8;
+  const focusableSelector = [
+    "a[href]",
+    "button:not([disabled])",
+    "input:not([disabled])",
+    "select:not([disabled])",
+    "textarea:not([disabled])",
+    "[tabindex]:not([tabindex=\"-1\"])",
+  ].join(", ");
   let tooltip;
   let cleanupPosition;
   let activeToken;
@@ -1753,6 +1761,61 @@ if (tokens.length > 0) {
 
   const tokenHref = (token) => {
     return token instanceof HTMLAnchorElement ? token.getAttribute("href") : "";
+  };
+
+  const isFocusableElement = (element) => {
+    return element instanceof HTMLElement && !element.hidden && element.getAttribute("aria-hidden") !== "true";
+  };
+
+  const tooltipFocusableElements = () => {
+    if (!tooltip || tooltip.hidden) {
+      return [];
+    }
+
+    return Array.from(tooltip.querySelectorAll(focusableSelector)).filter(isFocusableElement);
+  };
+
+  const pageFocusableElements = () => {
+    return Array.from(document.querySelectorAll(focusableSelector)).filter((element) => {
+      return isFocusableElement(element) && (!tooltip || !tooltip.contains(element));
+    });
+  };
+
+  const focusElement = (element) => {
+    if (!(element instanceof HTMLElement)) {
+      return false;
+    }
+
+    try {
+      element.focus({ preventScroll: true });
+    } catch {
+      element.focus();
+    }
+    return document.activeElement === element;
+  };
+
+  const focusFirstTooltipItem = () => {
+    const focusable = tooltipFocusableElements();
+    if (focusable.length === 0) {
+      return false;
+    }
+
+    cancelHide();
+    return focusElement(focusable[0]);
+  };
+
+  const focusPageElementAdjacentToToken = (token, direction) => {
+    if (!(token instanceof HTMLElement)) {
+      return false;
+    }
+
+    const focusable = pageFocusableElements();
+    const tokenIndex = focusable.indexOf(token);
+    if (tokenIndex === -1) {
+      return false;
+    }
+
+    return focusElement(focusable[tokenIndex + direction]);
   };
 
   const setTooltipAction = (floating, token) => {
@@ -1941,6 +2004,43 @@ if (tokens.length > 0) {
     }
 
     showTooltip(token, "keyboardPinned");
+    focusFirstTooltipItem();
+  };
+
+  const handleTooltipTab = (event) => {
+    if (event.key !== "Tab" || !tooltip || tooltip.hidden || !activeToken) {
+      return;
+    }
+
+    const focusable = tooltipFocusableElements();
+    if (focusable.length === 0) {
+      return;
+    }
+
+    const activeElement = document.activeElement;
+    if (activeElement === activeToken && !event.shiftKey) {
+      event.preventDefault();
+      focusFirstTooltipItem();
+      return;
+    }
+
+    if (!(activeElement instanceof Node) || !tooltip.contains(activeElement)) {
+      return;
+    }
+
+    const focusIndex = focusable.indexOf(activeElement);
+    if (event.shiftKey && focusIndex === 0) {
+      event.preventDefault();
+      focusElement(activeToken);
+      return;
+    }
+
+    if (!event.shiftKey && focusIndex === focusable.length - 1) {
+      const tokenToLeave = activeToken;
+      event.preventDefault();
+      hideTooltip(tokenToLeave, { force: true });
+      focusPageElementAdjacentToToken(tokenToLeave, 1);
+    }
   };
 
   for (const token of tokens) {
@@ -1974,7 +2074,9 @@ if (tokens.length > 0) {
       if (shouldRestoreFocus && tokenToRestore instanceof HTMLElement) {
         tokenToRestore.focus({ preventScroll: true });
       }
+      return;
     }
+    handleTooltipTab(event);
   });
 
   document.addEventListener(
