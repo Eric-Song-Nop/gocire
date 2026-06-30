@@ -241,6 +241,26 @@ content:
 	}
 }
 
+func TestLoadContentMetadataAllowsDotDotInBasename(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, ".gocire.yml")
+	writeFile(t, configPath, `
+content:
+  metadata:
+    docs/v1..v2.go:
+      title: Versioned API
+`)
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load returned error: %v", err)
+	}
+
+	if _, ok := cfg.Content.Metadata["docs/v1..v2.go"]; !ok {
+		t.Fatalf("metadata keys = %#v, want docs/v1..v2.go", cfg.Content.Metadata)
+	}
+}
+
 func TestLoadContentMetadataRejectsInvalidDate(t *testing.T) {
 	tests := []struct {
 		name string
@@ -279,7 +299,9 @@ func TestLoadContentMetadataRejectsInvalidKeys(t *testing.T) {
 	}{
 		{name: "empty", key: ""},
 		{name: "absolute", key: "/docs/intro.md"},
-		{name: "parent", key: "docs/../intro.md"},
+		{name: "parent at root", key: "../secret.go"},
+		{name: "parent in middle", key: "docs/../secret.go"},
+		{name: "nested parents", key: "docs/nested/../../secret.go"},
 		{name: "nul", key: `docs\u0000intro.md`},
 		{name: "backslash", key: `docs\\intro.md`},
 	}
