@@ -26,6 +26,8 @@ package docs
 // site:
 //
 //	title: My Docs
+//	description: Documentation for my project
+//	url: https://example.com/docs
 //	templateDir: .gocire/template
 //
 // ```
@@ -33,7 +35,9 @@ package docs
 // For example, `.gocire/template/src/styles/global.css` replaces the built-in
 // `src/styles/global.css`. Missing files fall back to the embedded template.
 // Template files such as `src/layouts/SiteLayout.astro.tmpl` are still rendered
-// by `gocire`, so values like the site title remain available.
+// by `gocire`, so values like the site title remain available. The
+// `description` becomes the default page meta description, and `url` is written
+// to generated site data for canonical links and static endpoints.
 //
 // Single-file export still exists for Markdown and MDX:
 //

@@ -39,6 +39,12 @@ func TestLoadMissingDefaultConfigUsesDefaults(t *testing.T) {
 		t.Fatalf("content metadata = %#v, want empty", cfg.Content.Metadata)
 	}
 	assertPath(t, cfg.Output.Dir, filepath.Join(wd, ".gocire", "site"))
+	if cfg.Site.Description != "" {
+		t.Fatalf("site description = %q, want empty", cfg.Site.Description)
+	}
+	if cfg.Site.URL != "" {
+		t.Fatalf("site url = %q, want empty", cfg.Site.URL)
+	}
 
 	if cfg.Source.RoutePrefix != "/_source" {
 		t.Fatalf("route prefix = %q, want %q", cfg.Source.RoutePrefix, "/_source")
@@ -79,6 +85,8 @@ func TestLoadYAMLOverridesDefaults(t *testing.T) {
 	writeFile(t, configPath, `
 site:
   title: Example Site
+  description: Example description
+  url: https://example.com/docs
   templateDir: theme
 project:
   root: repo
@@ -103,6 +111,12 @@ output:
 	if cfg.Site.Title != "Example Site" {
 		t.Fatalf("site title = %q, want %q", cfg.Site.Title, "Example Site")
 	}
+	if cfg.Site.Description != "Example description" {
+		t.Fatalf("site description = %q, want %q", cfg.Site.Description, "Example description")
+	}
+	if cfg.Site.URL != "https://example.com/docs" {
+		t.Fatalf("site url = %q, want %q", cfg.Site.URL, "https://example.com/docs")
+	}
 	assertPath(t, cfg.Site.TemplateDir, filepath.Join(dir, "theme"))
 	assertPath(t, cfg.Project.Root, filepath.Join(dir, "repo"))
 	assertPath(t, cfg.Content.Docs, filepath.Join(dir, "content", "docs"))
@@ -116,6 +130,106 @@ output:
 	}
 	if !reflect.DeepEqual(cfg.Source.Exclude, []string{"tmp/**"}) {
 		t.Fatalf("exclude = %#v, want %#v", cfg.Source.Exclude, []string{"tmp/**"})
+	}
+}
+
+func TestLoadSiteDescriptionAndURLFormats(t *testing.T) {
+	tests := []struct {
+		name        string
+		filename    string
+		contents    string
+		description string
+		url         string
+	}{
+		{
+			name:     "yaml",
+			filename: ".gocire.yml",
+			contents: `
+site:
+  description: " YAML description "
+  url: https://example.com/yaml
+`,
+			description: "YAML description",
+			url:         "https://example.com/yaml",
+		},
+		{
+			name:        "json",
+			filename:    ".gocire.json",
+			contents:    `{"site":{"description":"JSON description","url":"https://example.com/json"}}`,
+			description: "JSON description",
+			url:         "https://example.com/json",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			configPath := filepath.Join(dir, tt.filename)
+			writeFile(t, configPath, tt.contents)
+
+			cfg, err := Load(configPath)
+			if err != nil {
+				t.Fatalf("Load returned error: %v", err)
+			}
+			if cfg.Site.Description != tt.description {
+				t.Fatalf("site description = %q, want %q", cfg.Site.Description, tt.description)
+			}
+			if cfg.Site.URL != tt.url {
+				t.Fatalf("site url = %q, want %q", cfg.Site.URL, tt.url)
+			}
+		})
+	}
+}
+
+func TestLoadAllowsEmptySiteURL(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, ".gocire.yml")
+	writeFile(t, configPath, `
+site:
+  url: ""
+`)
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load returned error: %v", err)
+	}
+	if cfg.Site.URL != "" {
+		t.Fatalf("site url = %q, want empty", cfg.Site.URL)
+	}
+}
+
+func TestLoadRejectsInvalidSiteURL(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{name: "relative", url: "example.com"},
+		{name: "path", url: "/docs"},
+		{name: "unsupported scheme", url: "ftp://example.com"},
+		{name: "missing host", url: "https:///docs"},
+		{name: "missing host with scheme", url: "http://"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			configPath := filepath.Join(dir, ".gocire.yml")
+			writeFile(t, configPath, `
+site:
+  url: "`+tt.url+`"
+`)
+
+			_, err := Load(configPath)
+			if err == nil {
+				t.Fatal("Load returned nil error for invalid site url")
+			}
+			if !strings.Contains(err.Error(), "site.url") {
+				t.Fatalf("error = %q, want site.url context", err.Error())
+			}
+			if !strings.Contains(err.Error(), "absolute http or https URL with a host") {
+				t.Fatalf("error = %q, want absolute http or https host message", err.Error())
+			}
+		})
 	}
 }
 

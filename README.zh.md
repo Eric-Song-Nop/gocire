@@ -32,11 +32,15 @@ pnpm dev -- --host 127.0.0.1
 ```yaml
 site:
   title: My Docs
+  description: Documentation for my project
+  url: https://example.com/docs
   templateDir: .gocire/template
 ```
 
 例如，`.gocire/template/src/styles/global.css` 会替换生成站点里的默认
 `src/styles/global.css`。
+`description` 会作为默认页面 meta description，`url` 会写入生成的 site data，
+供后续 canonical link 和静态 endpoint 使用。
 
 ## 单文件导出
 

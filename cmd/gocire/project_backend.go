@@ -77,9 +77,14 @@ type astroProjectBackend struct {
 
 type astroGeneratedPage struct {
 	Route      string
+	Href       string
 	Module     string
 	Kind       project.PageKind
 	Title      string
+	Date       string
+	Tags       []string
+	Author     string
+	Language   string
 	SourcePath string
 }
 
@@ -128,9 +133,14 @@ func (b *astroProjectBackend) ExportFile(ctx context.Context, req ProjectFileExp
 	b.mu.Lock()
 	b.pages = append(b.pages, astroGeneratedPage{
 		Route:      strings.TrimLeft(route, "/"),
+		Href:       req.Page.Href,
 		Module:     modulePath,
 		Kind:       req.Page.Kind,
 		Title:      req.Page.Title,
+		Date:       req.Page.Date,
+		Tags:       cloneAstroSiteDataStrings(req.Page.Tags),
+		Author:     req.Page.Author,
+		Language:   req.Page.Language,
 		SourcePath: req.Page.SourcePath,
 	})
 	b.mu.Unlock()
@@ -144,6 +154,9 @@ func (b *astroProjectBackend) Finish(ctx context.Context) error {
 	b.mu.Unlock()
 
 	if err := writeAstroRouteIndex(b.plan.Config.Output.Dir, pages); err != nil {
+		return err
+	}
+	if err := writeAstroSiteData(b.plan.Config.Output.Dir, b.plan.Config.Site, pages, b.plan.Site.Navigation); err != nil {
 		return err
 	}
 	if err := writeAstroNavigation(b.plan.Config.Output.Dir, b.plan.Site.Navigation); err != nil {
@@ -281,11 +294,10 @@ func removeAstroHomePage(outputDir string) error {
 }
 
 func writeAstroNavigation(outputDir string, navigation SiteNavigation) error {
-	var sb strings.Builder
-	sb.WriteString("export const navigation = ")
-	sb.WriteString(astroNavigationLiteral(navigation))
-	sb.WriteString(";\n")
-	return writeOutputFile(filepath.Join(outputDir, "src", "generated", "navigation.ts"), sb.String())
+	return writeOutputFile(
+		filepath.Join(outputDir, "src", "generated", "navigation.ts"),
+		"export { navigation } from \"./site-data\";\n",
+	)
 }
 
 func astroNavigationLiteral(navigation SiteNavigation) string {
