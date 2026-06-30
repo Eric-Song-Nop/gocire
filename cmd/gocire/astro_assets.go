@@ -1292,7 +1292,8 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   font-family: var(--sans);
   font-size: 0.88rem;
   line-height: 1.5;
-  pointer-events: none;
+  overscroll-behavior: contain;
+  pointer-events: auto;
   white-space: normal;
 }
 
@@ -1657,9 +1658,11 @@ const hoverSelector = "[data-hover-html], [data-hover]";
 const tokens = Array.from(document.querySelectorAll(hoverSelector));
 
 if (tokens.length > 0) {
+  const hideDelayMs = 120;
   let tooltip;
   let cleanupPosition;
   let activeToken;
+  let hideTimer;
 
   const ensureTooltip = () => {
     if (tooltip) {
@@ -1675,6 +1678,10 @@ if (tokens.length > 0) {
     content.className = "gocire-tooltip__content";
     tooltip.appendChild(content);
     document.body.appendChild(tooltip);
+    tooltip.addEventListener("mouseenter", cancelHide);
+    tooltip.addEventListener("mouseleave", scheduleHide);
+    tooltip.addEventListener("focusin", cancelHide);
+    tooltip.addEventListener("focusout", scheduleHide);
     return tooltip;
   };
 
@@ -1732,11 +1739,35 @@ if (tokens.length > 0) {
     }
   };
 
-  const hideTooltip = (token) => {
+  const cancelHide = () => {
+    if (hideTimer) {
+      window.clearTimeout(hideTimer);
+      hideTimer = undefined;
+    }
+  };
+
+  const isTooltipActive = () => {
+    if (!activeToken || !tooltip || tooltip.hidden) {
+      return false;
+    }
+
+    const activeElement = document.activeElement;
+    if (activeElement instanceof Node && (activeToken.contains(activeElement) || tooltip.contains(activeElement))) {
+      return true;
+    }
+
+    return activeToken.matches(":hover") || tooltip.matches(":hover");
+  };
+
+  const hideTooltip = (token, options = {}) => {
     if (token && activeToken && token !== activeToken) {
       return;
     }
+    if (!options.force && isTooltipActive()) {
+      return;
+    }
 
+    cancelHide();
     stopPositionUpdates();
     if (activeToken) {
       activeToken.removeAttribute("aria-describedby");
@@ -1748,14 +1779,25 @@ if (tokens.length > 0) {
     }
   };
 
+  const scheduleHide = () => {
+    cancelHide();
+    hideTimer = window.setTimeout(() => {
+      hideTooltip(activeToken);
+    }, hideDelayMs);
+  };
+
   const showTooltip = (token) => {
     const floating = ensureTooltip();
     if (!setTooltipContent(floating, token)) {
-      hideTooltip();
+      hideTooltip(undefined, { force: true });
       return;
     }
 
+    cancelHide();
     floating.hidden = false;
+    if (activeToken && activeToken !== token) {
+      activeToken.removeAttribute("aria-describedby");
+    }
     activeToken = token;
     token.setAttribute("aria-describedby", floating.id);
 
@@ -1772,23 +1814,24 @@ if (tokens.length > 0) {
     }
 
     token.addEventListener("mouseenter", () => showTooltip(token));
-    token.addEventListener("mouseleave", () => hideTooltip(token));
+    token.addEventListener("mouseleave", scheduleHide);
     token.addEventListener("focus", () => showTooltip(token));
-    token.addEventListener("blur", () => hideTooltip(token));
+    token.addEventListener("blur", scheduleHide);
   }
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      hideTooltip(activeToken);
+      hideTooltip(activeToken, { force: true });
     }
   });
 
   document.addEventListener(
     "pointerdown",
     (event) => {
-      const target = event.target instanceof Element ? event.target.closest(hoverSelector) : null;
-      if (!target) {
-        hideTooltip(activeToken);
+      const target = event.target instanceof Node ? event.target : null;
+      const hoveredToken = target instanceof Element ? target.closest(hoverSelector) : null;
+      if (!hoveredToken && (!tooltip || !target || !tooltip.contains(target))) {
+        hideTooltip(activeToken, { force: true });
       }
     },
     true,

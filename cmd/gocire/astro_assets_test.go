@@ -105,7 +105,17 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"aria-describedby",
 		"tabindex",
 		"Escape",
+		"pointerdown",
 		"autoUpdate",
+		"const hideDelayMs = 120",
+		"window.setTimeout",
+		"window.clearTimeout",
+		`tooltip.addEventListener("mouseenter", cancelHide)`,
+		`tooltip.addEventListener("mouseleave", scheduleHide)`,
+		`tooltip.addEventListener("focusin", cancelHide)`,
+		`tooltip.addEventListener("focusout", scheduleHide)`,
+		"tooltip.contains(target)",
+		`hideTooltip(activeToken, { force: true })`,
 	} {
 		assertAstroAssetContains(t, tooltip, want)
 	}
@@ -173,10 +183,14 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		".gocire-tooltip table",
 		".gocire-tooltip .chroma",
 		"max-height",
+		"overflow: auto",
 		"overflow-x: auto",
+		"overscroll-behavior: contain",
+		"pointer-events: auto",
 	} {
 		assertAstroAssetContains(t, globalCSS, want)
 	}
+	assertAstroAssetNotContains(t, globalCSS, "pointer-events: none")
 }
 
 func TestAstroSiteAssetsIncludeKatexRenderingSupport(t *testing.T) {
