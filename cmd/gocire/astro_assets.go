@@ -1841,7 +1841,7 @@ if (tokens.length > 0) {
     if (!activeToken || !tooltip || tooltip.hidden) {
       return false;
     }
-    if (mode === "touchPinned") {
+    if (mode === "touchPinned" || mode === "keyboardPinned") {
       return true;
     }
 
@@ -1928,6 +1928,21 @@ if (tokens.length > 0) {
     showTooltip(token, "touchPinned");
   };
 
+  const handleKeyboardActivation = (token, event) => {
+    if (token instanceof HTMLAnchorElement || (event.key !== "Enter" && event.key !== " ")) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (activeToken === token && mode === "keyboardPinned") {
+      hideTooltip(token, { force: true });
+      return;
+    }
+
+    showTooltip(token, "keyboardPinned");
+  };
+
   for (const token of tokens) {
     if (!token.hasAttribute("tabindex")) {
       token.setAttribute("tabindex", "0");
@@ -1948,6 +1963,7 @@ if (tokens.length > 0) {
       }
     });
     token.addEventListener("blur", scheduleHide);
+    token.addEventListener("keydown", (event) => handleKeyboardActivation(token, event));
   }
 
   document.addEventListener("keydown", (event) => {
