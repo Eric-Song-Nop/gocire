@@ -100,6 +100,7 @@ func astroPackageJSON() (string, error) {
 		Dependencies: map[string]string{
 			"@floating-ui/dom": "latest",
 			"astro":            "latest",
+			"katex":            "0.17.0",
 			"lucide-astro":     "latest",
 		},
 	}, "", "  ")
@@ -121,6 +122,7 @@ func astroSiteLayout(siteTitle string) string {
 import Moon from "lucide-astro/Moon";
 import Sun from "lucide-astro/Sun";
 import { navigation } from "../generated/navigation";
+import "katex/dist/katex.min.css";
 import "../styles/global.css";
 
 interface Props {
@@ -1001,6 +1003,41 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   margin: 0 0 1rem;
 }
 
+.cire-prose ul,
+.cire-prose ol {
+  padding-left: 1.45rem;
+}
+
+.cire-prose li + li {
+  margin-top: 0.28rem;
+}
+
+.cire-prose a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.cire-prose a:hover {
+  color: var(--link-hover);
+}
+
+.cire-prose blockquote {
+  margin: 1.1rem 0;
+  padding: 0.1rem 0 0.1rem 1rem;
+  border-left: 3px solid var(--line);
+  color: var(--meta-text);
+}
+
+.cire-prose blockquote > :first-child {
+  margin-top: 0;
+}
+
+.cire-prose blockquote > :last-child {
+  margin-bottom: 0;
+}
+
 .cire-prose code {
   padding: 0.12em 0.28em;
   border-radius: 4px;
@@ -1008,6 +1045,79 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   color: var(--inline-code-text);
   font-family: var(--mono);
   font-size: 0.92em;
+}
+
+.cire-prose pre,
+.cire-prose .chroma {
+  max-width: 100%;
+  margin: 1rem 0;
+  overflow-x: auto;
+  border: 1px solid var(--code-border);
+  border-radius: 6px;
+  background: var(--code-bg);
+  color: var(--code-text);
+  padding: 1rem;
+}
+
+.cire-prose .chroma pre {
+  margin: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.cire-prose pre code,
+.cire-prose .chroma code {
+  display: block;
+  overflow-x: auto;
+  border-radius: 0;
+  background: transparent;
+  color: var(--code-text);
+  padding: 0;
+}
+
+.cire-prose table {
+  display: block;
+  max-width: 100%;
+  margin: 1.25rem 0;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.cire-prose th,
+.cire-prose td {
+  border: 1px solid var(--line);
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.cire-prose th {
+  background: var(--surface-muted);
+  color: var(--meta-text);
+  font-weight: 700;
+}
+
+.cire-prose img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1rem auto;
+  border-radius: 6px;
+}
+
+.cire-prose .katex-display {
+  max-width: 100%;
+  margin: 1.25rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.15rem 0 0.25rem;
+}
+
+.cire-prose .katex-display > .katex {
+  white-space: nowrap;
 }
 
 .source-panel {
