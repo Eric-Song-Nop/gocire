@@ -27,6 +27,19 @@ pnpm dev -- --host 127.0.0.1
 
 The generated Astro project is written to `.gocire/site` by default.
 
+To customize the generated Astro shell, set `site.templateDir` in `.gocire.yml`.
+Files in that directory override the embedded template by the same relative
+path, while missing files fall back to the built-in template:
+
+```yaml
+site:
+  title: My Docs
+  templateDir: .gocire/template
+```
+
+For example, `.gocire/template/src/styles/global.css` replaces the default
+`src/styles/global.css` in the generated site.
+
 ## Single-File Export
 
 ```bash

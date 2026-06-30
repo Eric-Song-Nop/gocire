@@ -273,11 +273,13 @@ output:
 func TestProjectExportRunnerWritesAstroProject(t *testing.T) {
 	root := t.TempDir()
 	writeProjectTestFile(t, filepath.Join(root, "repo", "main.go"), "package main\n\nfunc main() {}\n")
+	writeProjectTestFile(t, filepath.Join(root, "theme", "src", "scripts", "theme.js"), "export const customThemeMarker = true;\n")
 
 	configPath := filepath.Join(root, ".gocire.yml")
 	writeProjectTestFile(t, configPath, `
 site:
   title: Test Site
+  templateDir: theme
 content:
   metadata:
     main.go:
@@ -318,6 +320,15 @@ output:
 		if _, err := os.Stat(outPath); err != nil {
 			t.Fatalf("expected output file %q: %v", outPath, err)
 		}
+	}
+
+	themePath := filepath.Join(root, "site", "src", "scripts", "theme.js")
+	theme, err := os.ReadFile(themePath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", themePath, err)
+	}
+	if !strings.Contains(string(theme), "customThemeMarker") {
+		t.Fatalf("Astro theme script did not use templateDir override\nGot:\n%s", string(theme))
 	}
 
 	pagePath := filepath.Join(root, "site", "src", "generated", "pages", "_source", "main.go.html.astro")

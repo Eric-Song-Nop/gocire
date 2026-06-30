@@ -79,6 +79,7 @@ func TestLoadYAMLOverridesDefaults(t *testing.T) {
 	writeFile(t, configPath, `
 site:
   title: Example Site
+  templateDir: theme
 project:
   root: repo
 content:
@@ -102,6 +103,7 @@ output:
 	if cfg.Site.Title != "Example Site" {
 		t.Fatalf("site title = %q, want %q", cfg.Site.Title, "Example Site")
 	}
+	assertPath(t, cfg.Site.TemplateDir, filepath.Join(dir, "theme"))
 	assertPath(t, cfg.Project.Root, filepath.Join(dir, "repo"))
 	assertPath(t, cfg.Content.Docs, filepath.Join(dir, "content", "docs"))
 	assertPath(t, cfg.Content.Blogs, filepath.Join(dir, "posts"))
@@ -377,6 +379,8 @@ func TestLoadRelativePathsUseConfigDirectory(t *testing.T) {
 	}
 	configPath := filepath.Join(configDir, "gocire.yml")
 	writeFile(t, configPath, `
+site:
+  template_dir: ../theme
 project:
   root: ../repo
 content:
@@ -392,6 +396,7 @@ output:
 	}
 
 	assertPath(t, cfg.Project.Root, filepath.Join(configDir, "..", "repo"))
+	assertPath(t, cfg.Site.TemplateDir, filepath.Join(configDir, "..", "theme"))
 	assertPath(t, cfg.Content.Docs, filepath.Join(configDir, "..", "docs"))
 	assertPath(t, cfg.Content.Blogs, filepath.Join(configDir, "..", "writing", "blogs"))
 	assertPath(t, cfg.Output.Dir, filepath.Join(configDir, "..", "out", "site"))

@@ -17,8 +17,9 @@ const defaultAstroSiteTitle = "gocire docs"
 var astroTemplateFS embed.FS
 
 type AstroSiteAssets struct {
-	OutputDir string
-	SiteTitle string
+	OutputDir   string
+	SiteTitle   string
+	TemplateDir string
 }
 
 type astroSiteAssetTemplate struct {
@@ -74,10 +75,14 @@ func (a AstroSiteAssets) Write() error {
 
 func (a AstroSiteAssets) files() (map[string]string, error) {
 	siteTitle := normalizedAstroSiteTitle(a.SiteTitle)
+	templateDir, err := normalizedAstroTemplateDir(a.TemplateDir)
+	if err != nil {
+		return nil, err
+	}
 	assets := make(map[string]string, len(astroSiteAssetTemplates))
 
 	for _, asset := range astroSiteAssetTemplates {
-		contents, err := readAstroSiteAssetTemplate(asset.templatePath)
+		contents, err := a.readAstroSiteAssetTemplate(asset, templateDir)
 		if err != nil {
 			return nil, err
 		}
@@ -95,7 +100,33 @@ func (a AstroSiteAssets) files() (map[string]string, error) {
 	return assets, nil
 }
 
-func readAstroSiteAssetTemplate(templatePath string) (string, error) {
+func (a AstroSiteAssets) readAstroSiteAssetTemplate(asset astroSiteAssetTemplate, templateDir string) (string, error) {
+	if templateDir != "" {
+		contents, ok, err := readAstroTemplateDirAsset(templateDir, asset)
+		if err != nil {
+			return "", err
+		}
+		if ok {
+			return contents, nil
+		}
+	}
+	return readEmbeddedAstroSiteAssetTemplate(asset.templatePath)
+}
+
+func readAstroTemplateDirAsset(templateDir string, asset astroSiteAssetTemplate) (contents string, ok bool, err error) {
+	relPath := asset.templateRelPath()
+	templatePath := filepath.Join(templateDir, filepath.FromSlash(relPath))
+	data, err := os.ReadFile(templatePath)
+	if err == nil {
+		return string(data), true, nil
+	}
+	if os.IsNotExist(err) {
+		return "", false, nil
+	}
+	return "", false, fmt.Errorf("read Astro asset template override %s: %w", templatePath, err)
+}
+
+func readEmbeddedAstroSiteAssetTemplate(templatePath string) (string, error) {
 	contents, err := astroTemplateFS.ReadFile(templatePath)
 	if err != nil {
 		return "", fmt.Errorf("read Astro asset template %s: %w", templatePath, err)
@@ -121,6 +152,10 @@ func renderAstroSiteLayoutTemplate(templatePath, contents, siteTitle string) (st
 	return rendered.String(), nil
 }
 
+func (a astroSiteAssetTemplate) templateRelPath() string {
+	return strings.TrimPrefix(a.templatePath, "astro_template/")
+}
+
 func writeAstroSiteAsset(outputDir, slashRelPath, contents string) error {
 	outPath := filepath.Join(outputDir, filepath.FromSlash(slashRelPath))
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
@@ -137,4 +172,19 @@ func normalizedAstroSiteTitle(siteTitle string) string {
 		return title
 	}
 	return defaultAstroSiteTitle
+}
+
+func normalizedAstroTemplateDir(templateDir string) (string, error) {
+	templateDir = strings.TrimSpace(templateDir)
+	if templateDir == "" {
+		return "", nil
+	}
+	info, err := os.Stat(templateDir)
+	if err != nil {
+		return "", fmt.Errorf("read Astro template directory %s: %w", templateDir, err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("Astro template directory %s is not a directory", templateDir)
+	}
+	return templateDir, nil
 }

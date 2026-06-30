@@ -84,7 +84,11 @@ type astroGeneratedPage struct {
 }
 
 func (b *astroProjectBackend) Prepare(ctx context.Context, plan *ProjectExportPlan) error {
-	return WriteAstroSiteAssets(plan.Config.Output.Dir, plan.Config.Site.Title)
+	return AstroSiteAssets{
+		OutputDir:   plan.Config.Output.Dir,
+		SiteTitle:   plan.Config.Site.Title,
+		TemplateDir: plan.Config.Site.TemplateDir,
+	}.Write()
 }
 
 func (b *astroProjectBackend) ExportFile(ctx context.Context, req ProjectFileExport) error {

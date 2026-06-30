@@ -53,7 +53,8 @@ type ProjectConfig struct {
 }
 
 type SiteConfig struct {
-	Title string `yaml:"title"`
+	Title       string `yaml:"title"`
+	TemplateDir string `yaml:"templateDir"`
 }
 
 type ProjectSection struct {
@@ -92,7 +93,9 @@ type rawProjectConfig struct {
 }
 
 type rawSiteConfig struct {
-	Title *string `yaml:"title"`
+	Title            *string `yaml:"title"`
+	TemplateDir      *string `yaml:"templateDir"`
+	TemplateDirSnake *string `yaml:"template_dir"`
 }
 
 type rawProjectSection struct {
@@ -266,6 +269,9 @@ func (c *ProjectConfig) Normalize(baseDir string) error {
 	if c.Project.Root, err = normalizePath(absBaseDir, c.Project.Root, "project.root"); err != nil {
 		return err
 	}
+	if c.Site.TemplateDir, err = normalizeOptionalPath(absBaseDir, c.Site.TemplateDir, "site.templateDir"); err != nil {
+		return err
+	}
 	if c.Content.Docs, err = normalizePath(absBaseDir, c.Content.Docs, "content.docs"); err != nil {
 		return err
 	}
@@ -290,6 +296,9 @@ func (c *ProjectConfig) Validate() error {
 	}
 
 	if err := validatePath("project.root", c.Project.Root); err != nil {
+		return err
+	}
+	if err := validateOptionalPath("site.templateDir", c.Site.TemplateDir); err != nil {
 		return err
 	}
 	if err := validatePath("content.docs", c.Content.Docs); err != nil {
@@ -319,8 +328,16 @@ func (c *ProjectConfig) Validate() error {
 }
 
 func applyRawConfig(cfg *ProjectConfig, raw *rawProjectConfig) {
-	if raw.Site != nil && raw.Site.Title != nil {
-		cfg.Site.Title = *raw.Site.Title
+	if raw.Site != nil {
+		if raw.Site.Title != nil {
+			cfg.Site.Title = *raw.Site.Title
+		}
+		if raw.Site.TemplateDir != nil {
+			cfg.Site.TemplateDir = *raw.Site.TemplateDir
+		}
+		if raw.Site.TemplateDirSnake != nil {
+			cfg.Site.TemplateDir = *raw.Site.TemplateDirSnake
+		}
 	}
 	if raw.Project != nil && raw.Project.Root != nil {
 		cfg.Project.Root = *raw.Project.Root
@@ -492,9 +509,33 @@ func normalizePath(baseDir, value, field string) (string, error) {
 	return filepath.Clean(value), nil
 }
 
+func normalizeOptionalPath(baseDir, value, field string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", nil
+	}
+	if err := validateOptionalPath(field, value); err != nil {
+		return "", err
+	}
+	if !filepath.IsAbs(value) {
+		value = filepath.Join(baseDir, value)
+	}
+	return filepath.Clean(value), nil
+}
+
 func validatePath(field, value string) error {
 	if strings.TrimSpace(value) == "" {
 		return fmt.Errorf("%s is required", field)
+	}
+	if strings.ContainsRune(value, 0) {
+		return fmt.Errorf("%s contains a null byte", field)
+	}
+	return nil
+}
+
+func validateOptionalPath(field, value string) error {
+	if strings.TrimSpace(value) == "" {
+		return nil
 	}
 	if strings.ContainsRune(value, 0) {
 		return fmt.Errorf("%s contains a null byte", field)

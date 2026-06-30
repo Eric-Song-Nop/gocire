@@ -25,6 +25,19 @@ pnpm dev -- --host 127.0.0.1
 
 默认输出目录是 `.gocire/site`。
 
+如果要自定义生成的 Astro 外壳，可以在 `.gocire.yml` 里设置
+`site.templateDir`。这个目录里的文件会按相同相对路径覆盖内置模板，缺失的文件
+继续回退到内置模板：
+
+```yaml
+site:
+  title: My Docs
+  templateDir: .gocire/template
+```
+
+例如，`.gocire/template/src/styles/global.css` 会替换生成站点里的默认
+`src/styles/global.css`。
+
 ## 单文件导出
 
 ```bash
