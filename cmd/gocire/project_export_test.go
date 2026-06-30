@@ -279,6 +279,8 @@ func TestProjectExportRunnerWritesAstroProject(t *testing.T) {
 	writeProjectTestFile(t, configPath, `
 site:
   title: Test Site
+  description: Test site description
+  url: https://example.com/docs
   templateDir: theme
 content:
   metadata:
@@ -312,6 +314,7 @@ output:
 
 	for _, relPath := range []string{
 		"package.json",
+		filepath.Join("src", "generated", "site-data.ts"),
 		filepath.Join("src", "generated", "navigation.ts"),
 		filepath.Join("src", "generated", "pages", "_source", "main.go.html.astro"),
 		filepath.Join("src", "pages", "[...gocire].astro"),
@@ -369,13 +372,38 @@ output:
 	if err != nil {
 		t.Fatalf("ReadFile(%q): %v", navigationPath, err)
 	}
+	if strings.TrimSpace(string(navigation)) != `export { navigation } from "./site-data";` {
+		t.Fatalf("Astro navigation should re-export site-data navigation\nGot:\n%s", string(navigation))
+	}
+
+	siteDataPath := filepath.Join(root, "site", "src", "generated", "site-data.ts")
+	siteData, err := os.ReadFile(siteDataPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", siteDataPath, err)
+	}
 	for _, want := range []string{
-		`export const navigation =`,
-		`docs:`,
-		`blog:`,
+		`export const siteData =`,
+		`"title": "Test Site"`,
+		`"description": "Test site description"`,
+		`"url": "https://example.com/docs"`,
+		`"trailingSlash": "always"`,
+		`"routeParam": "_source/main.go.html"`,
+		`"href": "/_source/main.go.html/"`,
+		`"module": "../generated/pages/_source/main.go.html.astro"`,
+		`"kind": "source"`,
+		`"title": "main.go"`,
+		`"sourcePath": "main.go"`,
+		`"language": "go"`,
+		`"date": "2026-06-30"`,
+		`"tags": [`,
+		`"source"`,
+		`"runtime"`,
+		`"author": "Ada Lovelace"`,
+		`export const pages = siteData.pages;`,
+		`export const navigation = siteData.navigation;`,
 	} {
-		if !strings.Contains(string(navigation), want) {
-			t.Fatalf("Astro navigation missing %q\nGot:\n%s", want, string(navigation))
+		if !strings.Contains(string(siteData), want) {
+			t.Fatalf("Astro site data missing %q\nGot:\n%s", want, string(siteData))
 		}
 	}
 }

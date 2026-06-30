@@ -2,6 +2,7 @@
 import Moon from "lucide-astro/Moon";
 import Sun from "lucide-astro/Sun";
 import { navigation } from "../generated/navigation";
+import { siteData } from "../generated/site-data";
 import "katex/dist/katex.min.css";
 import "../styles/global.css";
 
@@ -12,10 +13,11 @@ interface Props {
 }
 
 const fallbackSiteTitle = {{ .FallbackSiteTitle }};
+const fallbackDescription = siteData.site.description;
 const {
   title = fallbackSiteTitle,
   siteTitle = fallbackSiteTitle,
-  description = "Generated source documentation.",
+  description = fallbackDescription,
 } = Astro.props;
 const pageTitle = title === siteTitle ? siteTitle : title + " | " + siteTitle;
 const docsHref = navigation.docs.firstHref || "/";

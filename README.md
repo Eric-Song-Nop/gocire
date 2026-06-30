@@ -34,11 +34,15 @@ path, while missing files fall back to the built-in template:
 ```yaml
 site:
   title: My Docs
+  description: Documentation for my project
+  url: https://example.com/docs
   templateDir: .gocire/template
 ```
 
 For example, `.gocire/template/src/styles/global.css` replaces the default
 `src/styles/global.css` in the generated site.
+The `description` becomes the default page meta description, and `url` is kept
+in generated site data for canonical links and static endpoints.
 
 ## Single-File Export
 
