@@ -1,9 +1,7 @@
 package config
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -171,10 +169,16 @@ func Load(configPath string) (*ProjectConfig, error) {
 		return nil, fmt.Errorf("read config %q: %w", configPath, err)
 	}
 
+	var root yaml.Node
+	if err := yaml.Unmarshal(data, &root); err != nil {
+		return nil, fmt.Errorf("parse config %q: %w", configPath, err)
+	}
+	if err := validateContentMetadataFields(&root); err != nil {
+		return nil, fmt.Errorf("parse config %q: %w", configPath, err)
+	}
+
 	var raw rawProjectConfig
-	decoder := yaml.NewDecoder(bytes.NewReader(data))
-	decoder.KnownFields(true)
-	if err := decoder.Decode(&raw); err != nil && err != io.EOF {
+	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("parse config %q: %w", configPath, err)
 	}
 
@@ -184,6 +188,69 @@ func Load(configPath string) (*ProjectConfig, error) {
 		return nil, err
 	}
 	return cfg, nil
+}
+
+func validateContentMetadataFields(root *yaml.Node) error {
+	doc := documentNodeContent(root)
+	if doc == nil || doc.Kind != yaml.MappingNode {
+		return nil
+	}
+
+	content := mappingValue(doc, "content")
+	if content == nil || content.Kind != yaml.MappingNode {
+		return nil
+	}
+
+	metadata := mappingValue(content, "metadata")
+	if metadata == nil || metadata.Kind != yaml.MappingNode {
+		return nil
+	}
+
+	for i := 0; i+1 < len(metadata.Content); i += 2 {
+		pageKey := metadata.Content[i]
+		pageMetadata := metadata.Content[i+1]
+		if pageMetadata.Kind != yaml.MappingNode {
+			continue
+		}
+		for j := 0; j+1 < len(pageMetadata.Content); j += 2 {
+			field := pageMetadata.Content[j]
+			if !isAllowedContentMetadataField(field.Value) {
+				return fmt.Errorf("unknown metadata field %q in content.metadata[%q]", field.Value, pageKey.Value)
+			}
+		}
+	}
+	return nil
+}
+
+func documentNodeContent(root *yaml.Node) *yaml.Node {
+	if root == nil {
+		return nil
+	}
+	if root.Kind != yaml.DocumentNode {
+		return root
+	}
+	if len(root.Content) == 0 {
+		return nil
+	}
+	return root.Content[0]
+}
+
+func mappingValue(node *yaml.Node, key string) *yaml.Node {
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Kind == yaml.ScalarNode && node.Content[i].Value == key {
+			return node.Content[i+1]
+		}
+	}
+	return nil
+}
+
+func isAllowedContentMetadataField(field string) bool {
+	switch field {
+	case "title", "date", "tags", "author":
+		return true
+	default:
+		return false
+	}
 }
 
 func (c *ProjectConfig) Normalize(baseDir string) error {

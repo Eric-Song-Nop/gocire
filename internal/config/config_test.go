@@ -186,6 +186,38 @@ content:
 	}
 }
 
+func TestLoadIgnoresUnknownFieldsOutsideContentMetadata(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, ".gocire.yml")
+	writeFile(t, configPath, `
+unknownTopLevel: true
+site:
+  title: Example Site
+  theme: ignored
+content:
+  docs: guides
+  slug: ignored-outside-metadata
+  custom:
+    slug: ignored
+source:
+  routePrefix: code/
+  experimental: ignored
+`)
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load returned error: %v", err)
+	}
+
+	if cfg.Site.Title != "Example Site" {
+		t.Fatalf("site title = %q, want %q", cfg.Site.Title, "Example Site")
+	}
+	assertPath(t, cfg.Content.Docs, filepath.Join(dir, "guides"))
+	if cfg.Source.RoutePrefix != "/code" {
+		t.Fatalf("route prefix = %q, want %q", cfg.Source.RoutePrefix, "/code")
+	}
+}
+
 func TestLoadContentMetadataNormalizesKeys(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, ".gocire.yml")
