@@ -101,13 +101,27 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"innerHTML",
 		"textContent",
 		"TextDecoder",
-		`setAttribute("role", "tooltip")`,
+		`setAttribute("role", "dialog")`,
+		`setAttribute("aria-modal", "false")`,
 		"aria-describedby",
+		"aria-controls",
+		"aria-expanded",
 		"tabindex",
 		"Escape",
 		"pointerdown",
+		"pointermove",
+		"pointerup",
+		"pointercancel",
+		`document.addEventListener(
+    "click"`,
 		"autoUpdate",
+		`strategy: "fixed"`,
 		"const hideDelayMs = 120",
+		"const tapMoveThreshold = 8",
+		"touchPinned",
+		"suppressNextClick",
+		"event.preventDefault()",
+		"event.stopPropagation()",
 		"window.setTimeout",
 		"window.clearTimeout",
 		`tooltip.addEventListener("mouseenter", cancelHide)`,
@@ -116,6 +130,9 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		`tooltip.addEventListener("focusout", scheduleHide)`,
 		"tooltip.contains(target)",
 		`hideTooltip(activeToken, { force: true })`,
+		".gocire-tooltip__actions",
+		".gocire-tooltip__action",
+		"tokenHref",
 	} {
 		assertAstroAssetContains(t, tooltip, want)
 	}
@@ -185,8 +202,14 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"max-height",
 		"overflow: auto",
 		"overflow-x: auto",
+		"position: fixed",
+		"100dvh",
+		"-webkit-overflow-scrolling: touch",
 		"overscroll-behavior: contain",
 		"pointer-events: auto",
+		"touch-action: manipulation",
+		".gocire-tooltip__actions",
+		".gocire-tooltip__action",
 	} {
 		assertAstroAssetContains(t, globalCSS, want)
 	}
