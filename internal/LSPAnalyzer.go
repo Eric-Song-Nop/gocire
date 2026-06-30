@@ -70,25 +70,25 @@ func NewLSPSession(ctx context.Context, language, workspaceRoot string) (*LSPSes
 	}
 	rootDir := resolveLSPWorkspaceRoot(workspaceRoot, "")
 
+	lspDebugf("start session language=%s command=%s args=%v root=%s", language, cfg.LSPCommand, cfg.LSPArgs, rootDir)
 	client, err := lsp.NewClient(ctx, cfg.LSPCommand, cfg.LSPArgs)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start lsp client")
 	}
 
-	var initErr error
-	if cfg.LSPInitializationOptions != nil {
-		initErr = client.Initialize(rootDir, cfg.LSPInitializationOptions)
-	} else {
-		initErr = client.Initialize(rootDir)
-	}
-	if initErr != nil {
+	lspDebugf("initialize language=%s initOptions=%#v workspaceConfig=%#v", language, cfg.LSPInitializationOptions, cfg.LSPWorkspaceConfiguration)
+	if err := client.InitializeWithOptions(rootDir, cfg.LSPInitializationOptions, cfg.LSPWorkspaceConfiguration); err != nil {
 		_ = client.Shutdown()
-		return nil, errors.Wrap(initErr, "lsp initialize failed")
+		return nil, errors.Wrap(err, "lsp initialize failed")
 	}
 
 	// Wait for server to finish indexing (up to 10 seconds)
 	// This helps avoid empty results if the server is still parsing the workspace.
-	_ = client.WaitForIndexing(10 * time.Second)
+	if err := client.WaitForIndexing(10 * time.Second); err != nil {
+		lspDebugf("wait indexing language=%s root=%s error=%v", language, rootDir, err)
+	} else {
+		lspDebugf("wait indexing language=%s root=%s complete", language, rootDir)
+	}
 
 	return &LSPSession{
 		language: language,
@@ -109,6 +109,7 @@ func resolveLSPWorkspaceRoot(workspaceRoot, sourcePath string) string {
 
 // AnalyzeFile analyzes one file through the session's language server.
 func (s *LSPSession) AnalyzeFile(sourcePath string, sourceContent []byte) ([]TokenInfo, error) {
+	lspDebugf("didOpen language=%s source=%s bytes=%d", s.language, sourcePath, len(sourceContent))
 	if err := s.withLSPClient(func(client *lsp.Client) error {
 		return client.DidOpen(sourcePath, s.language, string(sourceContent))
 	}); err != nil {
@@ -123,17 +124,28 @@ func (s *LSPSession) AnalyzeFile(sourcePath string, sourceContent []byte) ([]Tok
 	tokens, err := analyzeLSPTokens(s.language, sourcePath, sourceContent, s.cfg, func(line, char int) (*lsp.Hover, []lsp.Location) {
 		var hover *lsp.Hover
 		var defs []lsp.Location
-		_ = s.withLSPClient(func(client *lsp.Client) error {
-			hover, _ = client.Hover(sourcePath, line, char)
-			defs, _ = client.Definition(sourcePath, line, char)
+		if err := s.withLSPClient(func(client *lsp.Client) error {
+			var hoverErr error
+			var defErr error
+			hover, hoverErr = client.Hover(sourcePath, line, char)
+			defs, defErr = client.Definition(sourcePath, line, char)
+			if hoverErr != nil {
+				lspDebugf("hover error language=%s source=%s line=%d char=%d error=%v", s.language, sourcePath, line, char, hoverErr)
+			}
+			if defErr != nil {
+				lspDebugf("definition error language=%s source=%s line=%d char=%d error=%v", s.language, sourcePath, line, char, defErr)
+			}
 			return nil
-		})
+		}); err != nil {
+			lspDebugf("query error language=%s source=%s line=%d char=%d error=%v", s.language, sourcePath, line, char, err)
+		}
 		return hover, defs
 	})
 	if err != nil {
 		return nil, err
 	}
 
+	lspDebugf("analyze complete language=%s source=%s semanticTokens=%d inlayTokens=%d total=%d", s.language, sourcePath, len(tokens), len(inlayHintTokens), len(tokens)+len(inlayHintTokens))
 	return append(tokens, inlayHintTokens...), nil
 }
 
@@ -195,6 +207,7 @@ func (s *LSPSession) fetchInlayHintTokens(sourcePath string, sourceContent []byt
 			return err
 		})
 		if requestErr == nil {
+			lspDebugf("inlay hints language=%s source=%s range=%d:%d-%d:%d count=%d", s.language, sourcePath, hintRange.Start.Line, hintRange.Start.Character, hintRange.End.Line, hintRange.End.Character, len(hints))
 			return tokenInfosFromInlayHints(hints)
 		}
 		if !isContentModifiedError(requestErr) || attempt == maxRetries-1 {
@@ -329,6 +342,10 @@ func analyzeLSPTokens(language, sourcePath string, sourceContent []byte, cfg *la
 	matches := qc.Matches(query, tree.RootNode(), sourceContent)
 
 	var tokens []TokenInfo
+	captureCount := 0
+	lspQueryCount := 0
+	hoverResultCount := 0
+	definitionResultCount := 0
 	type posKey struct {
 		line, char int32
 	}
@@ -336,6 +353,7 @@ func analyzeLSPTokens(language, sourcePath string, sourceContent []byte, cfg *la
 
 	for match := matches.Next(); match != nil; match = matches.Next() {
 		for _, capture := range match.Captures {
+			captureCount++
 			node := capture.Node
 			start := node.StartPosition()
 			end := node.EndPosition()
@@ -369,15 +387,18 @@ func analyzeLSPTokens(language, sourcePath string, sourceContent []byte, cfg *la
 			if !isIgnoredCapture(captureName, cfg.IgnoredCaptures) {
 				// Query LSP
 				// We query at the start of the token
+				lspQueryCount++
 				hover, defs := queryLSP(int(start.Row), int(start.Column))
 
 				// Process hover results
 				if hover != nil && hover.Contents.Value != "" {
+					hoverResultCount++
 					docs = append(docs, hover.Contents.Value)
 				}
 
 				// Process definition results
 				if len(defs) > 0 {
+					definitionResultCount++
 					d := defs[0]
 					definition = sourceLocationFromLSP(d)
 					// Generate a unique symbol ID based on the definition location
@@ -414,7 +435,15 @@ func analyzeLSPTokens(language, sourcePath string, sourceContent []byte, cfg *la
 		}
 	}
 
+	lspDebugf("token summary language=%s source=%s captures=%d tokens=%d lspQueries=%d hovers=%d definitions=%d", language, sourcePath, captureCount, len(tokens), lspQueryCount, hoverResultCount, definitionResultCount)
 	return tokens, nil
+}
+
+func lspDebugf(format string, args ...interface{}) {
+	if os.Getenv("GOCIRE_LSP_DEBUG") == "" {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "[gocire:lsp] "+format+"\n", args...)
 }
 
 func sourceLocationFromLSP(location lsp.Location) *SourceLocation {

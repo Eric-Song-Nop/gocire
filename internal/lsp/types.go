@@ -13,6 +13,7 @@ const (
 	MethodTextDocumentHover            = "textDocument/hover"
 	MethodTextDocumentDefinition       = "textDocument/definition"
 	MethodTextDocumentInlayHint        = "textDocument/inlayHint"
+	MethodWorkspaceConfiguration       = "workspace/configuration"
 	MethodStatus                       = "status"
 	MethodShutdown                     = "shutdown"
 	MethodExit                         = "exit"
@@ -78,6 +79,11 @@ type WorkspaceFolder struct {
 type ClientCapabilities struct {
 	TextDocument *TextDocumentClientCapabilities `json:"textDocument,omitempty"`
 	Window       *WindowClientCapabilities       `json:"window,omitempty"`
+	Workspace    *WorkspaceClientCapabilities    `json:"workspace,omitempty"`
+}
+
+type WorkspaceClientCapabilities struct {
+	Configuration bool `json:"configuration,omitempty"`
 }
 
 type WindowClientCapabilities struct {
@@ -116,6 +122,15 @@ type ServerCapabilities struct {
 }
 
 type InitializedParams struct{}
+
+type WorkspaceConfigurationParams struct {
+	Items []ConfigurationItem `json:"items"`
+}
+
+type ConfigurationItem struct {
+	ScopeURI string `json:"scopeUri,omitempty"`
+	Section  string `json:"section,omitempty"`
+}
 
 type DidOpenTextDocumentParams struct {
 	TextDocument TextDocumentItem `json:"textDocument"`
