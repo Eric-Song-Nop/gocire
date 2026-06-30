@@ -107,6 +107,35 @@ func TestGenerateAstroNarrativeModeInterleavesProseAndCode(t *testing.T) {
 	}
 }
 
+func TestGenerateAstroPassesMetadataPropsToCodePage(t *testing.T) {
+	gen := NewAstroGenerator([]string{"package main"})
+
+	output := gen.GenerateAstro(nil, nil, AstroPageOptions{
+		Title:      "Metadata",
+		Kind:       "blog",
+		Language:   "go",
+		SourcePath: "blogs/post.go",
+		Date:       " 2026-06-30 ",
+		Tags:       []string{"go", " ", "astro"},
+		Author:     " Ada Lovelace ",
+		RenderMode: AstroRenderModeSource,
+	})
+
+	expectedParts := []string{
+		`date="2026-06-30"`,
+		`author="Ada Lovelace"`,
+		`tags={["go", "astro"]}`,
+	}
+	for _, part := range expectedParts {
+		if !strings.Contains(output, part) {
+			t.Fatalf("output missing %q\nGot:\n%s", part, output)
+		}
+	}
+	if strings.Contains(output, `" "`) {
+		t.Fatalf("metadata output should omit blank tags\nGot:\n%s", output)
+	}
+}
+
 func TestGenerateAstroEscapesLinkAnchorAndHoverAttributes(t *testing.T) {
 	sourceLines := []string{`foo <bar>`}
 	gen := NewAstroGenerator(sourceLines)

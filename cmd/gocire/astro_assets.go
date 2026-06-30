@@ -206,6 +206,9 @@ interface Props {
   kind?: string;
   language?: string;
   sourcePath?: string;
+  date?: string;
+  tags?: string[];
+  author?: string;
   renderMode?: string;
 }
 
@@ -214,11 +217,22 @@ const {
   kind = "Source",
   language,
   sourcePath,
+  date,
+  tags = [],
+  author,
   renderMode = "source",
 } = Astro.props;
 const pageClass = "site-shell code-page code-page--" + renderMode;
 const kindLabel = String(kind || "Source");
 const currentPath = Astro.url.pathname;
+const pageDate = String(date || "").trim();
+const pageAuthor = String(author || "").trim();
+const pageTags = compactTags(tags);
+const hasPageMeta = Boolean(language || sourcePath || pageDate || pageAuthor || pageTags.length > 0);
+
+function compactTags(values?: string[]) {
+  return (values ?? []).map((value) => String(value).trim()).filter(Boolean);
+}
 ---
 
 <SiteLayout title={title}>
@@ -229,8 +243,30 @@ const currentPath = Astro.url.pathname;
       <header class="page-header">
         <p class="page-kicker">{kindLabel}</p>
         <h1>{title}</h1>
-        {(language || sourcePath) && (
+        {hasPageMeta && (
           <dl class="page-meta">
+            {pageDate && (
+              <>
+                <dt>Date</dt>
+                <dd><time datetime={pageDate}>{pageDate}</time></dd>
+              </>
+            )}
+            {pageAuthor && (
+              <>
+                <dt>Author</dt>
+                <dd>{pageAuthor}</dd>
+              </>
+            )}
+            {pageTags.length > 0 && (
+              <>
+                <dt>Tags</dt>
+                <dd>
+                  <ul class="metadata-tags" aria-label="Tags">
+                    {pageTags.map((tag) => <li class="metadata-tag">{tag}</li>)}
+                  </ul>
+                </dd>
+              </>
+            )}
             {language && (
               <>
                 <dt>Language</dt>
@@ -267,6 +303,8 @@ interface NavigationItem {
   href?: string;
   sourcePath?: string;
   date?: string;
+  tags?: string[];
+  author?: string;
   items?: NavigationItem[];
 }
 
@@ -304,6 +342,14 @@ function normalizePath(value?: string) {
 function isActive(href?: string) {
   return href ? normalizePath(href) === normalizedCurrentPath : false;
 }
+
+function compactText(value?: string) {
+  return String(value || "").trim();
+}
+
+function compactTags(values?: string[]) {
+  return (values ?? []).map((value) => String(value).trim()).filter(Boolean);
+}
 ---
 
 <aside class="page-sidebar" aria-label={sidebarLabel}>
@@ -323,14 +369,25 @@ function isActive(href?: string) {
       <p class="sidebar-heading">Blog</p>
       {blogItems.length > 0 ? (
         <ul class="sidebar-blog-list">
-          {blogItems.map((item) => (
-            <li class:list={["sidebar-blog-item", { "is-active": isActive(item.href) }]}>
-              <a class="sidebar-blog-link" href={item.href || "#"} aria-current={isActive(item.href) ? "page" : undefined}>
-                <span class="sidebar-blog-title">{item.title || item.sourcePath || item.href}</span>
-                {item.date && <time class="sidebar-blog-date sidebar-date" datetime={item.date}>{item.date}</time>}
-              </a>
-            </li>
-          ))}
+          {blogItems.map((item) => {
+            const itemDate = compactText(item.date);
+            const itemAuthor = compactText(item.author);
+            const itemTags = compactTags(item.tags);
+            return (
+              <li class:list={["sidebar-blog-item", { "is-active": isActive(item.href) }]}>
+                <a class="sidebar-blog-link" href={item.href || "#"} aria-current={isActive(item.href) ? "page" : undefined}>
+                  <span class="sidebar-blog-title">{item.title || item.sourcePath || item.href}</span>
+                  {(itemDate || itemAuthor || itemTags.length > 0) && (
+                    <span class="sidebar-blog-meta">
+                      {itemDate && <time class="sidebar-blog-date sidebar-date" datetime={itemDate}>{itemDate}</time>}
+                      {itemAuthor && <span class="sidebar-blog-author">{itemAuthor}</span>}
+                      {itemTags.length > 0 && <span class="sidebar-blog-tags">{itemTags.join(", ")}</span>}
+                    </span>
+                  )}
+                </a>
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <p class="sidebar-empty">No blog posts yet.</p>
@@ -366,6 +423,9 @@ interface NavigationItem {
   title?: string;
   href?: string;
   sourcePath?: string;
+  date?: string;
+  tags?: string[];
+  author?: string;
   items?: NavigationItem[];
 }
 
@@ -395,6 +455,14 @@ function normalizePath(value?: string) {
 function isActive(href?: string) {
   return href ? normalizePath(href) === normalizedCurrentPath : false;
 }
+
+function compactText(value?: string) {
+  return String(value || "").trim();
+}
+
+function compactTags(values?: string[]) {
+  return (values ?? []).map((value) => String(value).trim()).filter(Boolean);
+}
 ---
 
 <ul class={listClass}>
@@ -410,6 +478,13 @@ function isActive(href?: string) {
       ) : (
         <a class:list={["sidebar-link", { "is-active": isActive(item.href) }]} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>
           <span class="sidebar-link__title">{item.title || item.sourcePath || item.href}</span>
+          {(compactText(item.date) || compactText(item.author) || compactTags(item.tags).length > 0) && (
+            <span class="sidebar-link__meta">
+              {compactText(item.date) && <time class="sidebar-date" datetime={compactText(item.date)}>{compactText(item.date)}</time>}
+              {compactText(item.author) && <span>{compactText(item.author)}</span>}
+              {compactTags(item.tags).length > 0 && <span class="sidebar-link__tags">{compactTags(item.tags).join(", ")}</span>}
+            </span>
+          )}
         </a>
       )}
     </li>
@@ -763,6 +838,24 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   overflow-wrap: anywhere;
 }
 
+.sidebar-blog-meta,
+.sidebar-link__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 500;
+}
+
+.sidebar-blog-author,
+.sidebar-blog-tags,
+.sidebar-link__tags {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .sidebar-blog-date,
 .sidebar-date {
   color: var(--muted);
@@ -856,6 +949,28 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   color: var(--text);
   font-family: var(--mono);
   font-size: 0.9em;
+}
+
+.metadata-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.metadata-tag {
+  min-width: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.metadata-tag::before {
+  content: "#";
+  margin-right: 1px;
+  color: var(--accent-warm);
 }
 
 .page-content {

@@ -68,6 +68,9 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"kind?: string",
 		"language?: string",
 		"sourcePath?: string",
+		"date?: string",
+		"tags?: string[]",
+		"author?: string",
 		"<slot />",
 	} {
 		assertAstroAssetContains(t, codePage, want)
@@ -199,6 +202,13 @@ func TestAstroCodePageUsesSidebarComponent(t *testing.T) {
 		"currentPath={currentPath}",
 		"sourcePath={sourcePath}",
 		"language={language}",
+		"pageDate",
+		"pageAuthor",
+		"pageTags",
+		"metadata-tags",
+		"Date",
+		"Author",
+		"Tags",
 	} {
 		assertAstroAssetContains(t, codePage, want)
 	}
@@ -227,9 +237,16 @@ func TestAstroSidebarUsesNavigationSectionsAndSourceMetadata(t *testing.T) {
 		"sourcePath?: string",
 		"language?: string",
 		"kind?: string",
+		"tags?: string[]",
+		"author?: string",
 		"Docs",
 		"Blog",
 		"item.date",
+		"item.author",
+		"item.tags",
+		"sidebar-blog-meta",
+		"sidebar-blog-author",
+		"sidebar-blog-tags",
 		"sidebar-blog-date",
 		"Source",
 		"sourcePath",
@@ -260,6 +277,10 @@ func TestAstroSidebarItemsRendersRecursiveNavigation(t *testing.T) {
 		"aria-current",
 		`"page"`,
 		"sidebar-link",
+		"tags?: string[]",
+		"author?: string",
+		"sidebar-link__meta",
+		"sidebar-link__tags",
 		"sidebar-category",
 	} {
 		assertAstroAssetContains(t, sidebarItems, want)
@@ -283,6 +304,12 @@ func TestAstroGlobalCSSIncludesSidebarNavigationClasses(t *testing.T) {
 		".sidebar-link",
 		".sidebar-category",
 		".sidebar-blog-date",
+		".sidebar-blog-meta",
+		".sidebar-blog-author",
+		".sidebar-blog-tags",
+		".sidebar-link__meta",
+		".metadata-tags",
+		".metadata-tag",
 		".sidebar-context",
 	} {
 		assertAstroAssetContains(t, globalCSS, want)

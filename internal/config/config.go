@@ -1,11 +1,14 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -60,8 +63,16 @@ type ProjectSection struct {
 }
 
 type ContentConfig struct {
-	Docs  string `yaml:"docs"`
-	Blogs string `yaml:"blogs"`
+	Docs     string                     `yaml:"docs"`
+	Blogs    string                     `yaml:"blogs"`
+	Metadata map[string]ContentMetadata `yaml:"metadata"`
+}
+
+type ContentMetadata struct {
+	Title  string   `yaml:"title"`
+	Date   string   `yaml:"date"`
+	Tags   []string `yaml:"tags"`
+	Author string   `yaml:"author"`
 }
 
 type SourceConfig struct {
@@ -91,8 +102,16 @@ type rawProjectSection struct {
 }
 
 type rawContentConfig struct {
-	Docs  *string `yaml:"docs"`
-	Blogs *string `yaml:"blogs"`
+	Docs     *string                       `yaml:"docs"`
+	Blogs    *string                       `yaml:"blogs"`
+	Metadata map[string]rawContentMetadata `yaml:"metadata"`
+}
+
+type rawContentMetadata struct {
+	Title  *string   `yaml:"title"`
+	Date   *string   `yaml:"date"`
+	Tags   *[]string `yaml:"tags"`
+	Author *string   `yaml:"author"`
 }
 
 type rawSourceConfig struct {
@@ -112,8 +131,9 @@ func DefaultConfig() *ProjectConfig {
 			Root: ".",
 		},
 		Content: ContentConfig{
-			Docs:  "docs",
-			Blogs: "blogs",
+			Docs:     "docs",
+			Blogs:    "blogs",
+			Metadata: map[string]ContentMetadata{},
 		},
 		Source: SourceConfig{
 			RoutePrefix: "/_source",
@@ -152,7 +172,9 @@ func Load(configPath string) (*ProjectConfig, error) {
 	}
 
 	var raw rawProjectConfig
-	if err := yaml.Unmarshal(data, &raw); err != nil {
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(&raw); err != nil && err != io.EOF {
 		return nil, fmt.Errorf("parse config %q: %w", configPath, err)
 	}
 
@@ -183,6 +205,9 @@ func (c *ProjectConfig) Normalize(baseDir string) error {
 	if c.Content.Blogs, err = normalizePath(absBaseDir, c.Content.Blogs, "content.blogs"); err != nil {
 		return err
 	}
+	if c.Content.Metadata, err = normalizeContentMetadata(c.Content.Metadata); err != nil {
+		return err
+	}
 	if c.Output.Dir, err = normalizePath(absBaseDir, c.Output.Dir, "output.dir"); err != nil {
 		return err
 	}
@@ -204,6 +229,9 @@ func (c *ProjectConfig) Validate() error {
 		return err
 	}
 	if err := validatePath("content.blogs", c.Content.Blogs); err != nil {
+		return err
+	}
+	if err := validateContentMetadata(c.Content.Metadata); err != nil {
 		return err
 	}
 	if err := validatePath("output.dir", c.Output.Dir); err != nil {
@@ -237,6 +265,12 @@ func applyRawConfig(cfg *ProjectConfig, raw *rawProjectConfig) {
 		if raw.Content.Blogs != nil {
 			cfg.Content.Blogs = *raw.Content.Blogs
 		}
+		if raw.Content.Metadata != nil {
+			cfg.Content.Metadata = make(map[string]ContentMetadata, len(raw.Content.Metadata))
+			for key, metadata := range raw.Content.Metadata {
+				cfg.Content.Metadata[key] = contentMetadataFromRaw(metadata)
+			}
+		}
 	}
 	if raw.Source != nil {
 		if raw.Source.RoutePrefix != nil {
@@ -255,6 +289,127 @@ func applyRawConfig(cfg *ProjectConfig, raw *rawProjectConfig) {
 	if raw.Output != nil && raw.Output.Dir != nil {
 		cfg.Output.Dir = *raw.Output.Dir
 	}
+}
+
+func contentMetadataFromRaw(raw rawContentMetadata) ContentMetadata {
+	var metadata ContentMetadata
+	if raw.Title != nil {
+		metadata.Title = *raw.Title
+	}
+	if raw.Date != nil {
+		metadata.Date = *raw.Date
+	}
+	if raw.Tags != nil {
+		metadata.Tags = cloneStrings(*raw.Tags)
+	}
+	if raw.Author != nil {
+		metadata.Author = *raw.Author
+	}
+	return metadata
+}
+
+func normalizeContentMetadata(metadata map[string]ContentMetadata) (map[string]ContentMetadata, error) {
+	if len(metadata) == 0 {
+		return map[string]ContentMetadata{}, nil
+	}
+
+	normalized := make(map[string]ContentMetadata, len(metadata))
+	for key, value := range metadata {
+		normalizedKey, err := normalizeMetadataKey(key)
+		if err != nil {
+			return nil, err
+		}
+		if _, exists := normalized[normalizedKey]; exists {
+			return nil, fmt.Errorf("content.metadata key %q normalizes to duplicate %q", key, normalizedKey)
+		}
+		normalizedValue, err := normalizeMetadataValue(normalizedKey, value)
+		if err != nil {
+			return nil, err
+		}
+		normalized[normalizedKey] = normalizedValue
+	}
+	return normalized, nil
+}
+
+func normalizeMetadataKey(key string) (string, error) {
+	key = strings.TrimSpace(key)
+	if err := validateMetadataKey(key); err != nil {
+		return "", err
+	}
+	return filepath.ToSlash(filepath.Clean(filepath.FromSlash(key))), nil
+}
+
+func normalizeMetadataValue(key string, metadata ContentMetadata) (ContentMetadata, error) {
+	metadata.Title = strings.TrimSpace(metadata.Title)
+	metadata.Author = strings.TrimSpace(metadata.Author)
+	if len(metadata.Tags) > 0 {
+		tags := make([]string, len(metadata.Tags))
+		for i, tag := range metadata.Tags {
+			tags[i] = strings.TrimSpace(tag)
+			if tags[i] == "" {
+				return ContentMetadata{}, fmt.Errorf("content.metadata[%q].tags[%d] is required", key, i)
+			}
+		}
+		metadata.Tags = tags
+	}
+	return metadata, nil
+}
+
+func validateContentMetadata(metadata map[string]ContentMetadata) error {
+	for key, value := range metadata {
+		if err := validateMetadataKey(strings.TrimSpace(key)); err != nil {
+			return err
+		}
+		if err := validateMetadataValue(key, value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateMetadataKey(key string) error {
+	if key == "" {
+		return fmt.Errorf("content.metadata key is required")
+	}
+	if strings.ContainsRune(key, 0) {
+		return fmt.Errorf("content.metadata key %q contains a null byte", key)
+	}
+	if strings.Contains(key, `\`) {
+		return fmt.Errorf("content.metadata key %q must use slash separators", key)
+	}
+	if path.IsAbs(key) || filepath.IsAbs(filepath.FromSlash(key)) || isWindowsAbsPath(key) {
+		return fmt.Errorf("content.metadata key %q must be project-relative", key)
+	}
+	if strings.Contains(key, "..") {
+		return fmt.Errorf("content.metadata key %q must not contain ..", key)
+	}
+	if path.Clean(key) == "." {
+		return fmt.Errorf("content.metadata key %q must reference a file", key)
+	}
+	return nil
+}
+
+func validateMetadataValue(key string, metadata ContentMetadata) error {
+	date := metadata.Date
+	if date != "" {
+		parsed, err := time.Parse("2006-01-02", date)
+		if err != nil || parsed.Format("2006-01-02") != date {
+			return fmt.Errorf("content.metadata[%q].date must be a real YYYY-MM-DD date", key)
+		}
+	}
+	for i, tag := range metadata.Tags {
+		if strings.TrimSpace(tag) == "" {
+			return fmt.Errorf("content.metadata[%q].tags[%d] is required", key, i)
+		}
+	}
+	return nil
+}
+
+func isWindowsAbsPath(value string) bool {
+	if len(value) >= 3 && ((value[0] >= 'A' && value[0] <= 'Z') || (value[0] >= 'a' && value[0] <= 'z')) && value[1] == ':' && (value[2] == '/' || value[2] == '\\') {
+		return true
+	}
+	return strings.HasPrefix(value, `\\`)
 }
 
 func normalizePath(baseDir, value, field string) (string, error) {

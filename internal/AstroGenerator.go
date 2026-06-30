@@ -24,6 +24,9 @@ type AstroPageOptions struct {
 	Kind           string
 	Language       string
 	SourcePath     string
+	Date           string
+	Tags           []string
+	Author         string
 	RenderMode     AstroRenderMode
 	CodePageImport string
 }
@@ -45,6 +48,9 @@ func (g *AstroGenerator) GenerateAstro(tokens []TokenInfo, comments []CommentInf
 	if importPath == "" {
 		importPath = defaultAstroCodePageImport
 	}
+	date := strings.TrimSpace(opts.Date)
+	tags := normalizeAstroStringList(opts.Tags)
+	author := strings.TrimSpace(opts.Author)
 
 	var body string
 	if mode == AstroRenderModeSource {
@@ -57,13 +63,23 @@ func (g *AstroGenerator) GenerateAstro(tokens []TokenInfo, comments []CommentInf
 	fmt.Fprintf(&sb, "---\nimport CodePage from %s;\n---\n\n", strconv.Quote(importPath))
 	fmt.Fprintf(
 		&sb,
-		`<CodePage title="%s" kind="%s" language="%s" sourcePath="%s" renderMode="%s">`,
+		`<CodePage title="%s" kind="%s" language="%s" sourcePath="%s" renderMode="%s"`,
 		escapeAstroAttribute(opts.Title),
 		escapeAstroAttribute(opts.Kind),
 		escapeAstroAttribute(opts.Language),
 		escapeAstroAttribute(opts.SourcePath),
 		escapeAstroAttribute(string(mode)),
 	)
+	if date != "" {
+		writeAstroAttribute(&sb, "date", date)
+	}
+	if author != "" {
+		writeAstroAttribute(&sb, "author", author)
+	}
+	if len(tags) > 0 {
+		fmt.Fprintf(&sb, " tags={%s}", astroStringArrayLiteral(tags))
+	}
+	sb.WriteString(">")
 	sb.WriteString("\n")
 	fmt.Fprintf(
 		&sb,
@@ -80,6 +96,30 @@ func (g *AstroGenerator) GenerateAstro(tokens []TokenInfo, comments []CommentInf
 	}
 	sb.WriteString("</article>\n</CodePage>\n")
 
+	return sb.String()
+}
+
+func normalizeAstroStringList(values []string) []string {
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			normalized = append(normalized, value)
+		}
+	}
+	return normalized
+}
+
+func astroStringArrayLiteral(values []string) string {
+	var sb strings.Builder
+	sb.WriteString("[")
+	for i, value := range values {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(strconv.Quote(value))
+	}
+	sb.WriteString("]")
 	return sb.String()
 }
 

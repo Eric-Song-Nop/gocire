@@ -35,6 +35,9 @@ func TestLoadMissingDefaultConfigUsesDefaults(t *testing.T) {
 	assertPath(t, cfg.Project.Root, wd)
 	assertPath(t, cfg.Content.Docs, filepath.Join(wd, "docs"))
 	assertPath(t, cfg.Content.Blogs, filepath.Join(wd, "blogs"))
+	if len(cfg.Content.Metadata) != 0 {
+		t.Fatalf("content metadata = %#v, want empty", cfg.Content.Metadata)
+	}
 	assertPath(t, cfg.Output.Dir, filepath.Join(wd, ".gocire", "site"))
 
 	if cfg.Source.RoutePrefix != "/_source" {
@@ -49,6 +52,24 @@ func TestLoadMissingDefaultConfigUsesDefaults(t *testing.T) {
 		if !contains(cfg.Source.Exclude, pattern) {
 			t.Fatalf("exclude missing %q from %#v", pattern, cfg.Source.Exclude)
 		}
+	}
+}
+
+func TestLoadEmptyYAMLUsesDefaults(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, ".gocire.yml")
+	writeFile(t, configPath, "")
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load returned error: %v", err)
+	}
+
+	assertPath(t, cfg.Project.Root, dir)
+	assertPath(t, cfg.Content.Docs, filepath.Join(dir, "docs"))
+	assertPath(t, cfg.Content.Blogs, filepath.Join(dir, "blogs"))
+	if len(cfg.Content.Metadata) != 0 {
+		t.Fatalf("content metadata = %#v, want empty", cfg.Content.Metadata)
 	}
 }
 
@@ -129,6 +150,171 @@ source:
 	}
 }
 
+func TestLoadContentMetadata(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, ".gocire.yml")
+	writeFile(t, configPath, `
+content:
+  metadata:
+    docs/intro.md:
+      title: "  Intro  "
+      date: "2024-02-29"
+      tags:
+        - " guide "
+        - reference
+      author: " Ada "
+    blogs/post.md:
+      title: Blog Post
+`)
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load returned error: %v", err)
+	}
+
+	want := ContentMetadata{
+		Title:  "Intro",
+		Date:   "2024-02-29",
+		Tags:   []string{"guide", "reference"},
+		Author: "Ada",
+	}
+	if !reflect.DeepEqual(cfg.Content.Metadata["docs/intro.md"], want) {
+		t.Fatalf("metadata = %#v, want %#v", cfg.Content.Metadata["docs/intro.md"], want)
+	}
+	if cfg.Content.Metadata["blogs/post.md"].Title != "Blog Post" {
+		t.Fatalf("blog metadata = %#v, want title Blog Post", cfg.Content.Metadata["blogs/post.md"])
+	}
+}
+
+func TestLoadContentMetadataNormalizesKeys(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, ".gocire.yml")
+	writeFile(t, configPath, `
+content:
+  metadata:
+    ./docs//guide.md:
+      title: Guide
+`)
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load returned error: %v", err)
+	}
+
+	if _, ok := cfg.Content.Metadata["docs/guide.md"]; !ok {
+		t.Fatalf("metadata keys = %#v, want normalized docs/guide.md", cfg.Content.Metadata)
+	}
+	if _, ok := cfg.Content.Metadata["./docs//guide.md"]; ok {
+		t.Fatalf("metadata kept unnormalized key: %#v", cfg.Content.Metadata)
+	}
+}
+
+func TestLoadContentMetadataRejectsInvalidDate(t *testing.T) {
+	tests := []struct {
+		name string
+		date string
+	}{
+		{name: "not real", date: "2024-02-30"},
+		{name: "not strict format", date: " 2024-02-29 "},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			configPath := filepath.Join(dir, ".gocire.yml")
+			writeFile(t, configPath, `
+content:
+  metadata:
+    docs/intro.md:
+      date: "`+tt.date+`"
+`)
+
+			_, err := Load(configPath)
+			if err == nil {
+				t.Fatal("Load returned nil error for invalid metadata date")
+			}
+			if !strings.Contains(err.Error(), ".date") {
+				t.Fatalf("error = %q, want date context", err.Error())
+			}
+		})
+	}
+}
+
+func TestLoadContentMetadataRejectsInvalidKeys(t *testing.T) {
+	tests := []struct {
+		name string
+		key  string
+	}{
+		{name: "empty", key: ""},
+		{name: "absolute", key: "/docs/intro.md"},
+		{name: "parent", key: "docs/../intro.md"},
+		{name: "nul", key: `docs\u0000intro.md`},
+		{name: "backslash", key: `docs\\intro.md`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			configPath := filepath.Join(dir, ".gocire.yml")
+			writeFile(t, configPath, `
+content:
+  metadata:
+    "`+tt.key+`":
+      title: Intro
+`)
+
+			_, err := Load(configPath)
+			if err == nil {
+				t.Fatal("Load returned nil error for invalid metadata key")
+			}
+			if !strings.Contains(err.Error(), "content.metadata key") {
+				t.Fatalf("error = %q, want metadata key context", err.Error())
+			}
+		})
+	}
+}
+
+func TestLoadContentMetadataRejectsEmptyTag(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, ".gocire.yml")
+	writeFile(t, configPath, `
+content:
+  metadata:
+    docs/intro.md:
+      tags:
+        - reference
+        - " "
+`)
+
+	_, err := Load(configPath)
+	if err == nil {
+		t.Fatal("Load returned nil error for empty metadata tag")
+	}
+	if !strings.Contains(err.Error(), ".tags[1]") {
+		t.Fatalf("error = %q, want tag index context", err.Error())
+	}
+}
+
+func TestLoadContentMetadataRejectsSlug(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, ".gocire.yml")
+	writeFile(t, configPath, `
+content:
+  metadata:
+    docs/intro.md:
+      title: Intro
+      slug: intro
+`)
+
+	_, err := Load(configPath)
+	if err == nil {
+		t.Fatal("Load returned nil error for unsupported metadata slug")
+	}
+	if !strings.Contains(err.Error(), "slug") {
+		t.Fatalf("error = %q, want slug context", err.Error())
+	}
+}
+
 func TestLoadRelativePathsUseConfigDirectory(t *testing.T) {
 	dir := t.TempDir()
 	configDir := filepath.Join(dir, "nested", "config")
@@ -178,6 +364,14 @@ source:
   routePrefix: /_source/
 `,
 			want: "/_source",
+		},
+		{
+			name: "accepts snake case",
+			yaml: `
+source:
+  route_prefix: code/
+`,
+			want: "/code",
 		},
 	}
 
