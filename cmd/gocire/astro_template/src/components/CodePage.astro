@@ -1,0 +1,80 @@
+---
+import SiteLayout from "../layouts/SiteLayout.astro";
+import Sidebar from "./Sidebar.astro";
+
+interface Props {
+  title: string;
+  kind?: string;
+  language?: string;
+  sourcePath?: string;
+  date?: string;
+  tags?: string[];
+  author?: string;
+  renderMode?: string;
+}
+
+const {
+  title,
+  kind = "Source",
+  language,
+  sourcePath,
+  date,
+  tags = [],
+  author,
+  renderMode = "source",
+} = Astro.props;
+const pageClass = "site-shell code-page code-page--" + renderMode;
+const kindLabel = String(kind || "Source");
+const currentPath = Astro.url.pathname;
+const pageDate = String(date || "").trim();
+const pageAuthor = String(author || "").trim();
+const pageTags = compactTags(tags);
+const hasPageMeta = Boolean(pageDate || pageAuthor || pageTags.length > 0);
+
+function compactTags(values?: string[]) {
+  return (values ?? []).map((value) => String(value).trim()).filter(Boolean);
+}
+---
+
+<SiteLayout title={title}>
+  <main class={pageClass}>
+    <Sidebar kind={kind} sourcePath={sourcePath} language={language} currentPath={currentPath} />
+
+    <div class="page-main">
+      <header class="page-header">
+        <p class="page-kicker">{kindLabel}</p>
+        <h1>{title}</h1>
+        {hasPageMeta && (
+          <dl class="page-meta">
+            {pageDate && (
+              <>
+                <dt>Date</dt>
+                <dd><time datetime={pageDate}>{pageDate}</time></dd>
+              </>
+            )}
+            {pageAuthor && (
+              <>
+                <dt>Author</dt>
+                <dd>{pageAuthor}</dd>
+              </>
+            )}
+            {pageTags.length > 0 && (
+              <>
+                <dt>Tags</dt>
+                <dd>
+                  <ul class="metadata-tags" aria-label="Tags">
+                    {pageTags.map((tag) => <li class="metadata-tag">{tag}</li>)}
+                  </ul>
+                </dd>
+              </>
+            )}
+          </dl>
+        )}
+      </header>
+
+      <section class="page-content" aria-label={"Content for " + title}>
+        <slot />
+      </section>
+    </div>
+  </main>
+</SiteLayout>

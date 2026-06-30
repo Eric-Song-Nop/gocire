@@ -1,0 +1,77 @@
+---
+import Moon from "lucide-astro/Moon";
+import Sun from "lucide-astro/Sun";
+import { navigation } from "../generated/navigation";
+import "katex/dist/katex.min.css";
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  siteTitle?: string;
+  description?: string;
+}
+
+const fallbackSiteTitle = {{ .FallbackSiteTitle }};
+const {
+  title = fallbackSiteTitle,
+  siteTitle = fallbackSiteTitle,
+  description = "Generated source documentation.",
+} = Astro.props;
+const pageTitle = title === siteTitle ? siteTitle : title + " | " + siteTitle;
+const docsHref = navigation.docs.firstHref || "/";
+const blogHref = navigation.blog.firstHref || "/";
+const primaryHref = navigation.docs.firstHref || navigation.blog.firstHref || "/";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{pageTitle}</title>
+    <script is:inline>
+      (() => {
+        const storageKey = "gocire-theme";
+        const validThemes = new Set(["light", "dark"]);
+
+        const readStoredTheme = () => {
+          try {
+            return localStorage.getItem(storageKey);
+          } catch {
+            return null;
+          }
+        };
+
+        const preferredTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        const storedTheme = readStoredTheme();
+        document.documentElement.setAttribute("data-theme", validThemes.has(storedTheme) ? storedTheme : preferredTheme);
+      })();
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="site-brand" href={primaryHref}>{siteTitle}</a>
+        <div class="site-actions">
+          <nav class="site-nav" aria-label="Main navigation">
+            <a href={docsHref}>Docs</a>
+            <a href={blogHref}>Blog</a>
+          </nav>
+          <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle color theme" title="Toggle color theme">
+            <Sun class="theme-toggle__icon theme-toggle__icon--sun" size={18} aria-hidden="true" />
+            <Moon class="theme-toggle__icon theme-toggle__icon--moon" size={18} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    </header>
+    <slot />
+    <footer class="site-footer">
+      <span>{siteTitle}</span>
+    </footer>
+    <script>
+      import "../scripts/theme.js";
+      import "../scripts/tooltip.js";
+    </script>
+  </body>
+</html>

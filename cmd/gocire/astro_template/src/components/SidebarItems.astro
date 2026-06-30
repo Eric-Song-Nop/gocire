@@ -1,0 +1,73 @@
+---
+interface NavigationItem {
+  type?: string;
+  title?: string;
+  href?: string;
+  sourcePath?: string;
+  date?: string;
+  tags?: string[];
+  author?: string;
+  items?: NavigationItem[];
+}
+
+interface Props {
+  items: NavigationItem[];
+  currentPath?: string;
+  depth?: number;
+}
+
+const {
+  items = [],
+  currentPath = "/",
+  depth = 0,
+} = Astro.props;
+
+const normalizedCurrentPath = normalizePath(currentPath);
+const listClass = depth === 0 ? "sidebar-items" : "sidebar-items sidebar-items--nested";
+
+function normalizePath(value?: string) {
+  const pathname = String(value || "/").split(/[?#]/)[0] || "/";
+  if (pathname === "/") {
+    return "/";
+  }
+  return pathname.endsWith("/") ? pathname : pathname + "/";
+}
+
+function isActive(href?: string) {
+  return href ? normalizePath(href) === normalizedCurrentPath : false;
+}
+
+function compactText(value?: string) {
+  return String(value || "").trim();
+}
+
+function compactTags(values?: string[]) {
+  return (values ?? []).map((value) => String(value).trim()).filter(Boolean);
+}
+---
+
+<ul class={listClass}>
+  {items.map((item) => (
+    <li class:list={["sidebar-item", { "sidebar-item--category": item.type === "category" }]}>
+      {item.type === "category" ? (
+        <>
+        <span class="sidebar-category">{item.title}</span>
+        {(item.items?.length ?? 0) > 0 && (
+          <Astro.self items={item.items} currentPath={normalizedCurrentPath} depth={depth + 1} />
+        )}
+        </>
+      ) : (
+        <a class:list={["sidebar-link", { "is-active": isActive(item.href) }]} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}>
+          <span class="sidebar-link__title">{item.title || item.sourcePath || item.href}</span>
+          {(compactText(item.date) || compactText(item.author) || compactTags(item.tags).length > 0) && (
+            <span class="sidebar-link__meta">
+              {compactText(item.date) && <time class="sidebar-date" datetime={compactText(item.date)}>{compactText(item.date)}</time>}
+              {compactText(item.author) && <span>{compactText(item.author)}</span>}
+              {compactTags(item.tags).length > 0 && <span class="sidebar-link__tags">{compactTags(item.tags).join(", ")}</span>}
+            </span>
+          )}
+        </a>
+      )}
+    </li>
+  ))}
+</ul>

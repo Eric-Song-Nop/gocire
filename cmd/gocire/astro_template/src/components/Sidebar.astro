@@ -1,0 +1,120 @@
+---
+import { navigation } from "../generated/navigation";
+import SidebarItems from "./SidebarItems.astro";
+
+interface NavigationItem {
+  type?: string;
+  title?: string;
+  href?: string;
+  sourcePath?: string;
+  date?: string;
+  tags?: string[];
+  author?: string;
+  items?: NavigationItem[];
+}
+
+interface Props {
+  kind?: string;
+  sourcePath?: string;
+  language?: string;
+  currentPath?: string;
+}
+
+const {
+  kind = "source",
+  sourcePath,
+  language,
+  currentPath = "/",
+} = Astro.props;
+
+const normalizedKind = String(kind || "source").toLowerCase();
+const normalizedCurrentPath = normalizePath(currentPath);
+const docsItems = (navigation.docs.items ?? []) as NavigationItem[];
+const blogItems = (navigation.blog.items ?? []) as NavigationItem[];
+const showDocs = normalizedKind === "docs";
+const showBlog = normalizedKind === "blog";
+const showSource = !showDocs && !showBlog;
+const sidebarLabel = showDocs ? "Docs navigation" : showBlog ? "Blog navigation" : "Source context";
+
+function normalizePath(value?: string) {
+  const pathname = String(value || "/").split(/[?#]/)[0] || "/";
+  if (pathname === "/") {
+    return "/";
+  }
+  return pathname.endsWith("/") ? pathname : pathname + "/";
+}
+
+function isActive(href?: string) {
+  return href ? normalizePath(href) === normalizedCurrentPath : false;
+}
+
+function compactText(value?: string) {
+  return String(value || "").trim();
+}
+
+function compactTags(values?: string[]) {
+  return (values ?? []).map((value) => String(value).trim()).filter(Boolean);
+}
+---
+
+<aside class="page-sidebar" aria-label={sidebarLabel}>
+  {showDocs && (
+    <nav class="sidebar-nav" aria-label="Docs">
+      <p class="sidebar-heading">Docs</p>
+      {docsItems.length > 0 ? (
+        <SidebarItems items={docsItems} currentPath={normalizedCurrentPath} />
+      ) : (
+        <p class="sidebar-empty">No docs pages yet.</p>
+      )}
+    </nav>
+  )}
+
+  {showBlog && (
+    <nav class="sidebar-nav" aria-label="Blog">
+      <p class="sidebar-heading">Blog</p>
+      {blogItems.length > 0 ? (
+        <ul class="sidebar-blog-list">
+          {blogItems.map((item) => {
+            const itemDate = compactText(item.date);
+            const itemAuthor = compactText(item.author);
+            const itemTags = compactTags(item.tags);
+            return (
+              <li class:list={["sidebar-blog-item", { "is-active": isActive(item.href) }]}>
+                <a class="sidebar-blog-link" href={item.href || "#"} aria-current={isActive(item.href) ? "page" : undefined}>
+                  <span class="sidebar-blog-title">{item.title || item.sourcePath || item.href}</span>
+                  {(itemDate || itemAuthor || itemTags.length > 0) && (
+                    <span class="sidebar-blog-meta">
+                      {itemDate && <time class="sidebar-blog-date sidebar-date" datetime={itemDate}>{itemDate}</time>}
+                      {itemAuthor && <span class="sidebar-blog-author">{itemAuthor}</span>}
+                      {itemTags.length > 0 && <span class="sidebar-blog-tags">{itemTags.join(", ")}</span>}
+                    </span>
+                  )}
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p class="sidebar-empty">No blog posts yet.</p>
+      )}
+    </nav>
+  )}
+
+  {showSource && (
+    <div class="sidebar-context">
+      <p class="sidebar-heading">Source context</p>
+      {sourcePath && (
+        <div class="sidebar-section">
+          <p class="sidebar-label">Path</p>
+          <p class="sidebar-value sidebar-path">{sourcePath}</p>
+        </div>
+      )}
+      {language && (
+        <div class="sidebar-section">
+          <p class="sidebar-label">Language</p>
+          <p class="sidebar-value">{language}</p>
+        </div>
+      )}
+    </div>
+  )}
+</aside>

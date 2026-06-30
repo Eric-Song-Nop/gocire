@@ -1,0 +1,16 @@
+{
+  "name": "gocire-docsite",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "astro build",
+    "dev": "astro dev",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@floating-ui/dom": "latest",
+    "astro": "latest",
+    "katex": "0.17.0",
+    "lucide-astro": "latest"
+  }
+}
