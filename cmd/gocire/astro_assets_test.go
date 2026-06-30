@@ -76,8 +76,20 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"tags?: string[]",
 		"author?: string",
 		"<slot />",
+		`<dl class="page-meta">`,
+		"<dt>Date</dt>",
+		"<dt>Author</dt>",
+		"<dt>Tags</dt>",
+		"metadata-tags",
 	} {
 		assertAstroAssetContains(t, codePage, want)
+	}
+	for _, unwanted := range []string{
+		`<dt>Language</dt>`,
+		`<dt>Path</dt>`,
+		`<dd><code>{sourcePath}</code></dd>`,
+	} {
+		assertAstroAssetNotContains(t, codePage, unwanted)
 	}
 
 	tooltip := readAstroAssetFile(t, outputDir, "src/scripts/tooltip.js")
@@ -116,6 +128,10 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		`[data-theme="dark"]`,
 	})
 	assertAstroAssetContains(t, globalCSS, ".theme-toggle")
+	assertAstroAssetContains(t, globalCSS, ".page-meta")
+	assertAstroAssetContains(t, globalCSS, ".metadata-tags")
+	assertAstroAssetContains(t, globalCSS, ".metadata-tag")
+	assertAstroAssetNotContains(t, globalCSS, ".page-meta code")
 	assertAstroAssetNotContains(t, globalCSS, "min-height: 240px")
 	assertAstroAssetNotContains(t, globalCSS, "min-height: 180px")
 	for _, want := range []string{
@@ -296,6 +312,8 @@ func TestAstroCodePageUsesSidebarComponent(t *testing.T) {
 		"kind={kindLabel}",
 	})
 	for _, unwanted := range []string{
+		`<dt>Language</dt>`,
+		`<dt>Path</dt>`,
 		`<aside class="page-sidebar" aria-label="Page context">`,
 		`<p class="sidebar-label">Kind</p>`,
 		`<p class="sidebar-label">Path</p>`,

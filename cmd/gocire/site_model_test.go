@@ -42,6 +42,25 @@ func TestBuildSiteModelBuildsPagesRoutesAndNavigation(t *testing.T) {
 	if page.Href != "/_source/docs/intro.go.html/" {
 		t.Fatalf("page href = %q, want /_source/docs/intro.go.html/", page.Href)
 	}
+	if page.Title != "Intro" {
+		t.Fatalf("docs page title = %q, want Intro", page.Title)
+	}
+
+	blogPage, ok := model.PageForFile(files[2])
+	if !ok {
+		t.Fatal("PageForFile returned ok=false for blog page")
+	}
+	if blogPage.Title != "Astro backend" {
+		t.Fatalf("blog page title = %q, want Astro backend", blogPage.Title)
+	}
+
+	sourcePage, ok := model.PageForFile(files[4])
+	if !ok {
+		t.Fatal("PageForFile returned ok=false for source page")
+	}
+	if sourcePage.Title != "internal/model.go" {
+		t.Fatalf("source page title = %q, want internal/model.go", sourcePage.Title)
+	}
 
 	if model.Navigation.Docs.FirstHref != "/_source/docs/intro.go.html/" {
 		t.Fatalf("docs first href = %q, want intro href", model.Navigation.Docs.FirstHref)
