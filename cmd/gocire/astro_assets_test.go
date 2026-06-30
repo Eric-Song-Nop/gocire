@@ -43,6 +43,9 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 	if pkg.Dependencies["astro"] == "" {
 		t.Fatal("package.json dependencies missing astro")
 	}
+	if pkg.Dependencies["katex"] == "" {
+		t.Fatal("package.json dependencies missing katex")
+	}
 	if pkg.Dependencies["@floating-ui/dom"] == "" {
 		t.Fatal("package.json dependencies missing @floating-ui/dom")
 	}
@@ -55,6 +58,7 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 	for _, want := range []string{
 		`import Moon from "lucide-astro/Moon";`,
 		`import Sun from "lucide-astro/Sun";`,
+		`import "katex/dist/katex.min.css";`,
 		"theme-toggle",
 		"data-theme",
 		"../scripts/theme.js",
@@ -156,6 +160,81 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"overflow-x: auto",
 	} {
 		assertAstroAssetContains(t, globalCSS, want)
+	}
+}
+
+func TestAstroSiteAssetsIncludeKatexRenderingSupport(t *testing.T) {
+	outputDir := writeAstroAssetsForTest(t, "Math Docs")
+
+	packageJSON := readAstroAssetFile(t, outputDir, "package.json")
+	var pkg struct {
+		Dependencies map[string]string `json:"dependencies"`
+	}
+	if err := json.Unmarshal([]byte(packageJSON), &pkg); err != nil {
+		t.Fatalf("package.json is not valid JSON: %v", err)
+	}
+	if pkg.Dependencies["katex"] == "" {
+		t.Fatal("package.json dependencies missing katex")
+	}
+
+	layout := readAstroAssetFile(t, outputDir, "src/layouts/SiteLayout.astro")
+	katexImport := `import "katex/dist/katex.min.css";`
+	globalImport := `import "../styles/global.css";`
+	assertAstroAssetContains(t, layout, katexImport)
+	assertAstroAssetContains(t, layout, globalImport)
+	if strings.Index(layout, katexImport) > strings.Index(layout, globalImport) {
+		t.Fatal("SiteLayout should import KaTeX CSS before global.css so local overrides win")
+	}
+
+	globalCSS := readAstroAssetFile(t, outputDir, "src/styles/global.css")
+	displayMathRule := extractAstroCSSRuleBlock(t, globalCSS, ".cire-prose .katex-display")
+	for _, want := range []string{
+		"max-width: 100%",
+		"margin: 1.25rem 0",
+		"overflow-x: auto",
+		"overflow-y: hidden",
+	} {
+		if !strings.Contains(displayMathRule, want) {
+			t.Fatalf("display math CSS rule missing %q\nGot:\n%s", want, displayMathRule)
+		}
+	}
+	assertAstroAssetContains(t, globalCSS, ".cire-prose .katex-display > .katex")
+}
+
+func TestAstroGlobalCSSIncludesProseMarkdownStyles(t *testing.T) {
+	outputDir := writeAstroAssetsForTest(t, "Markdown Docs")
+
+	globalCSS := readAstroAssetFile(t, outputDir, "src/styles/global.css")
+	for _, selector := range []string{
+		".cire-prose a",
+		".cire-prose blockquote",
+		".cire-prose table",
+		".cire-prose th",
+		".cire-prose td",
+		".cire-prose pre",
+		".cire-prose .chroma",
+		".cire-prose .chroma pre",
+		".cire-prose img",
+		".cire-prose li + li",
+	} {
+		extractAstroCSSRuleBlock(t, globalCSS, selector)
+	}
+
+	for _, check := range []struct {
+		selector string
+		want     string
+	}{
+		{".cire-prose a", "color: var(--accent)"},
+		{".cire-prose blockquote", "border-left: 3px solid var(--line)"},
+		{".cire-prose table", "overflow-x: auto"},
+		{".cire-prose pre", "background: var(--code-bg)"},
+		{".cire-prose .chroma", "overflow-x: auto"},
+		{".cire-prose img", "max-width: 100%"},
+	} {
+		ruleBlock := extractAstroCSSRuleBlock(t, globalCSS, check.selector)
+		if !strings.Contains(ruleBlock, check.want) {
+			t.Fatalf("CSS selector %q missing %q\nGot:\n%s", check.selector, check.want, ruleBlock)
+		}
 	}
 }
 
