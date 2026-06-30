@@ -64,12 +64,25 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		t.Fatal("package.json dependencies missing lucide-astro")
 	}
 
+	astroConfig := readAstroAssetFile(t, outputDir, "astro.config.mjs")
+	for _, want := range []string{
+		`output: "static"`,
+		`trailingSlash: "always"`,
+		`build: {`,
+		`format: "directory"`,
+	} {
+		assertAstroAssetContains(t, astroConfig, want)
+	}
+
 	layout := readAstroAssetFile(t, outputDir, "src/layouts/SiteLayout.astro")
 	assertAstroAssetContains(t, layout, "Example Docs")
 	for _, want := range []string{
 		`import Moon from "lucide-astro/Moon";`,
 		`import Sun from "lucide-astro/Sun";`,
+		`import { siteData } from "../generated/site-data";`,
 		`import "katex/dist/katex.min.css";`,
+		`const fallbackDescription = siteData.site.description;`,
+		`description = fallbackDescription`,
 		"theme-toggle",
 		"data-theme",
 		"../scripts/theme.js",
@@ -713,6 +726,10 @@ func TestAstroSiteAssetsBuildSmoke(t *testing.T) {
 	writeAstroBuildSmokeFile(t, outputDir, "src/generated/navigation.ts", `export const navigation = {
   docs: { firstHref: "/", items: [] },
   blog: { firstHref: "/", items: [] }
+};
+`)
+	writeAstroBuildSmokeFile(t, outputDir, "src/generated/site-data.ts", `export const siteData = {
+  site: { description: "Smoke Docs description" }
 };
 `)
 	writeAstroBuildSmokeFile(t, outputDir, "src/pages/index.astro", `---

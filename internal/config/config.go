@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -54,6 +55,8 @@ type ProjectConfig struct {
 
 type SiteConfig struct {
 	Title       string `yaml:"title"`
+	Description string `yaml:"description"`
+	URL         string `yaml:"url"`
 	TemplateDir string `yaml:"templateDir"`
 }
 
@@ -94,6 +97,8 @@ type rawProjectConfig struct {
 
 type rawSiteConfig struct {
 	Title            *string `yaml:"title"`
+	Description      *string `yaml:"description"`
+	URL              *string `yaml:"url"`
 	TemplateDir      *string `yaml:"templateDir"`
 	TemplateDirSnake *string `yaml:"template_dir"`
 }
@@ -272,6 +277,10 @@ func (c *ProjectConfig) Normalize(baseDir string) error {
 	if c.Site.TemplateDir, err = normalizeOptionalPath(absBaseDir, c.Site.TemplateDir, "site.templateDir"); err != nil {
 		return err
 	}
+	c.Site.Description = strings.TrimSpace(c.Site.Description)
+	if c.Site.URL, err = normalizeSiteURL(c.Site.URL); err != nil {
+		return err
+	}
 	if c.Content.Docs, err = normalizePath(absBaseDir, c.Content.Docs, "content.docs"); err != nil {
 		return err
 	}
@@ -299,6 +308,9 @@ func (c *ProjectConfig) Validate() error {
 		return err
 	}
 	if err := validateOptionalPath("site.templateDir", c.Site.TemplateDir); err != nil {
+		return err
+	}
+	if err := validateSiteURL(c.Site.URL); err != nil {
 		return err
 	}
 	if err := validatePath("content.docs", c.Content.Docs); err != nil {
@@ -331,6 +343,12 @@ func applyRawConfig(cfg *ProjectConfig, raw *rawProjectConfig) {
 	if raw.Site != nil {
 		if raw.Site.Title != nil {
 			cfg.Site.Title = *raw.Site.Title
+		}
+		if raw.Site.Description != nil {
+			cfg.Site.Description = *raw.Site.Description
+		}
+		if raw.Site.URL != nil {
+			cfg.Site.URL = *raw.Site.URL
 		}
 		if raw.Site.TemplateDir != nil {
 			cfg.Site.TemplateDir = *raw.Site.TemplateDir
@@ -523,6 +541,17 @@ func normalizeOptionalPath(baseDir, value, field string) (string, error) {
 	return filepath.Clean(value), nil
 }
 
+func normalizeSiteURL(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", nil
+	}
+	if err := validateSiteURL(value); err != nil {
+		return "", err
+	}
+	return value, nil
+}
+
 func validatePath(field, value string) error {
 	if strings.TrimSpace(value) == "" {
 		return fmt.Errorf("%s is required", field)
@@ -539,6 +568,22 @@ func validateOptionalPath(field, value string) error {
 	}
 	if strings.ContainsRune(value, 0) {
 		return fmt.Errorf("%s contains a null byte", field)
+	}
+	return nil
+}
+
+func validateSiteURL(value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return fmt.Errorf("site.url must be an absolute http or https URL with a host: %w", err)
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	if !parsed.IsAbs() || (scheme != "http" && scheme != "https") || parsed.Host == "" {
+		return fmt.Errorf("site.url must be an absolute http or https URL with a host")
 	}
 	return nil
 }
