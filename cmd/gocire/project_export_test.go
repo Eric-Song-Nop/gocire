@@ -93,6 +93,42 @@ func TestAstroLinkManifestUsesTrailingSlashRoutes(t *testing.T) {
 	}
 }
 
+func TestAstroNavigationItemLiteralIncludesMetadata(t *testing.T) {
+	got := astroNavigationItemLiteral(SiteNavigationItem{
+		Type:   SiteNavigationItemLink,
+		Title:  "Post",
+		Href:   "/blog/post/",
+		Date:   " 2026-06-30 ",
+		Tags:   []string{"go", " ", "astro"},
+		Author: " Ada Lovelace ",
+	})
+	for _, want := range []string{
+		`type: "link"`,
+		`title: "Post"`,
+		`, date: "2026-06-30"`,
+		`, tags: ["go", "astro"]`,
+		`, author: "Ada Lovelace"`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("metadata literal missing %q\nGot:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, `" "`) {
+		t.Fatalf("metadata literal should omit blank tags\nGot:\n%s", got)
+	}
+
+	empty := astroNavigationItemLiteral(SiteNavigationItem{
+		Type:   SiteNavigationItemLink,
+		Tags:   []string{" "},
+		Author: " ",
+	})
+	for _, unwanted := range []string{"date:", "tags:", "author:"} {
+		if strings.Contains(empty, unwanted) {
+			t.Fatalf("empty metadata should not contain %q\nGot:\n%s", unwanted, empty)
+		}
+	}
+}
+
 func TestAstroRenderModeForPageKind(t *testing.T) {
 	for _, tt := range []struct {
 		name string
@@ -242,6 +278,14 @@ func TestProjectExportRunnerWritesAstroProject(t *testing.T) {
 	writeProjectTestFile(t, configPath, `
 site:
   title: Test Site
+content:
+  metadata:
+    main.go:
+      date: "2026-06-30"
+      tags:
+        - source
+        - runtime
+      author: Ada Lovelace
 project:
   root: repo
 source:
@@ -285,6 +329,9 @@ output:
 		`import CodePage from "../../../components/CodePage.astro";`,
 		`renderMode="source"`,
 		`sourcePath="main.go"`,
+		`date="2026-06-30"`,
+		`author="Ada Lovelace"`,
+		`tags={["source", "runtime"]}`,
 	} {
 		if !strings.Contains(string(page), want) {
 			t.Fatalf("Astro page missing %q\nGot:\n%s", want, string(page))

@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Eric-Song-Nop/gocire/internal"
 	projectconfig "github.com/Eric-Song-Nop/gocire/internal/config"
@@ -23,6 +25,9 @@ type SitePage struct {
 	Route      string
 	Href       string
 	Title      string
+	Date       string
+	Tags       []string
+	Author     string
 	Kind       project.PageKind
 	Language   string
 	SourcePath string
@@ -44,6 +49,8 @@ type SiteNavigationItem struct {
 	Href       string
 	SourcePath string
 	Date       string
+	Tags       []string
+	Author     string
 	Items      []SiteNavigationItem
 }
 
@@ -64,6 +71,7 @@ func BuildSiteModel(cfg projectconfig.ProjectConfig, files []project.SourceFile)
 	if err != nil {
 		return SiteModel{}, err
 	}
+	pages = mergeSitePageMetadata(cfg, pages)
 
 	navigation := SiteNavigationForPages(cfg, pages)
 	return SiteModel{
@@ -88,6 +96,7 @@ func SitePagesForProject(files []project.SourceFile, routes internal.SourceRoute
 			Route:      route,
 			Href:       astroRouteHref(route),
 			Title:      sitePageTitle(file),
+			Tags:       []string{},
 			Kind:       file.Kind,
 			Language:   file.Language,
 			SourcePath: file.RelPath,
@@ -136,6 +145,323 @@ func sitePageTitle(file project.SourceFile) string {
 	return filepath.Base(file.AbsPath)
 }
 
+type sitePageMetadata struct {
+	Title  string
+	Date   string
+	Tags   []string
+	Author string
+}
+
+func mergeSitePageMetadata(cfg projectconfig.ProjectConfig, pages []SitePage) []SitePage {
+	docsPrefix := siteContentPrefix(cfg.Project.Root, cfg.Content.Docs, "docs")
+	blogPrefix := siteContentPrefix(cfg.Project.Root, cfg.Content.Blogs, "blogs")
+	metadataByPath := siteConfiguredMetadataByPath(cfg)
+
+	for i := range pages {
+		page := &pages[i]
+		page.Title = siteInferredPageTitle(*page, docsPrefix, blogPrefix)
+		page.Date = siteInferredPageDate(*page)
+		page.Tags = []string{}
+		page.Author = ""
+
+		metadata, ok := siteConfiguredMetadataForPage(metadataByPath, cfg.Project.Root, *page)
+		if !ok {
+			continue
+		}
+		if metadata.Title != "" {
+			page.Title = metadata.Title
+		}
+		if metadata.Date != "" {
+			page.Date = metadata.Date
+		}
+		page.Tags = cloneSiteStrings(metadata.Tags)
+		if metadata.Author != "" {
+			page.Author = metadata.Author
+		}
+	}
+
+	return pages
+}
+
+func siteInferredPageTitle(page SitePage, docsPrefix string, blogPrefix string) string {
+	switch page.Kind {
+	case project.PageKindDocs, project.PageKindBlog:
+		if title := inferSitePageH1Title(page.File); title != "" {
+			return title
+		}
+		return siteNavigationTitle(page, docsPrefix, blogPrefix)
+	default:
+		return sitePageTitle(page.File)
+	}
+}
+
+func siteInferredPageDate(page SitePage) string {
+	if page.Kind != project.PageKindBlog {
+		return ""
+	}
+	return siteBlogDate(page)
+}
+
+func siteConfiguredMetadataByPath(cfg projectconfig.ProjectConfig) map[string]sitePageMetadata {
+	if len(cfg.Content.Metadata) == 0 {
+		return nil
+	}
+
+	metadataByPath := make(map[string]sitePageMetadata, len(cfg.Content.Metadata))
+	for key, metadata := range cfg.Content.Metadata {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		siteMetadata := sitePageMetadataFromConfig(metadata)
+		for _, normalizedKey := range siteMetadataKeyVariants(cfg.Project.Root, key) {
+			metadataByPath[normalizedKey] = siteMetadata
+		}
+	}
+	return metadataByPath
+}
+
+func siteConfiguredMetadataForPage(metadataByPath map[string]sitePageMetadata, root string, page SitePage) (sitePageMetadata, bool) {
+	if len(metadataByPath) == 0 {
+		return sitePageMetadata{}, false
+	}
+	for _, key := range sitePageMetadataLookupKeys(root, page) {
+		if metadata, ok := metadataByPath[key]; ok {
+			return metadata, true
+		}
+	}
+	return sitePageMetadata{}, false
+}
+
+func sitePageMetadataFromConfig(metadata projectconfig.ContentMetadata) sitePageMetadata {
+	return sitePageMetadata{
+		Title:  strings.TrimSpace(metadata.Title),
+		Date:   strings.TrimSpace(metadata.Date),
+		Tags:   normalizeSiteStrings(metadata.Tags),
+		Author: strings.TrimSpace(metadata.Author),
+	}
+}
+
+func sitePageMetadataLookupKeys(root string, page SitePage) []string {
+	keys := make([]string, 0, 6)
+	keys = appendSiteMetadataKeyVariants(keys, root, page.SourcePath)
+	keys = appendSiteMetadataKeyVariants(keys, root, page.File.RelPath)
+	keys = appendSiteMetadataKeyVariants(keys, root, page.File.AbsPath)
+	return keys
+}
+
+func siteMetadataKeyVariants(root string, value string) []string {
+	return appendSiteMetadataKeyVariants(nil, root, value)
+}
+
+func appendSiteMetadataKeyVariants(keys []string, root string, value string) []string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return keys
+	}
+
+	add := func(candidate string) {
+		candidate = cleanSiteMetadataPath(candidate)
+		if candidate == "" {
+			return
+		}
+		for _, existing := range keys {
+			if existing == candidate {
+				return
+			}
+		}
+		keys = append(keys, candidate)
+	}
+
+	add(value)
+
+	filePath := filepath.FromSlash(value)
+	if filepath.IsAbs(filePath) {
+		if rel, err := filepath.Rel(root, filePath); err == nil && !strings.HasPrefix(rel, "..") {
+			add(rel)
+		}
+	} else if strings.TrimSpace(root) != "" {
+		add(filepath.Join(root, filePath))
+	}
+
+	return keys
+}
+
+func cleanSiteMetadataPath(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	value = filepath.ToSlash(filepath.Clean(value))
+	value = strings.TrimPrefix(value, "./")
+	return value
+}
+
+func normalizeSiteStrings(values []string) []string {
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		if value := strings.TrimSpace(value); value != "" {
+			normalized = append(normalized, value)
+		}
+	}
+	return normalized
+}
+
+func cloneSiteStrings(values []string) []string {
+	if len(values) == 0 {
+		return []string{}
+	}
+	cloned := make([]string, len(values))
+	copy(cloned, values)
+	return cloned
+}
+
+func inferSitePageH1Title(file project.SourceFile) string {
+	if strings.TrimSpace(file.AbsPath) == "" {
+		return ""
+	}
+	data, err := os.ReadFile(file.AbsPath)
+	if err != nil {
+		return ""
+	}
+	const maxTitleScanBytes = 64 * 1024
+	if len(data) > maxTitleScanBytes {
+		data = data[:maxTitleScanBytes]
+	}
+	return firstStandaloneCommentH1Title(string(data), file.Language)
+}
+
+func firstMarkdownH1Title(markdown string) string {
+	for _, line := range strings.Split(markdown, "\n") {
+		line = strings.TrimSpace(line)
+		if len(line) < 2 || line[0] != '#' {
+			continue
+		}
+		if len(line) > 1 && line[1] == '#' {
+			continue
+		}
+		if line[1] != ' ' && line[1] != '\t' {
+			continue
+		}
+		if title := strings.TrimSpace(line[1:]); title != "" {
+			return title
+		}
+	}
+	return ""
+}
+
+func firstStandaloneCommentH1Title(source string, language string) string {
+	linePrefixes, blockComments := siteCommentSyntax(language)
+	lines := strings.Split(source, "\n")
+
+	for i := 0; i < len(lines); {
+		line := strings.TrimSpace(lines[i])
+		if line == "" {
+			i++
+			continue
+		}
+
+		matched := false
+		for _, prefix := range linePrefixes {
+			if strings.HasPrefix(line, prefix) {
+				commentLines := make([]string, 0)
+				for i < len(lines) {
+					trimmed := strings.TrimSpace(lines[i])
+					if !strings.HasPrefix(trimmed, prefix) {
+						break
+					}
+					commentLines = append(commentLines, cleanSiteLineComment(trimmed, prefix))
+					i++
+				}
+				if title := firstMarkdownH1Title(strings.Join(commentLines, "\n")); title != "" {
+					return title
+				}
+				matched = true
+				break
+			}
+		}
+		if matched {
+			continue
+		}
+
+		for _, block := range blockComments {
+			if strings.HasPrefix(line, block.start) {
+				blockLines := []string{line}
+				i++
+				for !strings.Contains(blockLines[len(blockLines)-1], block.end) && i < len(lines) {
+					blockLines = append(blockLines, lines[i])
+					i++
+				}
+				if title := firstMarkdownH1Title(cleanSiteBlockComment(strings.Join(blockLines, "\n"), block.start, block.end)); title != "" {
+					return title
+				}
+				matched = true
+				break
+			}
+		}
+		if matched {
+			continue
+		}
+
+		i++
+	}
+
+	return ""
+}
+
+type siteBlockCommentSyntax struct {
+	start string
+	end   string
+}
+
+func siteCommentSyntax(language string) ([]string, []siteBlockCommentSyntax) {
+	switch strings.ToLower(strings.TrimSpace(language)) {
+	case "python", "py", "ruby":
+		return []string{"#"}, nil
+	case "haskell":
+		return []string{"--"}, []siteBlockCommentSyntax{{start: "{-", end: "-}"}}
+	default:
+		return []string{"//"}, []siteBlockCommentSyntax{{start: "/*", end: "*/"}}
+	}
+}
+
+func cleanSiteLineComment(line string, prefix string) string {
+	line = strings.TrimPrefix(strings.TrimSpace(line), prefix)
+	if strings.HasPrefix(line, " ") {
+		line = line[1:]
+	}
+	return strings.TrimRight(line, " \t\r")
+}
+
+func cleanSiteBlockComment(text string, start string, end string) string {
+	text = strings.TrimSpace(text)
+	text = strings.TrimPrefix(text, start)
+	text = strings.TrimSuffix(text, end)
+	lines := strings.Split(text, "\n")
+
+	for len(lines) > 0 && strings.TrimSpace(lines[0]) == "" {
+		lines = lines[1:]
+	}
+	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
+		lines = lines[:len(lines)-1]
+	}
+
+	for i, line := range lines {
+		line = strings.TrimRight(line, " \t\r")
+		trimmed := strings.TrimLeft(line, " \t")
+		if strings.HasPrefix(trimmed, "*") {
+			trimmed = strings.TrimPrefix(trimmed, "*")
+			if strings.HasPrefix(trimmed, " ") {
+				trimmed = trimmed[1:]
+			}
+			line = trimmed
+		}
+		lines[i] = line
+	}
+
+	return strings.Join(lines, "\n")
+}
+
 func cleanSiteAbsPath(path string) string {
 	if path == "" {
 		return ""
@@ -156,9 +482,11 @@ func siteDocsNavigation(pages []SitePage, docsPrefix string) SiteNavigationSecti
 	for _, page := range docs {
 		insertDocsNavigationItem(&items, docsNavigationParts(page.SourcePath, docsPrefix), SiteNavigationItem{
 			Type:       SiteNavigationItemLink,
-			Title:      siteNavigationTitle(page, docsPrefix, ""),
+			Title:      siteNavigationPageTitle(page, docsPrefix, ""),
 			Href:       page.Href,
 			SourcePath: page.SourcePath,
+			Tags:       cloneSiteStrings(page.Tags),
+			Author:     page.Author,
 		})
 	}
 
@@ -171,8 +499,8 @@ func siteDocsNavigation(pages []SitePage, docsPrefix string) SiteNavigationSecti
 func siteBlogNavigation(pages []SitePage, blogPrefix string) SiteNavigationSection {
 	blogs := filterSitePagesByKind(pages, project.PageKindBlog)
 	sort.SliceStable(blogs, func(i, j int) bool {
-		leftDate := siteBlogDate(blogs[i])
-		rightDate := siteBlogDate(blogs[j])
+		leftDate := blogs[i].Date
+		rightDate := blogs[j].Date
 		if leftDate != rightDate {
 			return leftDate > rightDate
 		}
@@ -183,10 +511,12 @@ func siteBlogNavigation(pages []SitePage, blogPrefix string) SiteNavigationSecti
 	for _, page := range blogs {
 		items = append(items, SiteNavigationItem{
 			Type:       SiteNavigationItemLink,
-			Title:      siteNavigationTitle(page, "", blogPrefix),
+			Title:      siteNavigationPageTitle(page, "", blogPrefix),
 			Href:       page.Href,
 			SourcePath: page.SourcePath,
-			Date:       siteBlogDate(page),
+			Date:       page.Date,
+			Tags:       cloneSiteStrings(page.Tags),
+			Author:     page.Author,
 		})
 	}
 
@@ -250,6 +580,13 @@ func firstSiteNavigationHref(items []SiteNavigationItem) string {
 	return ""
 }
 
+func siteNavigationPageTitle(page SitePage, docsPrefix string, blogPrefix string) string {
+	if title := strings.TrimSpace(page.Title); title != "" {
+		return title
+	}
+	return siteNavigationTitle(page, docsPrefix, blogPrefix)
+}
+
 func siteNavigationTitle(page SitePage, docsPrefix string, blogPrefix string) string {
 	rel := page.SourcePath
 	switch page.Kind {
@@ -302,12 +639,19 @@ func siteBlogDate(page SitePage) string {
 	}
 	prefix := base[:len("2006_01_02")]
 	if isDateLike(prefix, '_') {
-		return strings.ReplaceAll(prefix, "_", "-")
+		return validSiteDate(strings.ReplaceAll(prefix, "_", "-"))
 	}
 	if isDateLike(prefix, '-') {
-		return prefix
+		return validSiteDate(prefix)
 	}
 	return ""
+}
+
+func validSiteDate(value string) string {
+	if _, err := time.Parse("2006-01-02", value); err != nil {
+		return ""
+	}
+	return value
 }
 
 func isDateLike(value string, sep byte) bool {

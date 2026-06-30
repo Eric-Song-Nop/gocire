@@ -110,6 +110,9 @@ func (b *astroProjectBackend) ExportFile(ctx context.Context, req ProjectFileExp
 		Kind:           string(req.Page.Kind),
 		Language:       req.Page.Language,
 		SourcePath:     req.Page.SourcePath,
+		Date:           req.Page.Date,
+		Tags:           req.Page.Tags,
+		Author:         req.Page.Author,
 		RenderMode:     astroRenderModeForKind(req.Page.Kind),
 		CodePageImport: astroCodePageImportForGeneratedRoute(route),
 	})
@@ -325,12 +328,46 @@ func astroNavigationItemLiteral(item SiteNavigationItem) string {
 	if item.SourcePath != "" {
 		fmt.Fprintf(&sb, ", sourcePath: %s", strconv.Quote(item.SourcePath))
 	}
-	if item.Date != "" {
-		fmt.Fprintf(&sb, ", date: %s", strconv.Quote(item.Date))
-	}
+	astroWriteMetadataLiteral(&sb, item)
 	if len(item.Items) > 0 {
 		fmt.Fprintf(&sb, ", items: %s", astroNavigationItemsLiteral(item.Items))
 	}
 	sb.WriteString(" }")
+	return sb.String()
+}
+
+func astroWriteMetadataLiteral(sb *strings.Builder, item SiteNavigationItem) {
+	if date := strings.TrimSpace(item.Date); date != "" {
+		fmt.Fprintf(sb, ", date: %s", strconv.Quote(date))
+	}
+	if tags := astroNormalizeStringList(item.Tags); len(tags) > 0 {
+		fmt.Fprintf(sb, ", tags: %s", astroStringArrayLiteral(tags))
+	}
+	if author := strings.TrimSpace(item.Author); author != "" {
+		fmt.Fprintf(sb, ", author: %s", strconv.Quote(author))
+	}
+}
+
+func astroNormalizeStringList(values []string) []string {
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			normalized = append(normalized, value)
+		}
+	}
+	return normalized
+}
+
+func astroStringArrayLiteral(values []string) string {
+	var sb strings.Builder
+	sb.WriteString("[")
+	for i, value := range values {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(strconv.Quote(value))
+	}
+	sb.WriteString("]")
 	return sb.String()
 }

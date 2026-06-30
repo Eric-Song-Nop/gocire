@@ -1,7 +1,9 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	projectconfig "github.com/Eric-Song-Nop/gocire/internal/config"
@@ -71,6 +73,167 @@ func TestBuildSiteModelBuildsPagesRoutesAndNavigation(t *testing.T) {
 	}
 }
 
+func TestBuildSiteModelInfersNarrativeTitleFromOpeningH1(t *testing.T) {
+	root := t.TempDir()
+	doc := siteModelTestWriteFile(t, root, "docs/intro.go", project.PageKindDocs, `package docs
+
+// # Getting Started
+// Intro body.
+`)
+	blog := siteModelTestWriteFile(t, root, "blogs/2026_06_30_release_notes.go", project.PageKindBlog, `package blogs
+
+/*
+# Release Notes
+
+Body.
+*/
+`)
+
+	model, err := BuildSiteModel(siteModelTestConfig(root), []project.SourceFile{doc, blog})
+	if err != nil {
+		t.Fatalf("BuildSiteModel returned error: %v", err)
+	}
+
+	docPage, ok := model.PageForFile(doc)
+	if !ok {
+		t.Fatal("PageForFile returned ok=false for docs page")
+	}
+	if docPage.Title != "Getting Started" {
+		t.Fatalf("docs page title = %q, want Getting Started", docPage.Title)
+	}
+	if got := model.Navigation.Docs.Items[0].Title; got != "Getting Started" {
+		t.Fatalf("docs nav title = %q, want Getting Started", got)
+	}
+
+	blogPage, ok := model.PageForFile(blog)
+	if !ok {
+		t.Fatal("PageForFile returned ok=false for blog page")
+	}
+	if blogPage.Title != "Release Notes" {
+		t.Fatalf("blog page title = %q, want Release Notes", blogPage.Title)
+	}
+	if got := model.Navigation.Blog.Items[0].Title; got != "Release Notes" {
+		t.Fatalf("blog nav title = %q, want Release Notes", got)
+	}
+}
+
+func TestBuildSiteModelAppliesConfiguredMetadataOverFallbacks(t *testing.T) {
+	root := t.TempDir()
+	doc := siteModelTestWriteFile(t, root, "docs/intro.go", project.PageKindDocs, `// # Inferred Docs
+package docs
+`)
+	blog := siteModelTestWriteFile(t, root, "blogs/2026_06_30_release_notes.go", project.PageKindBlog, `// # Inferred Blog
+package blogs
+`)
+	cfg := siteModelTestConfig(root)
+	cfg.Content.Metadata = map[string]projectconfig.ContentMetadata{
+		"docs/intro.go": {
+			Title:  "Configured Docs",
+			Date:   "2026-01-02",
+			Tags:   []string{"guide", "api"},
+			Author: "Ada",
+		},
+		"blogs/2026_06_30_release_notes.go": {
+			Title:  "Configured Blog",
+			Date:   "2026-07-01",
+			Tags:   []string{"release"},
+			Author: "Grace",
+		},
+	}
+
+	model, err := BuildSiteModel(cfg, []project.SourceFile{doc, blog})
+	if err != nil {
+		t.Fatalf("BuildSiteModel returned error: %v", err)
+	}
+
+	docPage, ok := model.PageForFile(doc)
+	if !ok {
+		t.Fatal("PageForFile returned ok=false for docs page")
+	}
+	if docPage.Title != "Configured Docs" {
+		t.Fatalf("docs title = %q, want Configured Docs", docPage.Title)
+	}
+	if docPage.Date != "2026-01-02" {
+		t.Fatalf("docs date = %q, want 2026-01-02", docPage.Date)
+	}
+	assertSiteModelStrings(t, docPage.Tags, []string{"guide", "api"})
+	if docPage.Author != "Ada" {
+		t.Fatalf("docs author = %q, want Ada", docPage.Author)
+	}
+
+	docNav := model.Navigation.Docs.Items[0]
+	if docNav.Title != "Configured Docs" {
+		t.Fatalf("docs nav title = %q, want Configured Docs", docNav.Title)
+	}
+	assertSiteModelStrings(t, docNav.Tags, []string{"guide", "api"})
+	if docNav.Author != "Ada" {
+		t.Fatalf("docs nav author = %q, want Ada", docNav.Author)
+	}
+
+	blogNav := model.Navigation.Blog.Items[0]
+	if blogNav.Title != "Configured Blog" {
+		t.Fatalf("blog nav title = %q, want Configured Blog", blogNav.Title)
+	}
+	if blogNav.Date != "2026-07-01" {
+		t.Fatalf("blog nav date = %q, want configured date", blogNav.Date)
+	}
+	assertSiteModelStrings(t, blogNav.Tags, []string{"release"})
+	if blogNav.Author != "Grace" {
+		t.Fatalf("blog nav author = %q, want Grace", blogNav.Author)
+	}
+}
+
+func TestBuildSiteModelSortsBlogNavigationByPageDate(t *testing.T) {
+	root := t.TempDir()
+	files := []project.SourceFile{
+		siteModelTestWriteFile(t, root, "blogs/2026_06_10_old.go", project.PageKindBlog, "package blogs\n"),
+		siteModelTestWriteFile(t, root, "blogs/2026-07-01-new.go", project.PageKindBlog, "package blogs\n"),
+		siteModelTestWriteFile(t, root, "blogs/2026_99_01_invalid.go", project.PageKindBlog, "package blogs\n"),
+	}
+
+	model, err := BuildSiteModel(siteModelTestConfig(root), files)
+	if err != nil {
+		t.Fatalf("BuildSiteModel returned error: %v", err)
+	}
+
+	items := model.Navigation.Blog.Items
+	if len(items) != 3 {
+		t.Fatalf("len(blog items) = %d, want 3", len(items))
+	}
+	if got := items[0].SourcePath; got != "blogs/2026-07-01-new.go" {
+		t.Fatalf("first blog source path = %q, want newest dated post", got)
+	}
+	if got := items[0].Date; got != "2026-07-01" {
+		t.Fatalf("first blog date = %q, want 2026-07-01", got)
+	}
+	if got := items[1].SourcePath; got != "blogs/2026_06_10_old.go" {
+		t.Fatalf("second blog source path = %q, want older dated post", got)
+	}
+	if got := items[2].Date; got != "" {
+		t.Fatalf("invalid date fallback = %q, want empty date", got)
+	}
+}
+
+func TestBuildSiteModelDoesNotInferSourceTitleFromH1(t *testing.T) {
+	root := t.TempDir()
+	source := siteModelTestWriteFile(t, root, "internal/model.go", project.PageKindSource, `// # Source Narrative Title
+package internal
+`)
+
+	model, err := BuildSiteModel(siteModelTestConfig(root), []project.SourceFile{source})
+	if err != nil {
+		t.Fatalf("BuildSiteModel returned error: %v", err)
+	}
+
+	page, ok := model.PageForFile(source)
+	if !ok {
+		t.Fatal("PageForFile returned ok=false")
+	}
+	if page.Title != "internal/model.go" {
+		t.Fatalf("source title = %q, want path fallback", page.Title)
+	}
+}
+
 func TestBuildSiteModelRejectsFileWithoutRelPath(t *testing.T) {
 	root := t.TempDir()
 	_, err := BuildSiteModel(projectconfig.ProjectConfig{
@@ -86,6 +249,36 @@ func TestBuildSiteModelRejectsFileWithoutRelPath(t *testing.T) {
 	if err == nil {
 		t.Fatal("BuildSiteModel returned nil error for missing rel path")
 	}
+}
+
+func siteModelTestConfig(root string) projectconfig.ProjectConfig {
+	return projectconfig.ProjectConfig{
+		Project: projectconfig.ProjectSection{Root: root},
+		Content: projectconfig.ContentConfig{
+			Docs:  "docs",
+			Blogs: "blogs",
+		},
+		Source: projectconfig.SourceConfig{RoutePrefix: "/_source"},
+	}
+}
+
+func assertSiteModelStrings(t *testing.T, got []string, want []string) {
+	t.Helper()
+	if !slices.Equal(got, want) {
+		t.Fatalf("strings = %#v, want %#v", got, want)
+	}
+}
+
+func siteModelTestWriteFile(t *testing.T, root string, relPath string, kind project.PageKind, content string) project.SourceFile {
+	t.Helper()
+	file := siteModelTestFile(root, relPath, kind)
+	if err := os.MkdirAll(filepath.Dir(file.AbsPath), 0755); err != nil {
+		t.Fatalf("MkdirAll returned error: %v", err)
+	}
+	if err := os.WriteFile(file.AbsPath, []byte(content), 0644); err != nil {
+		t.Fatalf("WriteFile returned error: %v", err)
+	}
+	return file
 }
 
 func siteModelTestFile(root string, relPath string, kind project.PageKind) project.SourceFile {
