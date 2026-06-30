@@ -29,8 +29,7 @@ func RenderMarkdown(input string) string {
 			parser.WithAutoHeadingID(), // Automatically generate heading IDs
 		),
 		goldmark.WithRendererOptions(
-			html.WithHardWraps(), // Render newlines as <br>
-			html.WithUnsafe(),    // Allow embedding of raw HTML
+			html.WithUnsafe(), // Allow embedding of raw HTML
 		),
 	)
 
