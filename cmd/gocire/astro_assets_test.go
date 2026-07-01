@@ -17,6 +17,8 @@ import (
 var expectedAstroAssetFiles = []string{
 	"package.json",
 	"astro.config.mjs",
+	"src/pages/rss.xml.ts",
+	"src/pages/sitemap.xml.ts",
 	"src/layouts/SiteLayout.astro",
 	"src/components/CodePage.astro",
 	"src/components/Sidebar.astro",
@@ -43,6 +45,25 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 			t.Fatalf("expected Astro asset %q: %v", relPath, err)
 		}
 	}
+
+	rssEndpoint := readAstroAssetFile(t, outputDir, "src/pages/rss.xml.ts")
+	sitemapEndpoint := readAstroAssetFile(t, outputDir, "src/pages/sitemap.xml.ts")
+	for _, endpoint := range []struct {
+		name     string
+		contents string
+	}{
+		{name: "rss.xml.ts", contents: rssEndpoint},
+		{name: "sitemap.xml.ts", contents: sitemapEndpoint},
+	} {
+		assertAstroAssetContains(t, endpoint.contents, `import { siteData } from "../generated/site-data";`)
+		if strings.Contains(endpoint.contents, "import.meta.glob") {
+			t.Fatalf("%s should use generated site-data instead of import.meta.glob", endpoint.name)
+		}
+	}
+	assertAstroAssetContains(t, rssEndpoint, `kind === "blog"`)
+	assertAstroAssetContains(t, rssEndpoint, "site.url is required to generate rss.xml")
+	assertAstroAssetContains(t, sitemapEndpoint, "siteData.pages")
+	assertAstroAssetContains(t, sitemapEndpoint, "site.url is required to generate sitemap.xml")
 
 	packageJSON := readAstroAssetFile(t, outputDir, "package.json")
 	var pkg struct {
@@ -729,10 +750,59 @@ func TestAstroSiteAssetsBuildSmoke(t *testing.T) {
   site: {
     title: "Smoke Docs",
     description: "Smoke Docs description",
-    url: "",
+    url: "https://example.com/docs",
     trailingSlash: "always"
   },
-  pages: [],
+  pages: [
+    {
+      routeParam: "blog/second",
+      title: "Second Blog",
+      href: "/blog/second/",
+      module: "../generated/pages/blog/second.astro",
+      kind: "blog",
+      sourcePath: "content/blog/second.md",
+      language: "markdown",
+      date: "2026-06-30",
+      author: "Ada Lovelace",
+      tags: ["astro", "rss"]
+    },
+    {
+      routeParam: "blog/first",
+      title: "First Blog",
+      href: "/blog/first/",
+      module: "../generated/pages/blog/first.astro",
+      kind: "blog",
+      sourcePath: "content/blog/first.md",
+      language: "markdown",
+      date: "2026-06-29",
+      author: "Grace Hopper",
+      tags: ["go"]
+    },
+    {
+      routeParam: "guides/setup",
+      title: "Setup Guide",
+      href: "/guides/setup/",
+      module: "../generated/pages/guides/setup.astro",
+      kind: "docs",
+      sourcePath: "docs/setup.md",
+      language: "markdown",
+      date: "",
+      author: "",
+      tags: []
+    },
+    {
+      routeParam: "_source/main.go.html",
+      title: "main.go",
+      href: "/_source/main.go.html/",
+      module: "../generated/pages/_source/main.go.html.astro",
+      kind: "source",
+      sourcePath: "main.go",
+      language: "go",
+      date: "",
+      author: "",
+      tags: []
+    }
+  ],
   navigation: {
     docs: { firstHref: "/", items: [] },
     blog: { firstHref: "/", items: [] }
@@ -755,6 +825,34 @@ import SiteLayout from "../layouts/SiteLayout.astro";
 
 	runAstroBuildSmokeInstall(t, outputDir)
 	runAstroBuildSmokeCommand(t, outputDir, "pnpm", "build")
+
+	rssXML := readAstroBuildSmokeDistFile(t, outputDir, "rss.xml")
+	sitemapXML := readAstroBuildSmokeDistFile(t, outputDir, "sitemap.xml")
+	blogURLs := []string{
+		"https://example.com/docs/blog/second/",
+		"https://example.com/docs/blog/first/",
+	}
+	nonBlogURLs := []string{
+		"https://example.com/docs/guides/setup/",
+		"https://example.com/docs/_source/main.go.html/",
+	}
+	for _, want := range blogURLs {
+		assertAstroAssetContains(t, rssXML, want)
+		assertAstroAssetContains(t, sitemapXML, want)
+	}
+	for _, want := range nonBlogURLs {
+		assertAstroAssetNotContains(t, rssXML, want)
+		assertAstroAssetContains(t, sitemapXML, want)
+	}
+	for _, unwanted := range []string{
+		"https://example.com/blog/second/",
+		"https://example.com/blog/first/",
+		"https://example.com/guides/setup/",
+		"https://example.com/_source/main.go.html/",
+	} {
+		assertAstroAssetNotContains(t, rssXML, unwanted)
+		assertAstroAssetNotContains(t, sitemapXML, unwanted)
+	}
 }
 
 func writeAstroAssetsForTest(t *testing.T, siteTitle string) string {
@@ -800,6 +898,16 @@ func writeAstroBuildSmokeFile(t *testing.T, outputDir, slashRelPath, contents st
 	if err := os.WriteFile(outPath, []byte(contents), 0o644); err != nil {
 		t.Fatalf("WriteFile(%q): %v", slashRelPath, err)
 	}
+}
+
+func readAstroBuildSmokeDistFile(t *testing.T, outputDir, slashRelPath string) string {
+	t.Helper()
+
+	contents, err := os.ReadFile(filepath.Join(outputDir, "dist", filepath.FromSlash(slashRelPath)))
+	if err != nil {
+		t.Fatalf("ReadFile(dist/%s): %v", slashRelPath, err)
+	}
+	return string(contents)
 }
 
 func runAstroBuildSmokeCommand(t *testing.T, workDir, name string, args ...string) {
