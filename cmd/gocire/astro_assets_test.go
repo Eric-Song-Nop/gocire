@@ -723,14 +723,24 @@ func TestAstroSiteAssetsBuildSmoke(t *testing.T) {
 	}
 
 	outputDir := writeAstroAssetsForTest(t, "Smoke Docs")
-	writeAstroBuildSmokeFile(t, outputDir, "src/generated/navigation.ts", `export const navigation = {
-  docs: { firstHref: "/", items: [] },
-  blog: { firstHref: "/", items: [] }
-};
+	writeAstroBuildSmokeFile(t, outputDir, "src/generated/navigation.ts", `export { navigation } from "./site-data";
 `)
 	writeAstroBuildSmokeFile(t, outputDir, "src/generated/site-data.ts", `export const siteData = {
-  site: { description: "Smoke Docs description" }
-};
+  site: {
+    title: "Smoke Docs",
+    description: "Smoke Docs description",
+    url: "",
+    trailingSlash: "always"
+  },
+  pages: [],
+  navigation: {
+    docs: { firstHref: "/", items: [] },
+    blog: { firstHref: "/", items: [] }
+  }
+} as const;
+
+export const pages = siteData.pages;
+export const navigation = siteData.navigation;
 `)
 	writeAstroBuildSmokeFile(t, outputDir, "src/pages/index.astro", `---
 import SiteLayout from "../layouts/SiteLayout.astro";
