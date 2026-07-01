@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -582,10 +583,45 @@ func validateSiteURL(value string) error {
 		return fmt.Errorf("site.url must be an absolute http or https URL with a host: %w", err)
 	}
 	scheme := strings.ToLower(parsed.Scheme)
-	if !parsed.IsAbs() || (scheme != "http" && scheme != "https") || parsed.Host == "" {
+	if !parsed.IsAbs() || (scheme != "http" && scheme != "https") || parsed.Hostname() == "" {
 		return fmt.Errorf("site.url must be an absolute http or https URL with a host")
 	}
+	if parsed.User != nil {
+		return fmt.Errorf("site.url must not include userinfo")
+	}
+	if parsed.RawQuery != "" || parsed.ForceQuery {
+		return fmt.Errorf("site.url must not include a query")
+	}
+	if parsed.Fragment != "" || parsed.RawFragment != "" || strings.Contains(value, "#") {
+		return fmt.Errorf("site.url must not include a fragment")
+	}
+	if err := validateSiteURLPort(parsed); err != nil {
+		return err
+	}
 	return nil
+}
+
+func validateSiteURLPort(parsed *url.URL) error {
+	port := parsed.Port()
+	if port == "" {
+		if hasExplicitPort(parsed.Host) {
+			return fmt.Errorf("site.url port must be a number between 0 and 65535")
+		}
+		return nil
+	}
+	portNumber, err := strconv.Atoi(port)
+	if err != nil || portNumber < 0 || portNumber > 65535 {
+		return fmt.Errorf("site.url port must be a number between 0 and 65535")
+	}
+	return nil
+}
+
+func hasExplicitPort(host string) bool {
+	if strings.HasPrefix(host, "[") {
+		closingBracket := strings.LastIndex(host, "]")
+		return closingBracket >= 0 && len(host) > closingBracket+1 && host[closingBracket+1] == ':'
+	}
+	return strings.Contains(host, ":")
 }
 
 func normalizeRoutePrefix(routePrefix string) string {

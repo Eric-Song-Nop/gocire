@@ -147,7 +147,7 @@ func TestLoadSiteDescriptionAndURLFormats(t *testing.T) {
 			contents: `
 site:
   description: " YAML description "
-  url: https://example.com/yaml
+  url: " https://example.com/yaml "
 `,
 			description: "YAML description",
 			url:         "https://example.com/yaml",
@@ -200,14 +200,20 @@ site:
 
 func TestLoadRejectsInvalidSiteURL(t *testing.T) {
 	tests := []struct {
-		name string
-		url  string
+		name    string
+		url     string
+		wantErr string
 	}{
-		{name: "relative", url: "example.com"},
-		{name: "path", url: "/docs"},
-		{name: "unsupported scheme", url: "ftp://example.com"},
-		{name: "missing host", url: "https:///docs"},
-		{name: "missing host with scheme", url: "http://"},
+		{name: "relative", url: "example.com", wantErr: "absolute http or https URL with a host"},
+		{name: "path", url: "/docs", wantErr: "absolute http or https URL with a host"},
+		{name: "unsupported scheme", url: "ftp://example.com", wantErr: "absolute http or https URL with a host"},
+		{name: "missing host", url: "https:///docs", wantErr: "absolute http or https URL with a host"},
+		{name: "missing host with scheme", url: "http://", wantErr: "absolute http or https URL with a host"},
+		{name: "userinfo", url: "https://user:pass@example.com/docs", wantErr: "userinfo"},
+		{name: "query", url: "https://example.com/docs?x=1", wantErr: "query"},
+		{name: "fragment", url: "https://example.com/docs#top", wantErr: "fragment"},
+		{name: "out of range port", url: "https://example.com:99999/docs", wantErr: "port"},
+		{name: "invalid port", url: "https://example.com:abc/docs", wantErr: "port"},
 	}
 
 	for _, tt := range tests {
@@ -226,8 +232,8 @@ site:
 			if !strings.Contains(err.Error(), "site.url") {
 				t.Fatalf("error = %q, want site.url context", err.Error())
 			}
-			if !strings.Contains(err.Error(), "absolute http or https URL with a host") {
-				t.Fatalf("error = %q, want absolute http or https host message", err.Error())
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("error = %q, want %q", err.Error(), tt.wantErr)
 			}
 		})
 	}
