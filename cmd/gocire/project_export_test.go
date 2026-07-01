@@ -318,6 +318,8 @@ output:
 		filepath.Join("src", "generated", "navigation.ts"),
 		filepath.Join("src", "generated", "pages", "_source", "main.go.html.astro"),
 		filepath.Join("src", "pages", "[...gocire].astro"),
+		filepath.Join("src", "pages", "rss.xml.ts"),
+		filepath.Join("src", "pages", "sitemap.xml.ts"),
 	} {
 		outPath := filepath.Join(root, "site", relPath)
 		if _, err := os.Stat(outPath); err != nil {
