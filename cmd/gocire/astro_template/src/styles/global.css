@@ -894,137 +894,137 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   color: var(--code-text);
 }
 
-.gocire-tooltip .chroma .k,
-.gocire-tooltip .chroma .kc,
-.gocire-tooltip .chroma .kd,
-.gocire-tooltip .chroma .kn,
-.gocire-tooltip .chroma .kp,
-.gocire-tooltip .chroma .kr,
-.gocire-tooltip .chroma .ow {
+:is(.cire-prose, .gocire-tooltip) .chroma .k,
+:is(.cire-prose, .gocire-tooltip) .chroma .kc,
+:is(.cire-prose, .gocire-tooltip) .chroma .kd,
+:is(.cire-prose, .gocire-tooltip) .chroma .kn,
+:is(.cire-prose, .gocire-tooltip) .chroma .kp,
+:is(.cire-prose, .gocire-tooltip) .chroma .kr,
+:is(.cire-prose, .gocire-tooltip) .chroma .ow {
   color: var(--code-keyword);
 }
 
-.gocire-tooltip .chroma .kt,
-.gocire-tooltip .chroma .nc,
-.gocire-tooltip .chroma .nt {
+:is(.cire-prose, .gocire-tooltip) .chroma .kt,
+:is(.cire-prose, .gocire-tooltip) .chroma .nc,
+:is(.cire-prose, .gocire-tooltip) .chroma .nt {
   color: var(--code-type);
 }
 
-.gocire-tooltip .chroma .s,
-.gocire-tooltip .chroma .sa,
-.gocire-tooltip .chroma .sb,
-.gocire-tooltip .chroma .sc,
-.gocire-tooltip .chroma .dl,
-.gocire-tooltip .chroma .sd,
-.gocire-tooltip .chroma .s1,
-.gocire-tooltip .chroma .s2,
-.gocire-tooltip .chroma .sh,
-.gocire-tooltip .chroma .si,
-.gocire-tooltip .chroma .sx,
-.gocire-tooltip .chroma .sr,
-.gocire-tooltip .chroma .ss {
+:is(.cire-prose, .gocire-tooltip) .chroma .s,
+:is(.cire-prose, .gocire-tooltip) .chroma .sa,
+:is(.cire-prose, .gocire-tooltip) .chroma .sb,
+:is(.cire-prose, .gocire-tooltip) .chroma .sc,
+:is(.cire-prose, .gocire-tooltip) .chroma .dl,
+:is(.cire-prose, .gocire-tooltip) .chroma .sd,
+:is(.cire-prose, .gocire-tooltip) .chroma .s1,
+:is(.cire-prose, .gocire-tooltip) .chroma .s2,
+:is(.cire-prose, .gocire-tooltip) .chroma .sh,
+:is(.cire-prose, .gocire-tooltip) .chroma .si,
+:is(.cire-prose, .gocire-tooltip) .chroma .sx,
+:is(.cire-prose, .gocire-tooltip) .chroma .sr,
+:is(.cire-prose, .gocire-tooltip) .chroma .ss {
   color: var(--code-string);
 }
 
-.gocire-tooltip .chroma .se {
+:is(.cire-prose, .gocire-tooltip) .chroma .se {
   color: var(--code-escape);
 }
 
-.gocire-tooltip .chroma .m,
-.gocire-tooltip .chroma .mb,
-.gocire-tooltip .chroma .mf,
-.gocire-tooltip .chroma .mh,
-.gocire-tooltip .chroma .mi,
-.gocire-tooltip .chroma .il,
-.gocire-tooltip .chroma .mo {
+:is(.cire-prose, .gocire-tooltip) .chroma .m,
+:is(.cire-prose, .gocire-tooltip) .chroma .mb,
+:is(.cire-prose, .gocire-tooltip) .chroma .mf,
+:is(.cire-prose, .gocire-tooltip) .chroma .mh,
+:is(.cire-prose, .gocire-tooltip) .chroma .mi,
+:is(.cire-prose, .gocire-tooltip) .chroma .il,
+:is(.cire-prose, .gocire-tooltip) .chroma .mo {
   color: var(--code-number);
 }
 
-.gocire-tooltip .chroma .nf,
-.gocire-tooltip .chroma .fm,
-.gocire-tooltip .chroma .nb {
+:is(.cire-prose, .gocire-tooltip) .chroma .nf,
+:is(.cire-prose, .gocire-tooltip) .chroma .fm,
+:is(.cire-prose, .gocire-tooltip) .chroma .nb {
   color: var(--code-function);
 }
 
-.gocire-tooltip .chroma .n,
-.gocire-tooltip .chroma .nx,
-.gocire-tooltip .chroma .nv,
-.gocire-tooltip .chroma .vc,
-.gocire-tooltip .chroma .vg,
-.gocire-tooltip .chroma .vi,
-.gocire-tooltip .chroma .vm,
-.gocire-tooltip .chroma .py,
-.gocire-tooltip .chroma .bp {
+:is(.cire-prose, .gocire-tooltip) .chroma .n,
+:is(.cire-prose, .gocire-tooltip) .chroma .nx,
+:is(.cire-prose, .gocire-tooltip) .chroma .nv,
+:is(.cire-prose, .gocire-tooltip) .chroma .vc,
+:is(.cire-prose, .gocire-tooltip) .chroma .vg,
+:is(.cire-prose, .gocire-tooltip) .chroma .vi,
+:is(.cire-prose, .gocire-tooltip) .chroma .vm,
+:is(.cire-prose, .gocire-tooltip) .chroma .py,
+:is(.cire-prose, .gocire-tooltip) .chroma .bp {
   color: var(--code-variable);
 }
 
-.gocire-tooltip .chroma .no,
-.gocire-tooltip .chroma .l,
-.gocire-tooltip .chroma .ld {
+:is(.cire-prose, .gocire-tooltip) .chroma .no,
+:is(.cire-prose, .gocire-tooltip) .chroma .l,
+:is(.cire-prose, .gocire-tooltip) .chroma .ld {
   color: var(--code-constant);
 }
 
-.gocire-tooltip .chroma .na,
-.gocire-tooltip .chroma .nd,
-.gocire-tooltip .chroma .ni {
+:is(.cire-prose, .gocire-tooltip) .chroma .na,
+:is(.cire-prose, .gocire-tooltip) .chroma .nd,
+:is(.cire-prose, .gocire-tooltip) .chroma .ni {
   color: var(--code-attribute);
 }
 
-.gocire-tooltip .chroma .nn {
+:is(.cire-prose, .gocire-tooltip) .chroma .nn {
   color: var(--code-module);
 }
 
-.gocire-tooltip .chroma .ne {
+:is(.cire-prose, .gocire-tooltip) .chroma .ne {
   color: var(--code-constructor);
 }
 
-.gocire-tooltip .chroma .nl {
+:is(.cire-prose, .gocire-tooltip) .chroma .nl {
   color: var(--code-label);
 }
 
-.gocire-tooltip .chroma .o {
+:is(.cire-prose, .gocire-tooltip) .chroma .o {
   color: var(--code-operator);
 }
 
-.gocire-tooltip .chroma .p {
+:is(.cire-prose, .gocire-tooltip) .chroma .p {
   color: var(--code-punctuation);
 }
 
-.gocire-tooltip .chroma .c,
-.gocire-tooltip .chroma .ch,
-.gocire-tooltip .chroma .c1,
-.gocire-tooltip .chroma .cm,
-.gocire-tooltip .chroma .cpf,
-.gocire-tooltip .chroma .cs {
+:is(.cire-prose, .gocire-tooltip) .chroma .c,
+:is(.cire-prose, .gocire-tooltip) .chroma .ch,
+:is(.cire-prose, .gocire-tooltip) .chroma .c1,
+:is(.cire-prose, .gocire-tooltip) .chroma .cm,
+:is(.cire-prose, .gocire-tooltip) .chroma .cpf,
+:is(.cire-prose, .gocire-tooltip) .chroma .cs {
   color: var(--code-comment);
 }
 
-.gocire-tooltip .chroma .err,
-.gocire-tooltip .chroma .gr,
-.gocire-tooltip .chroma .gt {
+:is(.cire-prose, .gocire-tooltip) .chroma .err,
+:is(.cire-prose, .gocire-tooltip) .chroma .gr,
+:is(.cire-prose, .gocire-tooltip) .chroma .gt {
   color: var(--code-error);
 }
 
-.gocire-tooltip .chroma .gd {
+:is(.cire-prose, .gocire-tooltip) .chroma .gd {
   color: var(--code-deleted);
 }
 
-.gocire-tooltip .chroma .gi {
+:is(.cire-prose, .gocire-tooltip) .chroma .gi {
   color: var(--code-inserted);
 }
 
-.gocire-tooltip .chroma .gh,
-.gocire-tooltip .chroma .go,
-.gocire-tooltip .chroma .gp,
-.gocire-tooltip .chroma .gu {
+:is(.cire-prose, .gocire-tooltip) .chroma .gh,
+:is(.cire-prose, .gocire-tooltip) .chroma .go,
+:is(.cire-prose, .gocire-tooltip) .chroma .gp,
+:is(.cire-prose, .gocire-tooltip) .chroma .gu {
   color: var(--code-muted);
 }
 
-.gocire-tooltip .chroma .ge {
+:is(.cire-prose, .gocire-tooltip) .chroma .ge {
   font-style: italic;
 }
 
-.gocire-tooltip .chroma .gs {
+:is(.cire-prose, .gocire-tooltip) .chroma .gs {
   font-weight: 600;
 }
 
