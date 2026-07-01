@@ -580,17 +580,17 @@ func TestAstroGlobalCSSIncludesThemeAwareCodeHighlighting(t *testing.T) {
 		selector string
 		variable string
 	}{
-		{".gocire-tooltip .chroma .m", "--code-number"},
-		{".gocire-tooltip .chroma .mi", "--code-number"},
-		{".gocire-tooltip .chroma .mf", "--code-number"},
-		{".gocire-tooltip .chroma .nv", "--code-variable"},
-		{".gocire-tooltip .chroma .n", "--code-variable"},
-		{".gocire-tooltip .chroma .o", "--code-operator"},
-		{".gocire-tooltip .chroma .p", "--code-punctuation"},
-		{".gocire-tooltip .chroma .k", "--code-keyword"},
-		{".gocire-tooltip .chroma .s", "--code-string"},
-		{".gocire-tooltip .chroma .nf", "--code-function"},
-		{".gocire-tooltip .chroma .c", "--code-comment"},
+		{":is(.cire-prose, .gocire-tooltip) .chroma .m", "--code-number"},
+		{":is(.cire-prose, .gocire-tooltip) .chroma .mi", "--code-number"},
+		{":is(.cire-prose, .gocire-tooltip) .chroma .mf", "--code-number"},
+		{":is(.cire-prose, .gocire-tooltip) .chroma .nv", "--code-variable"},
+		{":is(.cire-prose, .gocire-tooltip) .chroma .n", "--code-variable"},
+		{":is(.cire-prose, .gocire-tooltip) .chroma .o", "--code-operator"},
+		{":is(.cire-prose, .gocire-tooltip) .chroma .p", "--code-punctuation"},
+		{":is(.cire-prose, .gocire-tooltip) .chroma .k", "--code-keyword"},
+		{":is(.cire-prose, .gocire-tooltip) .chroma .s", "--code-string"},
+		{":is(.cire-prose, .gocire-tooltip) .chroma .nf", "--code-function"},
+		{":is(.cire-prose, .gocire-tooltip) .chroma .c", "--code-comment"},
 	} {
 		assertAstroCSSSelectorUsesVariable(t, globalCSS, mapping.selector, mapping.variable)
 	}
@@ -1027,7 +1027,7 @@ func extractAstroCSSRuleBlock(t *testing.T, contents, selector string) string {
 			t.Fatalf("CSS selector list %q is missing a closing rule block", strings.TrimSpace(contents[ruleStart:ruleOpen]))
 		}
 		ruleClose := ruleOpen + 1 + closeIndex
-		for _, candidate := range strings.Split(contents[ruleStart:ruleOpen], ",") {
+		for _, candidate := range splitAstroCSSSelectorList(contents[ruleStart:ruleOpen]) {
 			if strings.TrimSpace(candidate) == selector {
 				return contents[ruleOpen+1 : ruleClose]
 			}
@@ -1036,6 +1036,28 @@ func extractAstroCSSRuleBlock(t *testing.T, contents, selector string) string {
 	}
 	t.Fatalf("CSS asset does not contain selector %q", selector)
 	return ""
+}
+
+func splitAstroCSSSelectorList(selectors string) []string {
+	var result []string
+	start := 0
+	depth := 0
+	for i, r := range selectors {
+		switch r {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case ',':
+			if depth == 0 {
+				result = append(result, selectors[start:i])
+				start = i + 1
+			}
+		}
+	}
+	return append(result, selectors[start:])
 }
 
 func extractAstroCSSVariableValue(t *testing.T, contents, variable string) string {
