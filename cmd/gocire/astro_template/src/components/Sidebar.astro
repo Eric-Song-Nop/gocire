@@ -58,63 +58,71 @@ function compactTags(values?: string[]) {
 ---
 
 <aside class="page-sidebar" aria-label={sidebarLabel}>
-  {showDocs && (
-    <nav class="sidebar-nav" aria-label="Docs">
-      <p class="sidebar-heading">Docs</p>
-      {docsItems.length > 0 ? (
-        <SidebarItems items={docsItems} currentPath={normalizedCurrentPath} />
-      ) : (
-        <p class="sidebar-empty">No docs pages yet.</p>
-      )}
-    </nav>
-  )}
+  <details class="sidebar-disclosure">
+    <summary class="sidebar-summary">
+      <span class="sidebar-summary__label">{sidebarLabel}</span>
+    </summary>
 
-  {showBlog && (
-    <nav class="sidebar-nav" aria-label="Blog">
-      <p class="sidebar-heading">Blog</p>
-      {blogItems.length > 0 ? (
-        <ul class="sidebar-blog-list">
-          {blogItems.map((item) => {
-            const itemDate = compactText(item.date);
-            const itemAuthor = compactText(item.author);
-            const itemTags = compactTags(item.tags);
-            return (
-              <li class:list={["sidebar-blog-item", { "is-active": isActive(item.href) }]}>
-                <a class="sidebar-blog-link" href={item.href || "#"} aria-current={isActive(item.href) ? "page" : undefined}>
-                  <span class="sidebar-blog-title">{item.title || item.sourcePath || item.href}</span>
-                  {(itemDate || itemAuthor || itemTags.length > 0) && (
-                    <span class="sidebar-blog-meta">
-                      {itemDate && <time class="sidebar-blog-date sidebar-date" datetime={itemDate}>{itemDate}</time>}
-                      {itemAuthor && <span class="sidebar-blog-author">{itemAuthor}</span>}
-                      {itemTags.length > 0 && <span class="sidebar-blog-tags">{itemTags.join(", ")}</span>}
-                    </span>
-                  )}
-                </a>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p class="sidebar-empty">No blog posts yet.</p>
+    <div class="sidebar-body">
+      {showDocs && (
+        <nav class="sidebar-nav" aria-label="Docs">
+          <p class="sidebar-heading">Docs</p>
+          {docsItems.length > 0 ? (
+            <SidebarItems items={docsItems} currentPath={normalizedCurrentPath} />
+          ) : (
+            <p class="sidebar-empty">No docs pages yet.</p>
+          )}
+        </nav>
       )}
-    </nav>
-  )}
 
-  {showSource && (
-    <div class="sidebar-context">
-      <p class="sidebar-heading">Source context</p>
-      {sourcePath && (
-        <div class="sidebar-section">
-          <p class="sidebar-label">Path</p>
-          <p class="sidebar-value sidebar-path">{sourcePath}</p>
-        </div>
+      {showBlog && (
+        <nav class="sidebar-nav" aria-label="Blog">
+          <p class="sidebar-heading">Blog</p>
+          {blogItems.length > 0 ? (
+            <ul class="sidebar-blog-list">
+              {blogItems.map((item) => {
+                const itemDate = compactText(item.date);
+                const itemAuthor = compactText(item.author);
+                const itemTags = compactTags(item.tags);
+                return (
+                  <li class:list={["sidebar-blog-item", { "is-active": isActive(item.href) }]}>
+                    <a class="sidebar-blog-link" href={item.href || "#"} aria-current={isActive(item.href) ? "page" : undefined}>
+                      <span class="sidebar-blog-title">{item.title || item.sourcePath || item.href}</span>
+                      {(itemDate || itemAuthor || itemTags.length > 0) && (
+                        <span class="sidebar-blog-meta">
+                          {itemDate && <time class="sidebar-blog-date sidebar-date" datetime={itemDate}>{itemDate}</time>}
+                          {itemAuthor && <span class="sidebar-blog-author">{itemAuthor}</span>}
+                          {itemTags.length > 0 && <span class="sidebar-blog-tags">{itemTags.join(", ")}</span>}
+                        </span>
+                      )}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p class="sidebar-empty">No blog posts yet.</p>
+          )}
+        </nav>
       )}
-      {language && (
-        <div class="sidebar-section">
-          <p class="sidebar-label">Language</p>
-          <p class="sidebar-value">{language}</p>
+
+      {showSource && (
+        <div class="sidebar-context">
+          <p class="sidebar-heading">Source context</p>
+          {sourcePath && (
+            <div class="sidebar-section">
+              <p class="sidebar-label">Path</p>
+              <p class="sidebar-value sidebar-path">{sourcePath}</p>
+            </div>
+          )}
+          {language && (
+            <div class="sidebar-section">
+              <p class="sidebar-label">Language</p>
+              <p class="sidebar-value">{language}</p>
+            </div>
+          )}
         </div>
       )}
     </div>
-  )}
+  </details>
 </aside>
