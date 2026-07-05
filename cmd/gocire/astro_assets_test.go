@@ -504,6 +504,7 @@ func TestAstroSidebarUsesNavigationSectionsAndSourceMetadata(t *testing.T) {
 		"Language",
 		`<details class="sidebar-disclosure" open>`,
 		`<summary class="sidebar-summary">`,
+		"sidebar-summary__icon",
 		"sidebar-summary__label",
 		"sidebar-body",
 		"{sidebarLabel}",
@@ -567,6 +568,7 @@ func TestAstroGlobalCSSIncludesSidebarNavigationClasses(t *testing.T) {
 		".sidebar-context",
 		".sidebar-disclosure",
 		".sidebar-summary",
+		".sidebar-summary__icon",
 		".sidebar-summary__label",
 		".sidebar-body",
 		".sidebar-disclosure:not([open]) > .sidebar-body",
@@ -576,9 +578,12 @@ func TestAstroGlobalCSSIncludesSidebarNavigationClasses(t *testing.T) {
 		assertAstroAssetContains(t, globalCSS, want)
 	}
 	for _, want := range []string{
-		"position: sticky",
-		"top: 10px",
-		"max-height: min(55dvh, 360px)",
+		"position: fixed",
+		"top: max(74px, calc(env(safe-area-inset-top) + 62px))",
+		"left: max(64px, calc(env(safe-area-inset-left) + 64px))",
+		"width: min(320px, calc(100vw - 84px - env(safe-area-inset-left)))",
+		"background: var(--surface)",
+		"box-shadow: var(--shadow)",
 		"overscroll-behavior: contain",
 		"-webkit-overflow-scrolling: touch",
 	} {
