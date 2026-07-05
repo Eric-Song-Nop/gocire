@@ -1,6 +1,4 @@
 ---
-import ListTree from "lucide-astro/ListTree";
-
 interface TableOfContentsItem {
   level?: number;
   id?: string;
@@ -19,39 +17,24 @@ const tocItems = items.map((item) => ({
 })).filter((item) => item.id && item.title);
 ---
 
-<>
-  <aside class="navigation-rail navigation-rail--desktop" data-toc-rail aria-label="Page sections">
-    <p class="navigation-rail__heading">On this page</p>
-    <nav class="navigation-rail__nav" aria-label="On this page">
-      <ol class="navigation-rail__list">
-        {tocItems.map((item) => (
-          <li class:list={["navigation-rail__item", "navigation-rail__item--level-" + item.level]}>
-            <a class="navigation-rail__link" href={"#" + item.id} data-toc-link data-toc-target={item.id}>
-              <span class="navigation-rail__link-text">{item.title}</span>
-            </a>
-          </li>
-        ))}
-      </ol>
-    </nav>
-  </aside>
-
-  <aside class="navigation-rail-mobile" aria-label="Page sections" data-toc-rail>
-    <details class="navigation-rail-mobile__disclosure" data-toc-mobile>
-      <summary class="navigation-rail-mobile__summary" aria-label="Open page sections" title="Page sections">
-        <ListTree class="navigation-rail-mobile__icon" size={18} aria-hidden="true" />
-      </summary>
-      <nav class="navigation-rail-mobile__panel" aria-label="On this page">
-        <p class="navigation-rail__heading">On this page</p>
-        <ol class="navigation-rail__list">
-          {tocItems.map((item) => (
-            <li class:list={["navigation-rail__item", "navigation-rail__item--level-" + item.level]}>
-              <a class="navigation-rail__link" href={"#" + item.id} data-toc-link data-toc-target={item.id}>
-                <span class="navigation-rail__link-text">{item.title}</span>
-              </a>
-            </li>
-          ))}
-        </ol>
-      </nav>
-    </details>
-  </aside>
-</>
+<aside class="navigation-rail" data-toc-rail aria-label="Page sections">
+  <nav class="navigation-rail__nav" aria-label="On this page">
+    <ol class="navigation-rail__markers">
+      {tocItems.map((item) => (
+        <li class:list={["navigation-rail__marker-item", "navigation-rail__marker-item--level-" + item.level]}>
+          <a
+            class:list={["navigation-rail__marker", "navigation-rail__marker--level-" + item.level]}
+            href={"#" + item.id}
+            data-toc-link
+            data-toc-target={item.id}
+            aria-label={`Jump to ${item.title}`}
+            title={item.title}
+          >
+            <span class="navigation-rail__tick" aria-hidden="true"></span>
+            <span class="navigation-rail__label">{item.title}</span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  </nav>
+</aside>

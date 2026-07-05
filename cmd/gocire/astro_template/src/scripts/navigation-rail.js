@@ -3,7 +3,6 @@ const tocLinks = Array.from(document.querySelectorAll("[data-toc-link]"));
 if (tocLinks.length > 0) {
   const targetIds = Array.from(new Set(tocLinks.map((link) => link.getAttribute("data-toc-target")).filter(Boolean)));
   const targets = targetIds.map((id) => document.getElementById(id)).filter(Boolean);
-  const mobileDisclosures = Array.from(document.querySelectorAll("[data-toc-mobile]"));
   let activeId = "";
   let updateFrame;
 
@@ -59,38 +58,6 @@ if (tocLinks.length > 0) {
     }
     updateFrame = window.requestAnimationFrame(updateActiveFromScroll);
   };
-
-  const closeMobileDisclosures = () => {
-    for (const disclosure of mobileDisclosures) {
-      disclosure.removeAttribute("open");
-    }
-  };
-
-  for (const disclosure of mobileDisclosures) {
-    const links = Array.from(disclosure.querySelectorAll("[data-toc-link]"));
-    for (const link of links) {
-      link.addEventListener("click", closeMobileDisclosures);
-    }
-  }
-
-  document.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof Element)) {
-      return;
-    }
-
-    for (const disclosure of mobileDisclosures) {
-      if (disclosure.hasAttribute("open") && !disclosure.contains(target)) {
-        disclosure.removeAttribute("open");
-      }
-    }
-  });
-
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      closeMobileDisclosures();
-    }
-  });
 
   window.addEventListener("scroll", scheduleActiveUpdate, { passive: true });
   window.addEventListener("resize", scheduleActiveUpdate);

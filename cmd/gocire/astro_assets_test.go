@@ -214,34 +214,46 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 
 	navigationRail := readAstroAssetFile(t, outputDir, "src/components/NavigationRail.astro")
 	for _, want := range []string{
-		`import ListTree from "lucide-astro/ListTree";`,
 		"data-toc-rail",
 		"data-toc-link",
 		"data-toc-target",
-		"navigation-rail--desktop",
-		"navigation-rail-mobile",
-		"navigation-rail-mobile__summary",
-		"navigation-rail-mobile__panel",
+		"navigation-rail__markers",
+		"navigation-rail__marker",
+		"navigation-rail__tick",
+		"navigation-rail__label",
 		`aria-label="On this page"`,
+		"Jump to",
+		"title={item.title}",
 		`href={"#" + item.id}`,
 	} {
 		assertAstroAssetContains(t, navigationRail, want)
+	}
+	for _, unwanted := range []string{
+		`import ListTree from "lucide-astro/ListTree";`,
+		"navigation-rail-mobile",
+		"data-toc-mobile",
+	} {
+		assertAstroAssetNotContains(t, navigationRail, unwanted)
 	}
 
 	navigationRailScript := readAstroAssetFile(t, outputDir, "src/scripts/navigation-rail.js")
 	for _, want := range []string{
 		"[data-toc-link]",
-		"[data-toc-mobile]",
 		"data-toc-target",
 		"aria-current",
 		"location",
 		"requestAnimationFrame",
 		"getBoundingClientRect",
 		"hashchange",
+	} {
+		assertAstroAssetContains(t, navigationRailScript, want)
+	}
+	for _, unwanted := range []string{
+		"[data-toc-mobile]",
 		"Escape",
 		`removeAttribute("open")`,
 	} {
-		assertAstroAssetContains(t, navigationRailScript, want)
+		assertAstroAssetNotContains(t, navigationRailScript, unwanted)
 	}
 
 	globalCSS := readAstroAssetFile(t, outputDir, "src/styles/global.css")
@@ -256,16 +268,26 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 	assertAstroAssetContains(t, globalCSS, ".metadata-tag")
 	for _, want := range []string{
 		".code-page--has-toc",
-		".navigation-rail--desktop",
-		".navigation-rail-mobile",
-		".navigation-rail-mobile__summary",
-		".navigation-rail-mobile__panel",
-		".navigation-rail__link[aria-current=\"location\"]",
-		"right: max(10px, env(safe-area-inset-right))",
+		".navigation-rail__markers",
+		".navigation-rail__marker",
+		".navigation-rail__tick",
+		".navigation-rail__label",
+		".navigation-rail__marker[aria-current=\"location\"] .navigation-rail__tick",
+		"grid-template-columns: minmax(160px, 220px) minmax(0, 1fr) 44px",
+		"width: 16px",
+		"width: 30px",
+		"right: max(8px, env(safe-area-inset-right))",
 		"transform: translateY(-50%)",
 		"scroll-margin-top",
 	} {
 		assertAstroAssetContains(t, globalCSS, want)
+	}
+	for _, unwanted := range []string{
+		".navigation-rail-mobile",
+		".navigation-rail--desktop",
+		"navigation-rail-mobile__panel",
+	} {
+		assertAstroAssetNotContains(t, globalCSS, unwanted)
 	}
 	assertAstroAssetNotContains(t, globalCSS, ".page-meta code")
 	assertAstroAssetNotContains(t, globalCSS, "min-height: 240px")
