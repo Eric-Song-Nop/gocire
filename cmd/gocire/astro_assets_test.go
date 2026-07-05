@@ -502,7 +502,7 @@ func TestAstroSidebarUsesNavigationSectionsAndSourceMetadata(t *testing.T) {
 		"language",
 		"Path",
 		"Language",
-		`<details class="sidebar-disclosure">`,
+		`<details class="sidebar-disclosure" open>`,
 		`<summary class="sidebar-summary">`,
 		"sidebar-summary__label",
 		"sidebar-body",
@@ -576,6 +576,8 @@ func TestAstroGlobalCSSIncludesSidebarNavigationClasses(t *testing.T) {
 		assertAstroAssetContains(t, globalCSS, want)
 	}
 	for _, want := range []string{
+		"position: sticky",
+		"top: 10px",
 		"max-height: min(55dvh, 360px)",
 		"overscroll-behavior: contain",
 		"-webkit-overflow-scrolling: touch",

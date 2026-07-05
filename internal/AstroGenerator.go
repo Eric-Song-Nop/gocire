@@ -115,17 +115,26 @@ func astroTableOfContentsForComments(comments []CommentInfo, mode AstroRenderMod
 	}
 
 	items := make([]AstroTableOfContentsItem, 0)
+	titleItems := make([]AstroTableOfContentsItem, 0)
 	for _, comment := range comments {
 		for _, heading := range ExtractMarkdownHeadings(comment.Content) {
-			if heading.Level < 2 || heading.Level > 4 {
+			if heading.Level < 1 || heading.Level > 4 {
 				continue
 			}
-			items = append(items, AstroTableOfContentsItem{
+			item := AstroTableOfContentsItem{
 				Level: heading.Level,
 				ID:    heading.ID,
 				Title: heading.Title,
-			})
+			}
+			if heading.Level == 1 {
+				titleItems = append(titleItems, item)
+				continue
+			}
+			items = append(items, item)
 		}
+	}
+	if len(items) == 0 {
+		return titleItems
 	}
 	return items
 }

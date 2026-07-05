@@ -53,7 +53,7 @@ function compactTags(values?: string[]) {
 
 function compactToc(values?: TableOfContentsItem[]) {
   return (values ?? []).map((item) => ({
-    level: Math.min(4, Math.max(2, Number(item.level) || 2)),
+    level: Math.min(4, Math.max(1, Number(item.level) || 1)),
     id: String(item.id || "").trim(),
     title: String(item.title || "").trim(),
   })).filter((item) => item.id && item.title);

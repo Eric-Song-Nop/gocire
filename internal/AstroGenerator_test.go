@@ -180,6 +180,37 @@ func TestGenerateAstroSourceModeOmitsTableOfContents(t *testing.T) {
 	}
 }
 
+func TestGenerateAstroNarrativeModeFallsBackToPageTitleToc(t *testing.T) {
+	sourceLines := []string{
+		"// # Overview",
+		"//",
+		"// Intro text.",
+		"func main() {}",
+	}
+	gen := NewAstroGenerator(sourceLines)
+
+	output := gen.GenerateAstro(nil, []CommentInfo{
+		{
+			Content: "# Overview\n\nIntro text.",
+			Span: scip.Range{
+				Start: scip.Position{Line: 0, Character: 0},
+				End:   scip.Position{Line: 2, Character: 14},
+			},
+		},
+	}, AstroPageOptions{
+		Title:      "Overview",
+		Kind:       "docs",
+		Language:   "go",
+		SourcePath: "docs/overview.go",
+		RenderMode: AstroRenderModeNarrative,
+	})
+
+	expected := `toc={[{ level: 1, id: "overview", title: "Overview" }]}`
+	if !strings.Contains(output, expected) {
+		t.Fatalf("output missing fallback table of contents prop %q\nGot:\n%s", expected, output)
+	}
+}
+
 func TestGenerateAstroPassesMetadataPropsToCodePage(t *testing.T) {
 	gen := NewAstroGenerator([]string{"package main"})
 
