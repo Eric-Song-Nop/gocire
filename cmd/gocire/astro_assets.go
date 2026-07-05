@@ -40,7 +40,6 @@ var astroSiteAssetTemplates = []astroSiteAssetTemplate{
 	{templatePath: "astro_template/src/pages/sitemap.xml.ts", outputPath: "src/pages/sitemap.xml.ts"},
 	{templatePath: "astro_template/src/styles/global.css", outputPath: "src/styles/global.css"},
 	{templatePath: "astro_template/src/scripts/navigation-rail.js", outputPath: "src/scripts/navigation-rail.js"},
-	{templatePath: "astro_template/src/scripts/sidebar.js", outputPath: "src/scripts/sidebar.js"},
 	{templatePath: "astro_template/src/scripts/theme.js", outputPath: "src/scripts/theme.js"},
 	{templatePath: "astro_template/src/scripts/tooltip.js", outputPath: "src/scripts/tooltip.js"},
 }
