@@ -21,6 +21,7 @@ html[data-theme="light"] {
   --code-muted: #6a7380;
   --code-border: #cfd6df;
   --code-shadow: rgba(31, 36, 43, 0.08);
+  --shadow: 0 18px 44px rgba(31, 36, 43, 0.16);
   --code-keyword: #7a4e00;
   --code-string: #2f6f4f;
   --code-function: #0f6680;
@@ -79,6 +80,7 @@ html[data-theme="dark"] {
   --code-muted: #909aa8;
   --code-border: #2d3540;
   --code-shadow: rgba(0, 0, 0, 0.24);
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.26);
   --code-keyword: #f3c969;
   --code-string: #9ed6a3;
   --code-function: #8ecae6;
@@ -287,6 +289,10 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   display: grid;
   gap: 16px;
   min-width: 0;
+}
+
+.sidebar-disclosure:not([open]) > .sidebar-body {
+  display: grid;
 }
 
 .sidebar-nav,
@@ -1334,7 +1340,7 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
     min-width: 0;
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: color-mix(in srgb, var(--surface), var(--bg) 8%);
+    background: color-mix(in srgb, var(--surface), var(--page-bg) 8%);
     box-shadow: var(--shadow);
     color: var(--text);
     cursor: pointer;

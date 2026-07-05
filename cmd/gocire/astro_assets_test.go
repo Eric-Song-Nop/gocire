@@ -26,6 +26,7 @@ var expectedAstroAssetFiles = []string{
 	"src/components/SidebarItems.astro",
 	"src/styles/global.css",
 	"src/scripts/navigation-rail.js",
+	"src/scripts/sidebar.js",
 	"src/scripts/tooltip.js",
 	"src/scripts/theme.js",
 }
@@ -109,6 +110,7 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"theme-toggle",
 		"data-theme",
 		"../scripts/navigation-rail.js",
+		"../scripts/sidebar.js",
 		"../scripts/theme.js",
 	} {
 		assertAstroAssetContains(t, layout, want)
@@ -254,6 +256,19 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		`removeAttribute("open")`,
 	} {
 		assertAstroAssetNotContains(t, navigationRailScript, unwanted)
+	}
+
+	sidebarScript := readAstroAssetFile(t, outputDir, "src/scripts/sidebar.js")
+	for _, want := range []string{
+		"[data-sidebar-disclosure]",
+		"matchMedia",
+		"(max-width: 720px)",
+		"removeAttribute(\"open\")",
+		"setAttribute(\"open\", \"\")",
+		"Escape",
+		"addEventListener(\"change\"",
+	} {
+		assertAstroAssetContains(t, sidebarScript, want)
 	}
 
 	globalCSS := readAstroAssetFile(t, outputDir, "src/styles/global.css")
@@ -524,7 +539,7 @@ func TestAstroSidebarUsesNavigationSectionsAndSourceMetadata(t *testing.T) {
 		"language",
 		"Path",
 		"Language",
-		`<details class="sidebar-disclosure" open>`,
+		`<details class="sidebar-disclosure" data-sidebar-disclosure>`,
 		`<summary class="sidebar-summary">`,
 		"sidebar-summary__icon",
 		"sidebar-summary__label",
@@ -604,8 +619,10 @@ func TestAstroGlobalCSSIncludesSidebarNavigationClasses(t *testing.T) {
 		"top: max(74px, calc(env(safe-area-inset-top) + 62px))",
 		"left: max(64px, calc(env(safe-area-inset-left) + 64px))",
 		"width: min(320px, calc(100vw - 84px - env(safe-area-inset-left)))",
+		"background: color-mix(in srgb, var(--surface), var(--page-bg) 8%)",
 		"background: var(--surface)",
 		"box-shadow: var(--shadow)",
+		"--shadow:",
 		"overscroll-behavior: contain",
 		"-webkit-overflow-scrolling: touch",
 	} {
