@@ -526,7 +526,7 @@ func TestAstroSidebarUsesNavigationSectionsAndSourceMetadata(t *testing.T) {
 		"language",
 		"Path",
 		"Language",
-		`<details class="sidebar-disclosure" open>`,
+		`<details class="sidebar-disclosure">`,
 		`<summary class="sidebar-summary">`,
 		"sidebar-summary__label",
 		"sidebar-body",
