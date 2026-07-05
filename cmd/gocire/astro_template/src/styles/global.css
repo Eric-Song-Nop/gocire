@@ -444,12 +444,14 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
 }
 
 .navigation-rail__nav {
+  display: grid;
+  justify-items: end;
   width: 44px;
 }
 
 .navigation-rail__markers {
   display: grid;
-  justify-items: center;
+  justify-items: end;
   gap: 13px;
   min-width: 0;
   margin: 0;
@@ -460,7 +462,7 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
 .navigation-rail__marker-item {
   position: relative;
   display: grid;
-  place-items: center;
+  place-items: center end;
   width: 44px;
   min-height: 12px;
 }
@@ -468,7 +470,7 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
 .navigation-rail__marker {
   position: relative;
   display: grid;
-  place-items: center;
+  place-items: center end;
   width: 44px;
   min-height: 12px;
   color: var(--muted);
@@ -483,6 +485,7 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   border-radius: 999px;
   background: color-mix(in srgb, var(--muted), transparent 42%);
   opacity: 0.68;
+  transform-origin: right center;
   transition: width 140ms ease, background-color 140ms ease, opacity 140ms ease, box-shadow 140ms ease;
 }
 
