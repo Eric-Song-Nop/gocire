@@ -21,9 +21,11 @@ var expectedAstroAssetFiles = []string{
 	"src/pages/sitemap.xml.ts",
 	"src/layouts/SiteLayout.astro",
 	"src/components/CodePage.astro",
+	"src/components/NavigationRail.astro",
 	"src/components/Sidebar.astro",
 	"src/components/SidebarItems.astro",
 	"src/styles/global.css",
+	"src/scripts/navigation-rail.js",
 	"src/scripts/tooltip.js",
 	"src/scripts/theme.js",
 }
@@ -106,6 +108,7 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		`description = fallbackDescription`,
 		"theme-toggle",
 		"data-theme",
+		"../scripts/navigation-rail.js",
 		"../scripts/theme.js",
 	} {
 		assertAstroAssetContains(t, layout, want)
@@ -120,6 +123,10 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"date?: string",
 		"tags?: string[]",
 		"author?: string",
+		"toc?: TableOfContentsItem[]",
+		`import NavigationRail from "./NavigationRail.astro";`,
+		"code-page--has-toc",
+		"<NavigationRail",
 		"<slot />",
 		`<dl class="page-meta">`,
 		"<dt>Date</dt>",
@@ -205,6 +212,38 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		assertAstroAssetContains(t, themeRuntime, want)
 	}
 
+	navigationRail := readAstroAssetFile(t, outputDir, "src/components/NavigationRail.astro")
+	for _, want := range []string{
+		`import ListTree from "lucide-astro/ListTree";`,
+		"data-toc-rail",
+		"data-toc-link",
+		"data-toc-target",
+		"navigation-rail--desktop",
+		"navigation-rail-mobile",
+		"navigation-rail-mobile__summary",
+		"navigation-rail-mobile__panel",
+		`aria-label="On this page"`,
+		`href={"#" + item.id}`,
+	} {
+		assertAstroAssetContains(t, navigationRail, want)
+	}
+
+	navigationRailScript := readAstroAssetFile(t, outputDir, "src/scripts/navigation-rail.js")
+	for _, want := range []string{
+		"[data-toc-link]",
+		"[data-toc-mobile]",
+		"data-toc-target",
+		"aria-current",
+		"location",
+		"requestAnimationFrame",
+		"getBoundingClientRect",
+		"hashchange",
+		"Escape",
+		`removeAttribute("open")`,
+	} {
+		assertAstroAssetContains(t, navigationRailScript, want)
+	}
+
 	globalCSS := readAstroAssetFile(t, outputDir, "src/styles/global.css")
 	assertAstroAssetContainsAny(t, globalCSS, []string{
 		`html[data-theme="dark"]`,
@@ -215,6 +254,19 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 	assertAstroAssetContains(t, globalCSS, ".page-meta")
 	assertAstroAssetContains(t, globalCSS, ".metadata-tags")
 	assertAstroAssetContains(t, globalCSS, ".metadata-tag")
+	for _, want := range []string{
+		".code-page--has-toc",
+		".navigation-rail--desktop",
+		".navigation-rail-mobile",
+		".navigation-rail-mobile__summary",
+		".navigation-rail-mobile__panel",
+		".navigation-rail__link[aria-current=\"location\"]",
+		"right: max(10px, env(safe-area-inset-right))",
+		"transform: translateY(-50%)",
+		"scroll-margin-top",
+	} {
+		assertAstroAssetContains(t, globalCSS, want)
+	}
 	assertAstroAssetNotContains(t, globalCSS, ".page-meta code")
 	assertAstroAssetNotContains(t, globalCSS, "min-height: 240px")
 	assertAstroAssetNotContains(t, globalCSS, "min-height: 180px")
@@ -387,10 +439,16 @@ func TestAstroCodePageUsesSidebarComponent(t *testing.T) {
 	codePage := readAstroAssetFile(t, outputDir, "src/components/CodePage.astro")
 	for _, want := range []string{
 		`import Sidebar from "./Sidebar.astro";`,
+		`import NavigationRail from "./NavigationRail.astro";`,
 		"<Sidebar",
+		"<NavigationRail",
 		"currentPath={currentPath}",
 		"sourcePath={sourcePath}",
 		"language={language}",
+		"toc?: TableOfContentsItem[]",
+		"tocItems",
+		"hasToc",
+		"code-page--has-toc",
 		"pageDate",
 		"pageAuthor",
 		"pageTags",

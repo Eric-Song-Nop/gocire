@@ -1,0 +1,57 @@
+---
+import ListTree from "lucide-astro/ListTree";
+
+interface TableOfContentsItem {
+  level?: number;
+  id?: string;
+  title?: string;
+}
+
+interface Props {
+  items: TableOfContentsItem[];
+}
+
+const { items = [] } = Astro.props;
+const tocItems = items.map((item) => ({
+  level: Math.min(4, Math.max(2, Number(item.level) || 2)),
+  id: String(item.id || "").trim(),
+  title: String(item.title || "").trim(),
+})).filter((item) => item.id && item.title);
+---
+
+<>
+  <aside class="navigation-rail navigation-rail--desktop" data-toc-rail aria-label="Page sections">
+    <p class="navigation-rail__heading">On this page</p>
+    <nav class="navigation-rail__nav" aria-label="On this page">
+      <ol class="navigation-rail__list">
+        {tocItems.map((item) => (
+          <li class:list={["navigation-rail__item", "navigation-rail__item--level-" + item.level]}>
+            <a class="navigation-rail__link" href={"#" + item.id} data-toc-link data-toc-target={item.id}>
+              <span class="navigation-rail__link-text">{item.title}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  </aside>
+
+  <aside class="navigation-rail-mobile" aria-label="Page sections" data-toc-rail>
+    <details class="navigation-rail-mobile__disclosure" data-toc-mobile>
+      <summary class="navigation-rail-mobile__summary" aria-label="Open page sections" title="Page sections">
+        <ListTree class="navigation-rail-mobile__icon" size={18} aria-hidden="true" />
+      </summary>
+      <nav class="navigation-rail-mobile__panel" aria-label="On this page">
+        <p class="navigation-rail__heading">On this page</p>
+        <ol class="navigation-rail__list">
+          {tocItems.map((item) => (
+            <li class:list={["navigation-rail__item", "navigation-rail__item--level-" + item.level]}>
+              <a class="navigation-rail__link" href={"#" + item.id} data-toc-link data-toc-target={item.id}>
+                <span class="navigation-rail__link-text">{item.title}</span>
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
+    </details>
+  </aside>
+</>

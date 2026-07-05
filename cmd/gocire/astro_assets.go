@@ -33,11 +33,13 @@ var astroSiteAssetTemplates = []astroSiteAssetTemplate{
 	{templatePath: "astro_template/astro.config.mjs", outputPath: "astro.config.mjs"},
 	{templatePath: "astro_template/src/layouts/SiteLayout.astro.tmpl", outputPath: "src/layouts/SiteLayout.astro", renderSiteLayout: true},
 	{templatePath: "astro_template/src/components/CodePage.astro", outputPath: "src/components/CodePage.astro"},
+	{templatePath: "astro_template/src/components/NavigationRail.astro", outputPath: "src/components/NavigationRail.astro"},
 	{templatePath: "astro_template/src/components/Sidebar.astro", outputPath: "src/components/Sidebar.astro"},
 	{templatePath: "astro_template/src/components/SidebarItems.astro", outputPath: "src/components/SidebarItems.astro"},
 	{templatePath: "astro_template/src/pages/rss.xml.ts", outputPath: "src/pages/rss.xml.ts"},
 	{templatePath: "astro_template/src/pages/sitemap.xml.ts", outputPath: "src/pages/sitemap.xml.ts"},
 	{templatePath: "astro_template/src/styles/global.css", outputPath: "src/styles/global.css"},
+	{templatePath: "astro_template/src/scripts/navigation-rail.js", outputPath: "src/scripts/navigation-rail.js"},
 	{templatePath: "astro_template/src/scripts/theme.js", outputPath: "src/scripts/theme.js"},
 	{templatePath: "astro_template/src/scripts/tooltip.js", outputPath: "src/scripts/tooltip.js"},
 }
