@@ -281,8 +281,8 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"justify-items: end",
 		"place-items: center end",
 		"transform-origin: right center",
-		"width: 16px",
-		"width: 30px",
+		"width: 12px",
+		"width: 24px",
 		"right: max(8px, env(safe-area-inset-right))",
 		"transform: translateY(-50%)",
 		"scroll-margin-top",
@@ -292,6 +292,9 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 	for _, unwanted := range []string{
 		".navigation-rail-mobile",
 		".navigation-rail--desktop",
+		".navigation-rail__marker--level-1 .navigation-rail__tick",
+		".navigation-rail__marker--level-3 .navigation-rail__tick",
+		".navigation-rail__marker--level-4 .navigation-rail__tick",
 		"navigation-rail-mobile__panel",
 	} {
 		assertAstroAssetNotContains(t, globalCSS, unwanted)

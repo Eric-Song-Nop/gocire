@@ -434,10 +434,10 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   top: 50%;
   right: max(12px, env(safe-area-inset-right));
   z-index: 50;
-  width: 44px;
-  min-width: 44px;
+  width: 32px;
+  min-width: 32px;
   max-height: min(72dvh, 520px);
-  padding: 18px 0;
+  padding: 12px 0;
   overflow: visible;
   color: var(--muted);
   transform: translateY(-50%);
@@ -446,13 +446,13 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
 .navigation-rail__nav {
   display: grid;
   justify-items: end;
-  width: 44px;
+  width: 32px;
 }
 
 .navigation-rail__markers {
   display: grid;
   justify-items: end;
-  gap: 13px;
+  gap: 8px;
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -463,16 +463,16 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   position: relative;
   display: grid;
   place-items: center end;
-  width: 44px;
-  min-height: 12px;
+  width: 32px;
+  min-height: 10px;
 }
 
 .navigation-rail__marker {
   position: relative;
   display: grid;
   place-items: center end;
-  width: 44px;
-  min-height: 12px;
+  width: 32px;
+  min-height: 10px;
   color: var(--muted);
   text-decoration: none;
   outline: none;
@@ -480,7 +480,7 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
 
 .navigation-rail__tick {
   display: block;
-  width: 16px;
+  width: 12px;
   height: 3px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--muted), transparent 42%);
@@ -489,31 +489,16 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   transition: width 140ms ease, background-color 140ms ease, opacity 140ms ease, box-shadow 140ms ease;
 }
 
-.navigation-rail__marker--level-1 .navigation-rail__tick {
-  width: 18px;
-  opacity: 0.78;
-}
-
-.navigation-rail__marker--level-3 .navigation-rail__tick {
-  width: 12px;
-  opacity: 0.54;
-}
-
-.navigation-rail__marker--level-4 .navigation-rail__tick {
-  width: 9px;
-  opacity: 0.46;
-}
-
 .navigation-rail__marker:hover .navigation-rail__tick,
 .navigation-rail__marker:focus-visible .navigation-rail__tick {
-  width: 24px;
+  width: 18px;
   background: color-mix(in srgb, var(--text), transparent 18%);
   opacity: 0.9;
 }
 
 .navigation-rail__marker.is-active .navigation-rail__tick,
 .navigation-rail__marker[aria-current="location"] .navigation-rail__tick {
-  width: 30px;
+  width: 24px;
   background: var(--text);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--surface), transparent 45%);
   opacity: 1;
@@ -526,7 +511,7 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
 .navigation-rail__label {
   position: absolute;
   top: 50%;
-  right: 38px;
+  right: 30px;
   z-index: 2;
   max-width: min(280px, calc(100vw - 92px));
   padding: 7px 9px;
@@ -1210,41 +1195,37 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
 @media (max-width: 1080px) {
   .navigation-rail {
     right: max(8px, env(safe-area-inset-right));
-    width: 34px;
-    min-width: 34px;
-    padding: 8px 0;
+    width: 28px;
+    min-width: 28px;
+    padding: 6px 0;
   }
 
   .navigation-rail__nav,
   .navigation-rail__marker-item,
   .navigation-rail__marker {
-    width: 34px;
+    width: 28px;
   }
 
   .navigation-rail__markers {
-    gap: 12px;
+    gap: 8px;
   }
 
   .navigation-rail__tick {
-    width: 13px;
-  }
-
-  .navigation-rail__marker--level-1 .navigation-rail__tick {
-    width: 15px;
+    width: 11px;
   }
 
   .navigation-rail__marker:hover .navigation-rail__tick,
   .navigation-rail__marker:focus-visible .navigation-rail__tick {
-    width: 20px;
+    width: 16px;
   }
 
   .navigation-rail__marker.is-active .navigation-rail__tick,
   .navigation-rail__marker[aria-current="location"] .navigation-rail__tick {
-    width: 24px;
+    width: 20px;
   }
 
   .navigation-rail__label {
-    right: 32px;
+    right: 28px;
     max-width: min(260px, calc(100vw - 72px));
   }
 }
@@ -1286,27 +1267,36 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
 
   .navigation-rail {
     right: max(4px, env(safe-area-inset-right));
-    width: 30px;
-    min-width: 30px;
+    width: 24px;
+    min-width: 24px;
   }
 
   .navigation-rail__nav,
   .navigation-rail__marker-item,
   .navigation-rail__marker {
-    width: 30px;
+    width: 24px;
   }
 
   .navigation-rail__markers {
-    gap: 11px;
+    gap: 7px;
+  }
+
+  .navigation-rail__tick {
+    width: 10px;
+  }
+
+  .navigation-rail__marker:hover .navigation-rail__tick,
+  .navigation-rail__marker:focus-visible .navigation-rail__tick {
+    width: 14px;
   }
 
   .navigation-rail__marker.is-active .navigation-rail__tick,
   .navigation-rail__marker[aria-current="location"] .navigation-rail__tick {
-    width: 22px;
+    width: 18px;
   }
 
   .navigation-rail__label {
-    right: 30px;
+    right: 26px;
     max-width: min(240px, calc(100vw - 62px));
   }
 
