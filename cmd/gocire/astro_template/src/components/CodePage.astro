@@ -28,9 +28,6 @@ const {
   kind = "Source",
   language,
   sourcePath,
-  date,
-  tags = [],
-  author,
   renderMode = "source",
   toc = [],
 } = Astro.props;
@@ -42,16 +39,7 @@ const pageClass = [
   "code-page--" + renderMode,
   hasToc ? "code-page--has-toc" : "",
 ].filter(Boolean).join(" ");
-const kindLabel = String(kind || "Source");
 const currentPath = Astro.url.pathname;
-const pageDate = String(date || "").trim();
-const pageAuthor = String(author || "").trim();
-const pageTags = compactTags(tags);
-const hasPageMeta = Boolean(pageDate || pageAuthor || pageTags.length > 0);
-
-function compactTags(values?: string[]) {
-  return (values ?? []).map((value) => String(value).trim()).filter(Boolean);
-}
 
 function compactToc(values?: TableOfContentsItem[]) {
   return (values ?? []).map((item) => ({
@@ -73,37 +61,6 @@ function compactToc(values?: TableOfContentsItem[]) {
     <Sidebar kind={kind} sourcePath={sourcePath} language={language} currentPath={currentPath} />
 
     <div class="page-main">
-      <header class="page-header">
-        <p class="page-kicker">{kindLabel}</p>
-        <h1>{title}</h1>
-        {hasPageMeta && (
-          <dl class="page-meta">
-            {pageDate && (
-              <>
-                <dt>Date</dt>
-                <dd><time datetime={pageDate}>{pageDate}</time></dd>
-              </>
-            )}
-            {pageAuthor && (
-              <>
-                <dt>Author</dt>
-                <dd>{pageAuthor}</dd>
-              </>
-            )}
-            {pageTags.length > 0 && (
-              <>
-                <dt>Tags</dt>
-                <dd>
-                  <ul class="metadata-tags" aria-label="Tags">
-                    {pageTags.map((tag) => <li class="metadata-tag">{tag}</li>)}
-                  </ul>
-                </dd>
-              </>
-            )}
-          </dl>
-        )}
-      </header>
-
       <section class="page-content" aria-label={"Content for " + title}>
         <slot />
       </section>
