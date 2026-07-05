@@ -107,6 +107,79 @@ func TestGenerateAstroNarrativeModeInterleavesProseAndCode(t *testing.T) {
 	}
 }
 
+func TestGenerateAstroNarrativeModePassesTableOfContents(t *testing.T) {
+	sourceLines := []string{
+		"// # Page title",
+		"//",
+		"// ## Setup",
+		"//",
+		"// ### Details",
+		"//",
+		"// ##### Hidden",
+		"func main() {}",
+	}
+	gen := NewAstroGenerator(sourceLines)
+
+	output := gen.GenerateAstro(nil, []CommentInfo{
+		{
+			Content: "# Page title\n\n## Setup\n\n### Details\n\n##### Hidden",
+			Span: scip.Range{
+				Start: scip.Position{Line: 0, Character: 0},
+				End:   scip.Position{Line: 6, Character: 13},
+			},
+		},
+	}, AstroPageOptions{
+		Title:      "Page title",
+		Kind:       "docs",
+		Language:   "go",
+		SourcePath: "docs/page.go",
+		RenderMode: AstroRenderModeNarrative,
+	})
+
+	expected := `toc={[{ level: 2, id: "setup", title: "Setup" }, { level: 3, id: "details", title: "Details" }]}`
+	if !strings.Contains(output, expected) {
+		t.Fatalf("output missing table of contents prop %q\nGot:\n%s", expected, output)
+	}
+	for _, unwanted := range []string{
+		`level: 1`,
+		`title: "Page title"`,
+		`level: 5`,
+		`title: "Hidden"`,
+	} {
+		if strings.Contains(output, unwanted) {
+			t.Fatalf("table of contents should not include %q\nGot:\n%s", unwanted, output)
+		}
+	}
+}
+
+func TestGenerateAstroSourceModeOmitsTableOfContents(t *testing.T) {
+	sourceLines := []string{
+		"// ## Setup",
+		"func main() {}",
+	}
+	gen := NewAstroGenerator(sourceLines)
+
+	output := gen.GenerateAstro(nil, []CommentInfo{
+		{
+			Content: "## Setup",
+			Span: scip.Range{
+				Start: scip.Position{Line: 0, Character: 0},
+				End:   scip.Position{Line: 0, Character: 11},
+			},
+		},
+	}, AstroPageOptions{
+		Title:      "main.go",
+		Kind:       "source",
+		Language:   "go",
+		SourcePath: "main.go",
+		RenderMode: AstroRenderModeSource,
+	})
+
+	if strings.Contains(output, "toc={") {
+		t.Fatalf("source mode should not emit table of contents\nGot:\n%s", output)
+	}
+}
+
 func TestGenerateAstroPassesMetadataPropsToCodePage(t *testing.T) {
 	gen := NewAstroGenerator([]string{"package main"})
 
