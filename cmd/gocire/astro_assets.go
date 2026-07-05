@@ -35,6 +35,7 @@ var astroSiteAssetTemplates = []astroSiteAssetTemplate{
 	{templatePath: "astro_template/src/components/CodePage.astro", outputPath: "src/components/CodePage.astro"},
 	{templatePath: "astro_template/src/components/NavigationRail.astro", outputPath: "src/components/NavigationRail.astro"},
 	{templatePath: "astro_template/src/components/Sidebar.astro", outputPath: "src/components/Sidebar.astro"},
+	{templatePath: "astro_template/src/components/SidebarBody.astro", outputPath: "src/components/SidebarBody.astro"},
 	{templatePath: "astro_template/src/components/SidebarItems.astro", outputPath: "src/components/SidebarItems.astro"},
 	{templatePath: "astro_template/src/pages/rss.xml.ts", outputPath: "src/pages/rss.xml.ts"},
 	{templatePath: "astro_template/src/pages/sitemap.xml.ts", outputPath: "src/pages/sitemap.xml.ts"},

@@ -276,11 +276,12 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   overflow: hidden;
 }
 
-.sidebar-disclosure {
+.sidebar-desktop {
   display: grid;
   min-width: 0;
 }
 
+.sidebar-disclosure,
 .sidebar-summary {
   display: none;
 }
@@ -289,10 +290,6 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   display: grid;
   gap: 16px;
   min-width: 0;
-}
-
-.sidebar-disclosure:not([open]) > .sidebar-body {
-  display: grid;
 }
 
 .sidebar-nav,
@@ -1317,6 +1314,15 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
     border-left: 0;
     border-bottom: 1px solid var(--line);
     overflow: visible;
+  }
+
+  .sidebar-desktop {
+    display: none;
+  }
+
+  .sidebar-disclosure {
+    display: grid;
+    min-width: 0;
   }
 
   .sidebar-summary {
