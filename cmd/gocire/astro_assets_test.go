@@ -23,6 +23,7 @@ var expectedAstroAssetFiles = []string{
 	"src/components/CodePage.astro",
 	"src/components/NavigationRail.astro",
 	"src/components/Sidebar.astro",
+	"src/components/SidebarBody.astro",
 	"src/components/SidebarItems.astro",
 	"src/styles/global.css",
 	"src/scripts/navigation-rail.js",
@@ -113,6 +114,7 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 	} {
 		assertAstroAssetContains(t, layout, want)
 	}
+	assertAstroAssetNotContains(t, layout, "../scripts/sidebar.js")
 
 	codePage := readAstroAssetFile(t, outputDir, "src/components/CodePage.astro")
 	for _, want := range []string{
@@ -276,8 +278,11 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"grid-template-columns: minmax(160px, 220px) minmax(0, 1fr)",
 		"top: 50%",
 		"right: max(12px, env(safe-area-inset-right))",
-		"width: 16px",
-		"width: 30px",
+		"justify-items: end",
+		"place-items: center end",
+		"transform-origin: right center",
+		"width: 12px",
+		"width: 24px",
 		"right: max(8px, env(safe-area-inset-right))",
 		"transform: translateY(-50%)",
 		"scroll-margin-top",
@@ -287,6 +292,9 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 	for _, unwanted := range []string{
 		".navigation-rail-mobile",
 		".navigation-rail--desktop",
+		".navigation-rail__marker--level-1 .navigation-rail__tick",
+		".navigation-rail__marker--level-3 .navigation-rail__tick",
+		".navigation-rail__marker--level-4 .navigation-rail__tick",
 		"navigation-rail-mobile__panel",
 	} {
 		assertAstroAssetNotContains(t, globalCSS, unwanted)
@@ -505,32 +513,22 @@ func TestAstroSidebarUsesNavigationSectionsAndSourceMetadata(t *testing.T) {
 	sidebar := readAstroAssetFile(t, outputDir, "src/components/Sidebar.astro")
 	for _, want := range []string{
 		`import { navigation } from "../generated/navigation";`,
-		`import SidebarItems from "./SidebarItems.astro";`,
+		`import SidebarBody from "./SidebarBody.astro";`,
 		"currentPath?: string",
 		"sourcePath?: string",
 		"language?: string",
 		"kind?: string",
-		"tags?: string[]",
-		"author?: string",
-		"Docs",
-		"Blog",
-		"item.date",
-		"item.author",
-		"item.tags",
-		"sidebar-blog-meta",
-		"sidebar-blog-author",
-		"sidebar-blog-tags",
-		"sidebar-blog-date",
-		"Source",
 		"sourcePath",
 		"language",
-		"Path",
-		"Language",
+		"Docs navigation",
+		"Blog navigation",
+		"Source context",
+		`<div class="sidebar-desktop">`,
 		`<details class="sidebar-disclosure">`,
 		`<summary class="sidebar-summary">`,
 		"sidebar-summary__label",
-		"sidebar-body",
 		"{sidebarLabel}",
+		"<SidebarBody",
 	} {
 		assertAstroAssetContains(t, sidebar, want)
 	}
@@ -542,6 +540,50 @@ func TestAstroSidebarUsesNavigationSectionsAndSourceMetadata(t *testing.T) {
 		"navigation.blog.items",
 		"navigation.blog?.items",
 	})
+	for _, unwanted := range []string{
+		`import SidebarItems from "./SidebarItems.astro";`,
+		"open data-sidebar-disclosure",
+		"data-sidebar-disclosure",
+		"item.date",
+		"item.author",
+		"item.tags",
+	} {
+		assertAstroAssetNotContains(t, sidebar, unwanted)
+	}
+}
+
+func TestAstroSidebarBodyRendersNavigationSectionsAndSourceMetadata(t *testing.T) {
+	outputDir := writeAstroAssetsForTest(t, "Sidebar Docs")
+
+	sidebarBody := readAstroAssetFile(t, outputDir, "src/components/SidebarBody.astro")
+	for _, want := range []string{
+		`import SidebarItems from "./SidebarItems.astro";`,
+		"currentPath?: string",
+		"sourcePath?: string",
+		"language?: string",
+		"date?: string",
+		"tags?: string[]",
+		"author?: string",
+		"Docs",
+		"Blog",
+		"item.date",
+		"item.author",
+		"item.tags",
+		"sidebar-blog-meta",
+		"sidebar-blog-author",
+		"sidebar-blog-tags",
+		"sidebar-blog-date",
+		"Source context",
+		"sourcePath",
+		"language",
+		"Path",
+		"Language",
+		"sidebar-body",
+		"<SidebarItems",
+		"aria-current",
+	} {
+		assertAstroAssetContains(t, sidebarBody, want)
+	}
 }
 
 func TestAstroSidebarItemsRendersRecursiveNavigation(t *testing.T) {
@@ -589,6 +631,7 @@ func TestAstroGlobalCSSIncludesSidebarNavigationClasses(t *testing.T) {
 		".metadata-tags",
 		".metadata-tag",
 		".sidebar-context",
+		".sidebar-desktop",
 		".sidebar-disclosure",
 		".sidebar-summary",
 		".sidebar-summary::after",
@@ -601,6 +644,7 @@ func TestAstroGlobalCSSIncludesSidebarNavigationClasses(t *testing.T) {
 		assertAstroAssetContains(t, globalCSS, want)
 	}
 	for _, want := range []string{
+		"position: sticky",
 		"position: static",
 		"border-bottom: 1px solid var(--line)",
 		"max-height: min(55dvh, 360px)",
