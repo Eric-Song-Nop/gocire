@@ -1,0 +1,40 @@
+---
+interface TableOfContentsItem {
+  level?: number;
+  id?: string;
+  title?: string;
+}
+
+interface Props {
+  items: TableOfContentsItem[];
+}
+
+const { items = [] } = Astro.props;
+const tocItems = items.map((item) => ({
+  level: Math.min(4, Math.max(1, Number(item.level) || 1)),
+  id: String(item.id || "").trim(),
+  title: String(item.title || "").trim(),
+})).filter((item) => item.id && item.title);
+---
+
+<aside class="navigation-rail" data-toc-rail aria-label="Page sections">
+  <nav class="navigation-rail__nav" aria-label="On this page">
+    <ol class="navigation-rail__markers">
+      {tocItems.map((item) => (
+        <li class:list={["navigation-rail__marker-item", "navigation-rail__marker-item--level-" + item.level]}>
+          <a
+            class:list={["navigation-rail__marker", "navigation-rail__marker--level-" + item.level]}
+            href={"#" + item.id}
+            data-toc-link
+            data-toc-target={item.id}
+            aria-label={`Jump to ${item.title}`}
+            title={item.title}
+          >
+            <span class="navigation-rail__tick" aria-hidden="true"></span>
+            <span class="navigation-rail__label">{item.title}</span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  </nav>
+</aside>

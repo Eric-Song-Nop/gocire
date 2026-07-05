@@ -31,6 +31,12 @@ type AstroPageOptions struct {
 	CodePageImport string
 }
 
+type AstroTableOfContentsItem struct {
+	Level int
+	ID    string
+	Title string
+}
+
 // AstroGenerator generates complete Astro pages from source analysis data.
 type AstroGenerator struct {
 	sourceLines []string
@@ -58,6 +64,7 @@ func (g *AstroGenerator) GenerateAstro(tokens []TokenInfo, comments []CommentInf
 	} else {
 		body = g.generateNarrativeAstro(tokens, comments, opts)
 	}
+	toc := astroTableOfContentsForComments(comments, mode)
 
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "---\nimport CodePage from %s;\n---\n\n", strconv.Quote(importPath))
@@ -79,6 +86,9 @@ func (g *AstroGenerator) GenerateAstro(tokens []TokenInfo, comments []CommentInf
 	if len(tags) > 0 {
 		fmt.Fprintf(&sb, " tags={%s}", astroStringArrayLiteral(tags))
 	}
+	if len(toc) > 0 {
+		fmt.Fprintf(&sb, " toc={%s}", astroTableOfContentsLiteral(toc))
+	}
 	sb.WriteString(">")
 	sb.WriteString("\n")
 	fmt.Fprintf(
@@ -96,6 +106,55 @@ func (g *AstroGenerator) GenerateAstro(tokens []TokenInfo, comments []CommentInf
 	}
 	sb.WriteString("</article>\n</CodePage>\n")
 
+	return sb.String()
+}
+
+func astroTableOfContentsForComments(comments []CommentInfo, mode AstroRenderMode) []AstroTableOfContentsItem {
+	if mode != AstroRenderModeNarrative {
+		return nil
+	}
+
+	items := make([]AstroTableOfContentsItem, 0)
+	titleItems := make([]AstroTableOfContentsItem, 0)
+	for _, comment := range comments {
+		for _, heading := range ExtractMarkdownHeadings(comment.Content) {
+			if heading.Level < 1 || heading.Level > 4 {
+				continue
+			}
+			item := AstroTableOfContentsItem{
+				Level: heading.Level,
+				ID:    heading.ID,
+				Title: heading.Title,
+			}
+			if heading.Level == 1 {
+				titleItems = append(titleItems, item)
+				continue
+			}
+			items = append(items, item)
+		}
+	}
+	if len(items) == 0 {
+		return titleItems
+	}
+	return items
+}
+
+func astroTableOfContentsLiteral(items []AstroTableOfContentsItem) string {
+	var sb strings.Builder
+	sb.WriteString("[")
+	for i, item := range items {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		fmt.Fprintf(
+			&sb,
+			"{ level: %d, id: %s, title: %s }",
+			item.Level,
+			strconv.Quote(item.ID),
+			strconv.Quote(item.Title),
+		)
+	}
+	sb.WriteString("]")
 	return sb.String()
 }
 

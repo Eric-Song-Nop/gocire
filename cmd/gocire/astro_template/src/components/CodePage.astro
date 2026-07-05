@@ -1,6 +1,13 @@
 ---
 import SiteLayout from "../layouts/SiteLayout.astro";
+import NavigationRail from "./NavigationRail.astro";
 import Sidebar from "./Sidebar.astro";
+
+interface TableOfContentsItem {
+  level?: number;
+  id?: string;
+  title?: string;
+}
 
 interface Props {
   title: string;
@@ -11,6 +18,7 @@ interface Props {
   tags?: string[];
   author?: string;
   renderMode?: string;
+  toc?: TableOfContentsItem[];
 }
 
 const {
@@ -22,8 +30,16 @@ const {
   tags = [],
   author,
   renderMode = "source",
+  toc = [],
 } = Astro.props;
-const pageClass = "site-shell code-page code-page--" + renderMode;
+const tocItems = compactToc(toc);
+const hasToc = tocItems.length > 0;
+const pageClass = [
+  "site-shell",
+  "code-page",
+  "code-page--" + renderMode,
+  hasToc ? "code-page--has-toc" : "",
+].filter(Boolean).join(" ");
 const kindLabel = String(kind || "Source");
 const currentPath = Astro.url.pathname;
 const pageDate = String(date || "").trim();
@@ -33,6 +49,14 @@ const hasPageMeta = Boolean(pageDate || pageAuthor || pageTags.length > 0);
 
 function compactTags(values?: string[]) {
   return (values ?? []).map((value) => String(value).trim()).filter(Boolean);
+}
+
+function compactToc(values?: TableOfContentsItem[]) {
+  return (values ?? []).map((item) => ({
+    level: Math.min(4, Math.max(1, Number(item.level) || 1)),
+    id: String(item.id || "").trim(),
+    title: String(item.title || "").trim(),
+  })).filter((item) => item.id && item.title);
 }
 ---
 
@@ -76,5 +100,7 @@ function compactTags(values?: string[]) {
         <slot />
       </section>
     </div>
+
+    {hasToc && <NavigationRail items={tocItems} />}
   </main>
 </SiteLayout>
