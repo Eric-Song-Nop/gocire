@@ -136,15 +136,17 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"<slot />",
 		`<template id="gocire-code-copy-icon">`,
 		`<template id="gocire-code-copy-success-icon">`,
+	} {
+		assertAstroAssetContains(t, codePage, want)
+	}
+	for _, unwanted := range []string{
+		`<header class="page-header">`,
+		`<p class="page-kicker">`,
 		`<dl class="page-meta">`,
 		"<dt>Date</dt>",
 		"<dt>Author</dt>",
 		"<dt>Tags</dt>",
 		"metadata-tags",
-	} {
-		assertAstroAssetContains(t, codePage, want)
-	}
-	for _, unwanted := range []string{
 		`<dt>Language</dt>`,
 		`<dt>Path</dt>`,
 		`<dd><code>{sourcePath}</code></dd>`,
@@ -295,9 +297,6 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		`[data-theme="dark"]`,
 	})
 	assertAstroAssetContains(t, globalCSS, ".theme-toggle")
-	assertAstroAssetContains(t, globalCSS, ".page-meta")
-	assertAstroAssetContains(t, globalCSS, ".metadata-tags")
-	assertAstroAssetContains(t, globalCSS, ".metadata-tag")
 	for _, want := range []string{
 		".cire-code-block",
 		".cire-code-copy",
@@ -340,10 +339,14 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		".navigation-rail__marker--level-3 .navigation-rail__tick",
 		".navigation-rail__marker--level-4 .navigation-rail__tick",
 		"navigation-rail-mobile__panel",
+		".page-header",
+		".page-kicker",
+		".page-meta",
+		".metadata-tags",
+		".metadata-tag",
 	} {
 		assertAstroAssetNotContains(t, globalCSS, unwanted)
 	}
-	assertAstroAssetNotContains(t, globalCSS, ".page-meta code")
 	assertAstroAssetNotContains(t, globalCSS, "min-height: 240px")
 	assertAstroAssetNotContains(t, globalCSS, "min-height: 180px")
 	for _, want := range []string{
@@ -525,6 +528,13 @@ func TestAstroCodePageUsesSidebarComponent(t *testing.T) {
 		"tocItems",
 		"hasToc",
 		"code-page--has-toc",
+	} {
+		assertAstroAssetContains(t, codePage, want)
+	}
+	for _, unwanted := range []string{
+		`<header class="page-header">`,
+		`<p class="page-kicker">`,
+		`<dl class="page-meta">`,
 		"pageDate",
 		"pageAuthor",
 		"pageTags",
@@ -532,14 +542,7 @@ func TestAstroCodePageUsesSidebarComponent(t *testing.T) {
 		"Date",
 		"Author",
 		"Tags",
-	} {
-		assertAstroAssetContains(t, codePage, want)
-	}
-	assertAstroAssetContainsAny(t, codePage, []string{
-		"kind={kind}",
-		"kind={kindLabel}",
-	})
-	for _, unwanted := range []string{
+		"kindLabel",
 		`<dt>Language</dt>`,
 		`<dt>Path</dt>`,
 		`<aside class="page-sidebar" aria-label="Page context">`,
@@ -672,8 +675,6 @@ func TestAstroGlobalCSSIncludesSidebarNavigationClasses(t *testing.T) {
 		".sidebar-blog-author",
 		".sidebar-blog-tags",
 		".sidebar-link__meta",
-		".metadata-tags",
-		".metadata-tag",
 		".sidebar-context",
 		".sidebar-desktop",
 		".sidebar-disclosure",
