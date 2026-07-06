@@ -436,7 +436,7 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   z-index: 50;
   width: 32px;
   min-width: 32px;
-  height: min(72dvh, 520px);
+  max-height: min(72dvh, 520px);
   padding: 12px 0;
   overflow: visible;
   color: var(--muted);
@@ -447,13 +447,13 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   display: grid;
   justify-items: end;
   width: 32px;
-  height: 100%;
 }
 
 .navigation-rail__markers {
-  position: relative;
+  display: grid;
+  justify-items: end;
+  gap: 8px;
   width: 32px;
-  height: 100%;
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -461,12 +461,11 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
 }
 
 .navigation-rail__marker-item {
-  position: absolute;
-  top: calc(var(--toc-progress, 0) * 100%);
-  right: 0;
+  position: relative;
+  display: grid;
+  place-items: center end;
   width: 32px;
   min-height: 10px;
-  transform: translateY(-50%);
 }
 
 .navigation-rail__marker {
