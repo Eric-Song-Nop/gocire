@@ -467,6 +467,7 @@ func TestAstroGlobalCSSIncludesProseMarkdownStyles(t *testing.T) {
 	}{
 		{".cire-prose a", "color: var(--accent)"},
 		{".cire-prose blockquote", "border-left: 3px solid var(--line)"},
+		{".cire-prose", "min-width: 0"},
 		{".cire-prose table", "overflow-x: auto"},
 		{".cire-prose pre", "background: var(--code-bg)"},
 		{".cire-prose .chroma", "overflow-x: auto"},
