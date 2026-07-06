@@ -251,6 +251,7 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"data-toc-rail",
 		"data-toc-link",
 		"data-toc-target",
+		"data-toc-marker-item",
 		"navigation-rail__markers",
 		"navigation-rail__marker",
 		"navigation-rail__tick",
@@ -278,6 +279,10 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"location",
 		"requestAnimationFrame",
 		"getBoundingClientRect",
+		"scrollMarginTop",
+		"updateTargetPositions",
+		`style.setProperty("--toc-progress"`,
+		"document.documentElement.scrollHeight - window.innerHeight",
 		"hashchange",
 	} {
 		assertAstroAssetContains(t, navigationRailScript, want)
@@ -321,14 +326,21 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"grid-template-columns: minmax(160px, 220px) minmax(0, 1fr)",
 		"top: 50%",
 		"right: max(12px, env(safe-area-inset-right))",
+		"height: min(72dvh, 520px)",
 		"justify-items: end",
 		"place-items: center end",
+		"top: calc(var(--toc-progress, 0) * 100%)",
 		"transform-origin: right center",
 		"width: 12px",
 		"width: 24px",
 		"right: max(8px, env(safe-area-inset-right))",
 		"transform: translateY(-50%)",
-		"scroll-margin-top",
+		".page-content",
+		"--anchor-scroll-offset: 86px",
+		".code-page--has-toc .page-content",
+		"padding-bottom: max(64px, calc(100dvh - var(--anchor-scroll-offset)))",
+		".cire-prose :is(h1, h2, h3, h4)[id]",
+		"scroll-margin-top: var(--anchor-scroll-offset, 86px)",
 	} {
 		assertAstroAssetContains(t, globalCSS, want)
 	}
@@ -344,6 +356,7 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		".page-meta",
 		".metadata-tags",
 		".metadata-tag",
+		".code-page--has-toc .cire-prose",
 	} {
 		assertAstroAssetNotContains(t, globalCSS, unwanted)
 	}

@@ -143,19 +143,79 @@ func TestGenerateAstroNarrativeModePassesTableOfContents(t *testing.T) {
 		RenderMode: AstroRenderModeNarrative,
 	})
 
-	expected := `toc={[{ level: 2, id: "setup", title: "Setup" }, { level: 3, id: "details", title: "Details" }]}`
+	expected := `toc={[{ level: 1, id: "page-title", title: "Page title" }, { level: 2, id: "setup", title: "Setup" }, { level: 3, id: "details", title: "Details" }]}`
 	if !strings.Contains(output, expected) {
 		t.Fatalf("output missing table of contents prop %q\nGot:\n%s", expected, output)
 	}
 	for _, unwanted := range []string{
-		`level: 1`,
-		`title: "Page title"`,
 		`level: 5`,
 		`title: "Hidden"`,
 	} {
 		if strings.Contains(output, unwanted) {
 			t.Fatalf("table of contents should not include %q\nGot:\n%s", unwanted, output)
 		}
+	}
+}
+
+func TestGenerateAstroNarrativeModeUsesPageLevelHeadingIDs(t *testing.T) {
+	sourceLines := []string{
+		"// # Mobvibe：在任何设备上连接本地 AI Agent",
+		"//",
+		"// ## 为什么这个项目值得单独写一页",
+		"export const intro = true;",
+		"// ## 核心链路",
+		"export const flow = true;",
+		"// ## 总结",
+	}
+	gen := NewAstroGenerator(sourceLines)
+
+	output := gen.GenerateAstro(nil, []CommentInfo{
+		{
+			Content: "# Mobvibe：在任何设备上连接本地 AI Agent\n\n## 为什么这个项目值得单独写一页",
+			Span: scip.Range{
+				Start: scip.Position{Line: 0, Character: 0},
+				End:   scip.Position{Line: 2, Character: 22},
+			},
+		},
+		{
+			Content: "## 核心链路",
+			Span: scip.Range{
+				Start: scip.Position{Line: 4, Character: 0},
+				End:   scip.Position{Line: 4, Character: 9},
+			},
+		},
+		{
+			Content: "## 总结",
+			Span: scip.Range{
+				Start: scip.Position{Line: 6, Character: 0},
+				End:   scip.Position{Line: 6, Character: 6},
+			},
+		},
+	}, AstroPageOptions{
+		Title:      "Mobvibe",
+		Kind:       "blog",
+		Language:   "typescript",
+		SourcePath: "blogs/mobvibe.ts",
+		RenderMode: AstroRenderModeNarrative,
+	})
+
+	expectedToc := `toc={[{ level: 1, id: "mobvibe-在任何设备上连接本地-ai-agent", title: "Mobvibe：在任何设备上连接本地 AI Agent" }, { level: 2, id: "为什么这个项目值得单独写一页", title: "为什么这个项目值得单独写一页" }, { level: 2, id: "核心链路", title: "核心链路" }, { level: 2, id: "总结", title: "总结" }]}`
+	if !strings.Contains(output, expectedToc) {
+		t.Fatalf("output missing page-level unicode table of contents prop %q\nGot:\n%s", expectedToc, output)
+	}
+
+	for _, want := range []string{
+		`<h1 id="mobvibe-在任何设备上连接本地-ai-agent">Mobvibe：在任何设备上连接本地 AI Agent</h1>`,
+		`<h2 id="为什么这个项目值得单独写一页">为什么这个项目值得单独写一页</h2>`,
+		`<h2 id="核心链路">核心链路</h2>`,
+		`<h2 id="总结">总结</h2>`,
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("output missing rendered heading %q\nGot:\n%s", want, output)
+		}
+	}
+	if strings.Contains(output, `id="heading"`) || strings.Contains(output, `id="heading-`) {
+		t.Fatalf("output should not contain fallback heading ids\nGot:\n%s", output)
 	}
 }
 

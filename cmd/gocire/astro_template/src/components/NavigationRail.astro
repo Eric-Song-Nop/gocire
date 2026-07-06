@@ -21,7 +21,7 @@ const tocItems = items.map((item) => ({
   <nav class="navigation-rail__nav" aria-label="On this page">
     <ol class="navigation-rail__markers">
       {tocItems.map((item) => (
-        <li class:list={["navigation-rail__marker-item", "navigation-rail__marker-item--level-" + item.level]}>
+        <li class:list={["navigation-rail__marker-item", "navigation-rail__marker-item--level-" + item.level]} data-toc-marker-item>
           <a
             class:list={["navigation-rail__marker", "navigation-rail__marker--level-" + item.level]}
             href={"#" + item.id}
