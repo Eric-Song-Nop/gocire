@@ -149,7 +149,7 @@ func newMarkdownRendererWithParserOptions(opts ...parser.Option) goldmark.Markdo
 		goldmark.WithExtensions(
 			highlight.NewHighlighting(highlight.WithFormatOptions(
 				formatter.WithClasses(true),
-			), highlight.WithGuessLanguage(true)),
+			), highlight.WithCodeBlockOptions(codeBlockFormatOptions), highlight.WithGuessLanguage(true)),
 		),
 		goldmark.WithParserOptions(opts...),
 		goldmark.WithRendererOptions(
@@ -157,6 +157,61 @@ func newMarkdownRendererWithParserOptions(opts ...parser.Option) goldmark.Markdo
 		),
 	)
 	return gm
+}
+
+func codeBlockFormatOptions(context highlight.CodeBlockContext) []formatter.Option {
+	language, ok := context.Language()
+	if !ok {
+		return nil
+	}
+	normalized := normalizedCodeBlockLanguage(string(language))
+	if normalized == "" {
+		return nil
+	}
+	return []formatter.Option{
+		formatter.WithPreWrapper(languagePreWrapper{language: normalized}),
+	}
+}
+
+func normalizedCodeBlockLanguage(language string) string {
+	language = strings.ToLower(strings.TrimSpace(language))
+	switch language {
+	case "", "fallback", "plaintext", "text":
+		return ""
+	case "bash", "sh", "shell", "zsh", "ksh":
+		return "bash"
+	}
+
+	var normalized strings.Builder
+	for _, r := range language {
+		switch {
+		case r >= 'a' && r <= 'z':
+			normalized.WriteRune(r)
+		case r >= '0' && r <= '9':
+			normalized.WriteRune(r)
+		case r == '-' || r == '_' || r == '+' || r == '#':
+			normalized.WriteRune(r)
+		}
+	}
+	return normalized.String()
+}
+
+type languagePreWrapper struct {
+	language string
+}
+
+func (w languagePreWrapper) Start(code bool, styleAttr string) string {
+	if code {
+		return fmt.Sprintf(`<pre%s data-language="%s"><code>`, styleAttr, w.language)
+	}
+	return fmt.Sprintf(`<pre%s>`, styleAttr)
+}
+
+func (w languagePreWrapper) End(code bool) string {
+	if code {
+		return `</code></pre>`
+	}
+	return `</pre>`
 }
 
 func markdownHeadingID(heading *ast.Heading) string {

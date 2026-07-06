@@ -34,3 +34,25 @@ func TestMarkdownPageRendererAssignsUniqueUnicodeHeadingIDsAcrossFragments(t *te
 		t.Fatalf("Headings() = %#v, want %#v", got, want)
 	}
 }
+
+func TestMarkdownPageRendererHighlightsBashCodeFence(t *testing.T) {
+	renderer := NewMarkdownPageRenderer()
+
+	html := renderer.RenderFragment(strings.Join([]string{
+		"```bash",
+		"npx @mobvibe/cli login",
+		"npx @mobvibe/cli start",
+		"```",
+	}, "\n"))
+
+	for _, want := range []string{
+		`class="chroma"`,
+		`data-language="bash"`,
+		`npx @mobvibe/cli login`,
+		`npx @mobvibe/cli start`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("rendered bash fence missing %q\nGot:\n%s", want, html)
+		}
+	}
+}

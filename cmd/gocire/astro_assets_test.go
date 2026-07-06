@@ -806,6 +806,7 @@ func TestAstroGlobalCSSIncludesThemeAwareCodeHighlighting(t *testing.T) {
 		{":is(.cire-prose, .gocire-tooltip) .chroma .k", "--code-keyword"},
 		{":is(.cire-prose, .gocire-tooltip) .chroma .s", "--code-string"},
 		{":is(.cire-prose, .gocire-tooltip) .chroma .nf", "--code-function"},
+		{`:is(.cire-prose, .gocire-tooltip) .chroma[data-language="bash"] .cl`, "--code-function"},
 		{":is(.cire-prose, .gocire-tooltip) .chroma .c", "--code-comment"},
 	} {
 		assertAstroCSSSelectorUsesVariable(t, globalCSS, mapping.selector, mapping.variable)

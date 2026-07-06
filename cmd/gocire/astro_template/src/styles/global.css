@@ -1058,6 +1058,10 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   color: var(--code-text);
 }
 
+:is(.cire-prose, .gocire-tooltip) .chroma[data-language="bash"] .cl {
+  color: var(--code-function);
+}
+
 :is(.cire-prose, .gocire-tooltip) .chroma .k,
 :is(.cire-prose, .gocire-tooltip) .chroma .kc,
 :is(.cire-prose, .gocire-tooltip) .chroma .kd,
