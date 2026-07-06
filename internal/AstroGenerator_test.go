@@ -37,10 +37,12 @@ func TestGenerateAstroSourceModeKeepsCommentsInCode(t *testing.T) {
 	expectedParts := []string{
 		`import CodePage from "../layouts/CodePage.astro";`,
 		`renderMode="source"`,
+		`<div class="cire-code-block" data-code-block>`,
 		`<pre class="cire-code"><code class="cire language-go" data-language="go">`,
 		`// Intro comment`,
 		`func main() &#123;`,
 		`println(&quot;hi&quot;)`,
+		`</code></pre></div>`,
 	}
 	for _, part := range expectedParts {
 		if !strings.Contains(output, part) {
@@ -53,6 +55,9 @@ func TestGenerateAstroSourceModeKeepsCommentsInCode(t *testing.T) {
 	}
 	if strings.Count(output, `<pre class="cire-code">`) != 1 {
 		t.Fatalf("source mode should render one complete source code block\nGot:\n%s", output)
+	}
+	if strings.Count(output, `data-code-block`) != 1 {
+		t.Fatalf("source mode should render one copyable code block container\nGot:\n%s", output)
 	}
 }
 
@@ -92,9 +97,11 @@ func TestGenerateAstroNarrativeModeInterleavesProseAndCode(t *testing.T) {
 	expectedParts := []string{
 		`renderMode="narrative"`,
 		`<div class="cire-prose"><p>Intro comment</p>`,
+		`<div class="cire-code-block" data-code-block>`,
 		`<pre class="cire-code"><code class="cire language-go" data-language="go">`,
 		`func main() &#123;`,
 		`<span class="function">println</span>`,
+		`</code></pre></div>`,
 	}
 	for _, part := range expectedParts {
 		if !strings.Contains(output, part) {
