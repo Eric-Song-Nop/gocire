@@ -335,7 +335,11 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"width: 24px",
 		"right: max(8px, env(safe-area-inset-right))",
 		"transform: translateY(-50%)",
+		"--anchor-scroll-offset: 86px",
+		".code-page--has-toc .cire-prose",
+		"padding-bottom: max(64px, calc(100dvh - var(--anchor-scroll-offset)))",
 		".cire-prose :is(h1, h2, h3, h4)[id]",
+		"scroll-margin-top: var(--anchor-scroll-offset)",
 	} {
 		assertAstroAssetContains(t, globalCSS, want)
 	}

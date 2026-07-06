@@ -551,9 +551,14 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
 }
 
 .cire-prose {
+  --anchor-scroll-offset: 86px;
   min-width: 0;
   max-width: 760px;
   color: var(--text);
+}
+
+.code-page--has-toc .cire-prose {
+  padding-bottom: max(64px, calc(100dvh - var(--anchor-scroll-offset)));
 }
 
 .cire-prose > :first-child {
@@ -565,7 +570,7 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
 }
 
 .cire-prose :is(h1, h2, h3, h4)[id] {
-  scroll-margin-top: 86px;
+  scroll-margin-top: var(--anchor-scroll-offset);
 }
 
 .cire-prose p,
