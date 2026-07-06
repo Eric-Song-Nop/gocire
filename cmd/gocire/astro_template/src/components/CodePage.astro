@@ -1,4 +1,6 @@
 ---
+import Check from "lucide-astro/Check";
+import Copy from "lucide-astro/Copy";
 import SiteLayout from "../layouts/SiteLayout.astro";
 import NavigationRail from "./NavigationRail.astro";
 import Sidebar from "./Sidebar.astro";
@@ -61,6 +63,12 @@ function compactToc(values?: TableOfContentsItem[]) {
 ---
 
 <SiteLayout title={title}>
+  <template id="gocire-code-copy-icon">
+    <Copy size={16} aria-hidden="true" />
+  </template>
+  <template id="gocire-code-copy-success-icon">
+    <Check size={16} aria-hidden="true" />
+  </template>
   <main class={pageClass}>
     <Sidebar kind={kind} sourcePath={sourcePath} language={language} currentPath={currentPath} />
 

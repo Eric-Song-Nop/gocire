@@ -784,6 +784,76 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   overflow: auto;
 }
 
+.cire-code-block {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cire-prose .cire-code-block {
+  margin: 1rem 0;
+}
+
+.cire-prose .cire-code-block > pre,
+.cire-prose .cire-code-block > .chroma {
+  margin: 0;
+}
+
+.cire-code-block > .cire-code,
+.cire-code-block > .source-code,
+.cire-prose .cire-code-block > pre,
+.cire-prose .cire-code-block > .chroma {
+  padding-right: 3.75rem;
+}
+
+.cire-code-copy {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  z-index: 4;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid color-mix(in srgb, var(--code-border), transparent 18%);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--code-bg), var(--surface) 18%);
+  color: var(--code-muted);
+  cursor: pointer;
+  opacity: 0.78;
+  transition: border-color 140ms ease, color 140ms ease, opacity 140ms ease, transform 140ms ease;
+}
+
+.cire-code-copy:hover,
+.cire-code-copy:focus-visible {
+  border-color: color-mix(in srgb, var(--accent), transparent 28%);
+  color: var(--code-text);
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.cire-code-copy:disabled {
+  cursor: wait;
+}
+
+.cire-code-copy[data-copy-state="copied"] {
+  border-color: color-mix(in srgb, var(--code-inserted), transparent 32%);
+  color: var(--code-inserted);
+  opacity: 1;
+}
+
+.cire-code-copy[data-copy-state="failed"] {
+  border-color: color-mix(in srgb, var(--code-error), transparent 32%);
+  color: var(--code-error);
+  opacity: 1;
+}
+
+.cire-code-copy svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
 .cire-code code,
 .source-code code,
 .cire {
@@ -1398,6 +1468,20 @@ html[data-theme="dark"] .theme-toggle__icon--sun {
   .source-code {
     padding: 16px;
     font-size: 0.86rem;
+  }
+
+  .cire-code-block > .cire-code,
+  .cire-code-block > .source-code,
+  .cire-prose .cire-code-block > pre,
+  .cire-prose .cire-code-block > .chroma {
+    padding-right: 3.25rem;
+  }
+
+  .cire-code-copy {
+    top: 7px;
+    right: 7px;
+    width: 30px;
+    height: 30px;
   }
 
   .page-header h1 {

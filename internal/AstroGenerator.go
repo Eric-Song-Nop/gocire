@@ -313,6 +313,7 @@ func (g *AstroGenerator) openAstroCodeBlock(sb *strings.Builder, opts AstroPageO
 		codeClass += " language-" + opts.Language
 	}
 
+	sb.WriteString(`<div class="cire-code-block" data-code-block>`)
 	fmt.Fprintf(sb, `<pre class="cire-code"><code class="%s"`, escapeAstroAttribute(codeClass))
 	if opts.Language != "" {
 		fmt.Fprintf(sb, ` data-language="%s"`, escapeAstroAttribute(opts.Language))
@@ -321,7 +322,7 @@ func (g *AstroGenerator) openAstroCodeBlock(sb *strings.Builder, opts AstroPageO
 }
 
 func (g *AstroGenerator) closeAstroCodeBlock(sb *strings.Builder) {
-	sb.WriteString("</code></pre>\n")
+	sb.WriteString("</code></pre></div>\n")
 }
 
 func (g *AstroGenerator) outputAstroGap(start, end scip.Position, sb *strings.Builder) {

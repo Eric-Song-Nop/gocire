@@ -26,6 +26,7 @@ var expectedAstroAssetFiles = []string{
 	"src/components/SidebarBody.astro",
 	"src/components/SidebarItems.astro",
 	"src/styles/global.css",
+	"src/scripts/code-copy.js",
 	"src/scripts/navigation-rail.js",
 	"src/scripts/tooltip.js",
 	"src/scripts/theme.js",
@@ -109,6 +110,7 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		`description = fallbackDescription`,
 		"theme-toggle",
 		"data-theme",
+		"../scripts/code-copy.js",
 		"../scripts/navigation-rail.js",
 		"../scripts/theme.js",
 	} {
@@ -118,6 +120,8 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 
 	codePage := readAstroAssetFile(t, outputDir, "src/components/CodePage.astro")
 	for _, want := range []string{
+		`import Check from "lucide-astro/Check";`,
+		`import Copy from "lucide-astro/Copy";`,
 		"title: string",
 		"kind?: string",
 		"language?: string",
@@ -130,6 +134,8 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"code-page--has-toc",
 		"<NavigationRail",
 		"<slot />",
+		`<template id="gocire-code-copy-icon">`,
+		`<template id="gocire-code-copy-success-icon">`,
 		`<dl class="page-meta">`,
 		"<dt>Date</dt>",
 		"<dt>Author</dt>",
@@ -144,6 +150,30 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		`<dd><code>{sourcePath}</code></dd>`,
 	} {
 		assertAstroAssetNotContains(t, codePage, unwanted)
+	}
+
+	codeCopy := readAstroAssetFile(t, outputDir, "src/scripts/code-copy.js")
+	for _, want := range []string{
+		"[data-code-block]",
+		".page-content .cire-prose > pre, .page-content .cire-prose > .chroma",
+		"wrapProseCodeSurface",
+		"data-code-copy",
+		"Copy code",
+		"Copied",
+		"Copy failed",
+		"navigator.clipboard",
+		"window.isSecureContext",
+		`querySelectorAll("[data-inlay-hint]")`,
+		"hint.remove()",
+		"document.execCommand",
+		"HTMLTemplateElement",
+		"gocire-code-copy-icon",
+		"gocire-code-copy-success-icon",
+		"replaceChildren",
+		"window.setTimeout",
+		"window.clearTimeout",
+	} {
+		assertAstroAssetContains(t, codeCopy, want)
 	}
 
 	tooltip := readAstroAssetFile(t, outputDir, "src/scripts/tooltip.js")
@@ -268,6 +298,20 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 	assertAstroAssetContains(t, globalCSS, ".page-meta")
 	assertAstroAssetContains(t, globalCSS, ".metadata-tags")
 	assertAstroAssetContains(t, globalCSS, ".metadata-tag")
+	for _, want := range []string{
+		".cire-code-block",
+		".cire-code-copy",
+		".cire-code-copy[data-copy-state=\"copied\"]",
+		".cire-code-copy[data-copy-state=\"failed\"]",
+		".cire-prose .cire-code-block > .chroma",
+		"padding-right: 3.75rem",
+		"position: absolute",
+		"top: 9px",
+		"right: 9px",
+		"place-items: center",
+	} {
+		assertAstroAssetContains(t, globalCSS, want)
+	}
 	for _, want := range []string{
 		".code-page--has-toc",
 		".navigation-rail__markers",
