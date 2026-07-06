@@ -2,9 +2,49 @@ const tocLinks = Array.from(document.querySelectorAll("[data-toc-link]"));
 
 if (tocLinks.length > 0) {
   const targetIds = Array.from(new Set(tocLinks.map((link) => link.getAttribute("data-toc-target")).filter(Boolean)));
-  const targets = targetIds.map((id) => document.getElementById(id)).filter(Boolean);
+  const entries = targetIds.map((id) => {
+    const target = document.getElementById(id);
+    if (!target) {
+      return undefined;
+    }
+    const links = tocLinks.filter((link) => link.getAttribute("data-toc-target") === id);
+    const markerItems = links.map((link) => link.closest("[data-toc-marker-item]")).filter(Boolean);
+    return {
+      id,
+      links,
+      markerItems,
+      progress: 0,
+      scrollTarget: 0,
+      target,
+    };
+  }).filter(Boolean);
   let activeId = "";
   let updateFrame;
+
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+  const maxScrollY = () => Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+
+  const documentTop = (element) => element.getBoundingClientRect().top + window.scrollY;
+
+  const scrollMarginTop = (element) => {
+    const value = window.getComputedStyle(element).scrollMarginTop;
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const updateTargetPositions = () => {
+    const maxScroll = maxScrollY();
+    for (const [index, entry] of entries.entries()) {
+      entry.scrollTarget = clamp(documentTop(entry.target) - scrollMarginTop(entry.target), 0, maxScroll);
+      entry.progress = maxScroll > 0
+        ? entry.scrollTarget / maxScroll
+        : entries.length > 1 ? index / (entries.length - 1) : 0;
+      for (const markerItem of entry.markerItems) {
+        markerItem.style.setProperty("--toc-progress", entry.progress.toFixed(4));
+      }
+    }
+  };
 
   const setActive = (id) => {
     if (!id || id === activeId) {
@@ -36,15 +76,15 @@ if (tocLinks.length > 0) {
 
   const updateActiveFromScroll = () => {
     updateFrame = undefined;
-    if (targets.length === 0) {
+    if (entries.length === 0) {
       return;
     }
 
-    const offset = Math.min(160, Math.max(72, window.innerHeight * 0.18));
-    let nextActive = targets[0].id;
-    for (const target of targets) {
-      if (target.getBoundingClientRect().top <= offset) {
-        nextActive = target.id;
+    updateTargetPositions();
+    let nextActive = entries[0].id;
+    for (const entry of entries) {
+      if (window.scrollY + 1 >= entry.scrollTarget) {
+        nextActive = entry.id;
       } else {
         break;
       }
@@ -66,6 +106,7 @@ if (tocLinks.length > 0) {
     scheduleActiveUpdate();
   });
 
-  setActive(activeTargetFromHash() || (targets[0] && targets[0].id));
+  updateTargetPositions();
+  setActive(activeTargetFromHash() || (entries[0] && entries[0].id));
   scheduleActiveUpdate();
 }
