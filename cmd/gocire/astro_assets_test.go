@@ -459,14 +459,16 @@ func TestAstroGlobalCSSIncludesProseMarkdownStyles(t *testing.T) {
 	outputDir := writeAstroAssetsForTest(t, "Markdown Docs")
 
 	globalCSS := readAstroAssetFile(t, outputDir, "src/styles/global.css")
+	codeSurfaceSelector := ":is(.cire-prose > pre, .cire-prose > .chroma, .cire-prose .cire-code-block > pre, .cire-prose .cire-code-block > .chroma, .cire-code, .source-code)"
 	for _, selector := range []string{
 		".cire-prose a",
 		".cire-prose blockquote",
 		".cire-prose table",
 		".cire-prose th",
 		".cire-prose td",
-		".cire-prose pre",
-		".cire-prose .chroma",
+		".cire-prose > :not(pre):not(.chroma):not(.cire-code-block)",
+		".cire-prose > pre",
+		".cire-prose > .chroma",
 		".cire-prose .chroma pre",
 		".cire-prose img",
 		".cire-prose li + li",
@@ -481,9 +483,12 @@ func TestAstroGlobalCSSIncludesProseMarkdownStyles(t *testing.T) {
 		{".cire-prose a", "color: var(--accent)"},
 		{".cire-prose blockquote", "border-left: 3px solid var(--line)"},
 		{".cire-prose", "min-width: 0"},
+		{".cire-prose > :not(pre):not(.chroma):not(.cire-code-block)", "max-width: 760px"},
 		{".cire-prose table", "overflow-x: auto"},
-		{".cire-prose pre", "background: var(--code-bg)"},
-		{".cire-prose .chroma", "overflow-x: auto"},
+		{codeSurfaceSelector, "background: var(--code-bg)"},
+		{codeSurfaceSelector, "box-shadow: 0 18px 44px var(--code-shadow)"},
+		{codeSurfaceSelector, "line-height: 1.7"},
+		{".cire-prose > .chroma", "overflow-x: auto"},
 		{".cire-prose img", "max-width: 100%"},
 	} {
 		ruleBlock := extractAstroCSSRuleBlock(t, globalCSS, check.selector)
