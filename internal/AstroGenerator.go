@@ -59,12 +59,12 @@ func (g *AstroGenerator) GenerateAstro(tokens []TokenInfo, comments []CommentInf
 	author := strings.TrimSpace(opts.Author)
 
 	var body string
+	var toc []AstroTableOfContentsItem
 	if mode == AstroRenderModeSource {
 		body = g.generateSourceAstro(tokens, opts)
 	} else {
-		body = g.generateNarrativeAstro(tokens, comments, opts)
+		body, toc = g.generateNarrativeAstro(tokens, comments, opts)
 	}
-	toc := astroTableOfContentsForComments(comments, mode)
 
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "---\nimport CodePage from %s;\n---\n\n", strconv.Quote(importPath))
@@ -109,32 +109,21 @@ func (g *AstroGenerator) GenerateAstro(tokens []TokenInfo, comments []CommentInf
 	return sb.String()
 }
 
-func astroTableOfContentsForComments(comments []CommentInfo, mode AstroRenderMode) []AstroTableOfContentsItem {
+func astroTableOfContentsForHeadings(headings []MarkdownHeading, mode AstroRenderMode) []AstroTableOfContentsItem {
 	if mode != AstroRenderModeNarrative {
 		return nil
 	}
 
 	items := make([]AstroTableOfContentsItem, 0)
-	titleItems := make([]AstroTableOfContentsItem, 0)
-	for _, comment := range comments {
-		for _, heading := range ExtractMarkdownHeadings(comment.Content) {
-			if heading.Level < 1 || heading.Level > 4 {
-				continue
-			}
-			item := AstroTableOfContentsItem{
-				Level: heading.Level,
-				ID:    heading.ID,
-				Title: heading.Title,
-			}
-			if heading.Level == 1 {
-				titleItems = append(titleItems, item)
-				continue
-			}
-			items = append(items, item)
+	for _, heading := range headings {
+		if heading.Level < 1 || heading.Level > 4 {
+			continue
 		}
-	}
-	if len(items) == 0 {
-		return titleItems
+		items = append(items, AstroTableOfContentsItem{
+			Level: heading.Level,
+			ID:    heading.ID,
+			Title: heading.Title,
+		})
 	}
 	return items
 }
@@ -199,13 +188,14 @@ func (g *AstroGenerator) generateSourceAstro(tokens []TokenInfo, opts AstroPageO
 	return sb.String()
 }
 
-func (g *AstroGenerator) generateNarrativeAstro(tokens []TokenInfo, comments []CommentInfo, opts AstroPageOptions) string {
+func (g *AstroGenerator) generateNarrativeAstro(tokens []TokenInfo, comments []CommentInfo, opts AstroPageOptions) (string, []AstroTableOfContentsItem) {
 	var sb strings.Builder
 	fileEndPos := g.fileEndPosition()
 	currentPos := scip.Position{Line: 0, Character: 0}
 	tokenIdx := 0
 	commentIdx := 0
 	inCodeBlock := false
+	markdownRenderer := NewMarkdownPageRenderer()
 
 	nextTokenStart := func() scip.Position {
 		if tokenIdx < len(tokens) {
@@ -261,7 +251,7 @@ func (g *AstroGenerator) generateNarrativeAstro(tokens []TokenInfo, comments []C
 				inCodeBlock = false
 			}
 			sb.WriteString(`<div class="cire-prose">`)
-			sb.WriteString(escapeAstroTemplate(RenderMarkdown(comment.Content)))
+			sb.WriteString(escapeAstroTemplate(markdownRenderer.RenderFragment(comment.Content)))
 			sb.WriteString("</div>\n")
 
 			currentPos = comment.Span.End
@@ -290,7 +280,7 @@ func (g *AstroGenerator) generateNarrativeAstro(tokens []TokenInfo, comments []C
 		g.closeAstroCodeBlock(&sb)
 	}
 
-	return sb.String()
+	return sb.String(), astroTableOfContentsForHeadings(markdownRenderer.Headings(), AstroRenderModeNarrative)
 }
 
 func (g *AstroGenerator) generateAstroCode(tokens []TokenInfo) string {
