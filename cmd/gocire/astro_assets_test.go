@@ -251,7 +251,6 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"data-toc-rail",
 		"data-toc-link",
 		"data-toc-target",
-		"data-toc-marker-item",
 		"navigation-rail__markers",
 		"navigation-rail__marker",
 		"navigation-rail__tick",
@@ -264,6 +263,7 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		assertAstroAssetContains(t, navigationRail, want)
 	}
 	for _, unwanted := range []string{
+		"data-toc-marker-item",
 		`import ListTree from "lucide-astro/ListTree";`,
 		"navigation-rail-mobile",
 		"data-toc-mobile",
@@ -280,8 +280,7 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"requestAnimationFrame",
 		"getBoundingClientRect",
 		"scrollMarginTop",
-		"updateTargetPositions",
-		`style.setProperty("--toc-progress"`,
+		"targetScrollTop",
 		"document.documentElement.scrollHeight - window.innerHeight",
 		"hashchange",
 	} {
@@ -289,6 +288,9 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 	}
 	for _, unwanted := range []string{
 		"[data-toc-mobile]",
+		"[data-toc-marker-item]",
+		"--toc-progress",
+		"updateTargetPositions",
 		"Escape",
 		`removeAttribute("open")`,
 	} {
@@ -326,10 +328,10 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 		"grid-template-columns: minmax(160px, 220px) minmax(0, 1fr)",
 		"top: 50%",
 		"right: max(12px, env(safe-area-inset-right))",
-		"height: min(72dvh, 520px)",
+		"max-height: min(72dvh, 520px)",
 		"justify-items: end",
+		"gap: 8px",
 		"place-items: center end",
-		"top: calc(var(--toc-progress, 0) * 100%)",
 		"transform-origin: right center",
 		"width: 12px",
 		"width: 24px",
@@ -344,7 +346,34 @@ func TestWriteAstroSiteAssetsWritesExpectedFiles(t *testing.T) {
 	} {
 		assertAstroAssetContains(t, globalCSS, want)
 	}
+
+	navigationRailRule := extractAstroCSSRuleBlock(t, globalCSS, ".navigation-rail")
+	if strings.Contains(navigationRailRule, "\n  height: min(72dvh, 520px);") {
+		t.Fatal("navigation rail should remain content-height and vertically centered, not stretch to viewport height")
+	}
+	navigationRailMarkersRule := extractAstroCSSRuleBlock(t, globalCSS, ".navigation-rail__markers")
+	for _, want := range []string{
+		"display: grid",
+		"justify-items: end",
+		"gap: 8px",
+	} {
+		if !strings.Contains(navigationRailMarkersRule, want) {
+			t.Fatalf("navigation rail markers should contain %q", want)
+		}
+	}
+	navigationRailMarkerItemRule := extractAstroCSSRuleBlock(t, globalCSS, ".navigation-rail__marker-item")
 	for _, unwanted := range []string{
+		"position: absolute",
+		"--toc-progress",
+		"transform: translateY(-50%)",
+	} {
+		if strings.Contains(navigationRailMarkerItemRule, unwanted) {
+			t.Fatalf("navigation rail marker items should not contain %q", unwanted)
+		}
+	}
+
+	for _, unwanted := range []string{
+		"top: calc(var(--toc-progress, 0) * 100%)",
 		".navigation-rail-mobile",
 		".navigation-rail--desktop",
 		".navigation-rail__marker--level-1 .navigation-rail__tick",

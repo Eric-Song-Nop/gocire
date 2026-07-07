@@ -7,14 +7,8 @@ if (tocLinks.length > 0) {
     if (!target) {
       return undefined;
     }
-    const links = tocLinks.filter((link) => link.getAttribute("data-toc-target") === id);
-    const markerItems = links.map((link) => link.closest("[data-toc-marker-item]")).filter(Boolean);
     return {
       id,
-      links,
-      markerItems,
-      progress: 0,
-      scrollTarget: 0,
       target,
     };
   }).filter(Boolean);
@@ -33,18 +27,7 @@ if (tocLinks.length > 0) {
     return Number.isFinite(parsed) ? parsed : 0;
   };
 
-  const updateTargetPositions = () => {
-    const maxScroll = maxScrollY();
-    for (const [index, entry] of entries.entries()) {
-      entry.scrollTarget = clamp(documentTop(entry.target) - scrollMarginTop(entry.target), 0, maxScroll);
-      entry.progress = maxScroll > 0
-        ? entry.scrollTarget / maxScroll
-        : entries.length > 1 ? index / (entries.length - 1) : 0;
-      for (const markerItem of entry.markerItems) {
-        markerItem.style.setProperty("--toc-progress", entry.progress.toFixed(4));
-      }
-    }
-  };
+  const targetScrollTop = (element, maxScroll) => clamp(documentTop(element) - scrollMarginTop(element), 0, maxScroll);
 
   const setActive = (id) => {
     if (!id || id === activeId) {
@@ -80,10 +63,10 @@ if (tocLinks.length > 0) {
       return;
     }
 
-    updateTargetPositions();
+    const maxScroll = maxScrollY();
     let nextActive = entries[0].id;
     for (const entry of entries) {
-      if (window.scrollY + 1 >= entry.scrollTarget) {
+      if (window.scrollY + 1 >= targetScrollTop(entry.target, maxScroll)) {
         nextActive = entry.id;
       } else {
         break;
@@ -106,7 +89,6 @@ if (tocLinks.length > 0) {
     scheduleActiveUpdate();
   });
 
-  updateTargetPositions();
   setActive(activeTargetFromHash() || (entries[0] && entries[0].id));
   scheduleActiveUpdate();
 }
